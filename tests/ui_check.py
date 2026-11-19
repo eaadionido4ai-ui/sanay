@@ -111,6 +111,14 @@ def read_qr(pg, selector):
         return r ? r.data : null; }''', selector)
 
 
+def open_scanner(pg, pin='246810'):
+    pg.click('#openScanner')
+    pg.wait_for_selector('#scPinForm:not([hidden])')
+    pg.fill('#scPin', pin)
+    pg.click('#scPinGo')
+    pg.wait_for_selector('#scMain:not([hidden])')
+
+
 def no_overflow(pg, label):
     sw, iw = pg.evaluate('[document.documentElement.scrollWidth, window.innerWidth]')
     check(sw <= iw, '%s: no sideways scroll (%d <= %d)' % (label, sw, iw))
@@ -200,29 +208,19 @@ with sync_playwright() as p:
 
     pg.click('#regDone [data-home]')
     go(pg, 'attendance')
+    check(pg.is_visible('#ciDoor') and pg.is_hidden('#ciKey'), 'face-to-face training: no code box, only "show your QR code at the venue", so nobody checks in from home')
     check(pg.is_visible('#ciRegister') and pg.inner_text('#ciRegister') == 'Walk-in registration', 'attendance shows a walk-in button')
     pg.click('#ciRegister')
-    check('Walk-in' in pg.inner_text('#regLead'), 'the walk-in button opens the walk-in form')
-    pg.click('#view-register [data-home] >> nth=0')
-    go(pg, 'attendance')
-    pg.fill('#ciKey', 'K7Q2M'); pg.click('#ciSubmit')
-    pg.wait_for_selector('#ciResult .result')
-    check("You're checked in" in pg.inner_text('#ciResult'), 'check-in with a code works')
-    check(read_qr(pg, '#ciResult img.qr') == 'SANAY:K7Q2M', 'and shows their QR code for next time')
-    pg.fill('#ciKey', 'k7q2m'); pg.click('#ciSubmit')
-    pg.wait_for_function('document.querySelector("#ciResult").innerText.includes("Already")')
-    check(True, 'second check-in the same day says already checked in')
-    pg.fill('#ciKey', 'ZZZZZ'); pg.click('#ciSubmit')
-    pg.wait_for_function('document.querySelector("#ciResult").innerText.includes("couldn")')
-    pg.click('[data-walkin]')
-    check('Walk-in' in pg.inner_text('#regLead'), 'walk-in registration opens with today\'s training')
+    check('show your QR code at the door' in pg.inner_text('#regLead'), 'a walk-in on their own phone is told to show their QR code at the door')
     pg.fill('#firstName', 'Noel'); pg.fill('#lastName', 'Galang'); pg.fill('#agency', 'Malaya City Fire Station'); pg.fill('#email', 'noel.walkin@example.com')
     pg.click('label[for="gadYes"]'); pg.click('label[for="sex-Male"]'); pg.click('label[for="age_range-2559"]'); pg.click('label[for="pwd-No"]'); pg.click('label[for="indigenous_people-No"]')
     pg.click('label[for="photo_consent-Yes"]'); pg.click('label[for="recording_consent-Yes"]'); pg.click('label[for="impact_consent-Yes"]')
     pg.click('#regSubmit')
     pg.wait_for_selector('#regDone:not([hidden])')
-    check(pg.inner_text('#doneTitle') == "You're registered and checked in", 'walk-in is registered and checked in at once')
-    check(pg.is_hidden('#doneCheckIn'), 'no extra check-in button after a walk-in')
+    wcode = pg.inner_text('#doneCode')
+    check(pg.inner_text('#doneTitle') == "You're registered" and 'Show your QR code at the door' in pg.inner_text('#doneLead') and pg.is_hidden('#doneCheckIn'),
+          'the walk-in is registered but not checked in until their QR code is scanned at the venue')
+    check(read_qr(pg, '#doneQr') == 'SANAY:' + wcode, 'and gets the QR code to show')
 
     pg.click('#regDone [data-home]')
     go(pg, 'evaluation')
@@ -293,6 +291,12 @@ with sync_playwright() as p:
     ctx, pg, errors = open_page(browser, 390, 844, dsf=2)
     route_jsqr(pg)
     pg.click('#openScanner')
+    pg.wait_for_selector('#scPinForm:not([hidden])')
+    check(pg.is_hidden('#scMain'), 'the scanner link alone shows nothing: it asks for the PIN')
+    pg.fill('#scPin', '135790'); pg.click('#scPinGo')
+    pg.wait_for_function('!document.querySelector("#scPinErr").hidden')
+    check('Wrong scanner PIN' in pg.inner_text('#scPinErr') and pg.is_hidden('#scMain'), 'a wrong PIN keeps it shut')
+    pg.fill('#scPin', '246810'); pg.click('#scPinGo')
     pg.wait_for_selector('#scMain:not([hidden])')
     check('Batch 4' in pg.inner_text('#scTitle') and 'Day 2 of 3' in pg.inner_text('#scLead'), 'scanner opens on the training happening today: ' + pg.inner_text('#scLead'))
     n0 = int(pg.inner_text('#scIn'))
@@ -351,6 +355,22 @@ with sync_playwright() as p:
     pg.click('#scMain .seg [data-mode="list"]')
     pg.fill('#scSearch', 'Benjie Villanueva')
     check('In ·' in pg.inner_text('#scPeople'), 'and reaches the Sheet, checked in, when the signal is back')
+    # a check-in station at the entrance: participants scan their own QR codes
+    pg.click('#scMain .seg [data-mode="scan"]')
+    pg.click('#scStation')
+    check(pg.evaluate("document.querySelector('#view-scan').classList.contains('station')") and pg.is_hidden('#scMain .seg') and pg.is_hidden('#scRecent')
+          and pg.is_hidden('#scAdd') and pg.is_hidden('#scType') and pg.is_visible('#scStationHead'),
+          'check-in station: only the camera and each result; no list, no latest names, no typing, no Add a device')
+    pg.click('#scDemoCodes [data-scan] >> nth=2')
+    pg.wait_for_function('(document.querySelector("#scResult .st") || {}).textContent && document.querySelector("#scResult .st").textContent.startsWith("You")')
+    check(True, 'a participant scanning their own QR code sees: ' + pg.inner_text('#scResult .st'))
+    pg.screenshot(path=str(OUT / '15b-phone-check-in-station.png'), full_page=True)
+    pg.click('#scExitBtn'); pg.fill('#scExitPin', '000000'); pg.press('#scExitPin', 'Enter')
+    check(pg.evaluate("document.querySelector('#view-scan').classList.contains('station')"), 'leaving the station needs the PIN')
+    pg.fill('#scExitPin', '246810'); pg.press('#scExitPin', 'Enter')
+    check(not pg.evaluate("document.querySelector('#view-scan').classList.contains('station')") and pg.is_visible('#scMain .seg'), 'the right PIN brings back the organizer view')
+    pg.click('#scCamOff') if pg.is_visible('#scCamOff') else None
+
     # no signal across days: the scanner keeps track of the date on its own
     pg.click('#scMain .seg [data-mode="scan"]')
     pg.click('#scSignal')
@@ -389,8 +409,7 @@ with sync_playwright() as p:
     cam_browser = p.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-file-for-fake-video-capture=' + str(cam)])
     ctx, pg, errors = open_page(cam_browser, 390, 844)
     route_jsqr(pg)
-    pg.click('#openScanner')
-    pg.wait_for_selector('#scMain:not([hidden])')
+    open_scanner(pg)
     pg.click('#scStart')
     try:
         pg.wait_for_function('(document.querySelector("#scResult .nm") || {}).textContent === "Ana L. Reyes"', timeout=20000)
@@ -404,8 +423,7 @@ with sync_playwright() as p:
     cam_browser.close()
 
     ctx, pg, errors = open_page(browser, 1360, 900, dsf=1)
-    pg.click('#openScanner')
-    pg.wait_for_selector('#scMain:not([hidden])')
+    open_scanner(pg)
     pg.click('#scDemoCodes [data-scan] >> nth=0')
     pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")')
     pg.screenshot(path=str(OUT / '17-desktop-scanner.png'))

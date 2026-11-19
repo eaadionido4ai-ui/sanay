@@ -206,6 +206,17 @@ body[data-view="scan"] .shell { max-width: 560px; }
 .sc-add { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 .sc-add .hint { flex: 1 1 200px; min-width: 0; }
 .sc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sc-pin { display: grid; gap: 14px; margin-top: 8px; }
+.sc-pin input { max-width: 12ch; font-family: var(--mono); font-size: 24px; letter-spacing: 0.3em; text-align: center; }
+.sc-station-head { display: none; }
+.sc-exit { display: none; }
+#view-scan.station .seg, #view-scan.station .sc-count, #view-scan.station #scType, #view-scan.station .sc-h,
+#view-scan.station #scRecent, #view-scan.station .sc-foot, #view-scan.station .view-head .lead { display: none; }
+#view-scan.station .sc-station-head { display: block; margin-top: 4px; font-family: var(--display); font-size: clamp(24px, 6vw, 32px); font-weight: 600; line-height: 1.15; text-wrap: balance; }
+#view-scan.station .sc-res .nm { font-size: clamp(30px, 8vw, 40px); }
+#view-scan.station .sc-exit { display: grid; justify-items: center; gap: 10px; margin-top: 22px; }
+.sc-exit-form { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.sc-exit-form input { width: 10ch; font-family: var(--mono); letter-spacing: 0.25em; text-align: center; }
 .sc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px 4px 4px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); font-size: 13px; font-weight: 600; }
 .sc-chip svg { width: 28px; height: 28px; }
 
@@ -838,16 +849,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <h2 class="title" id="ciTitle" tabindex="-1">Attendance</h2>
           <p class="lead" id="ciLead">Check in once each training day.</p>
         </header>
-        <div class="walkin-card" id="ciDoor" hidden>
-          <p class="walkin-title">Check in at the door</p>
-          <p class="hint">Show the QR code you got when you registered. The organizers scan it. Lost it? Tell them your name.</p>
-        </div>
         <form class="form" id="ciForm" novalidate>
           <div class="group">
             <div class="field"><label for="ciTraining">Training</label><div class="select"><select id="ciTraining"></select></div></div>
-            <div class="field"><label for="ciKey">Registration code or email</label><input type="text" id="ciKey" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="ciHint"><p class="hint" id="ciHint">The 5-character code you got when you registered, or the email you used.</p></div>
-            <p class="err-box" id="ciError" role="alert" hidden></p>
-            <button type="submit" class="btn-primary" id="ciSubmit">Check in</button>
+            <div class="walkin-card" id="ciDoor" hidden>
+              <p class="walkin-title">Check in at the venue</p>
+              <p class="hint">Show the QR code you got when you registered, to the organizers at the door or at the check-in station. Lost it? Tell the organizers your name.</p>
+            </div>
+            <div id="ciSelf" class="group">
+              <div class="field"><label for="ciKey">Registration code or email</label><input type="text" id="ciKey" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="ciHint"><p class="hint" id="ciHint">The 5-character code you got when you registered, or the email you used.</p></div>
+              <p class="err-box" id="ciError" role="alert" hidden></p>
+              <button type="submit" class="btn-primary" id="ciSubmit">Check in</button>
+            </div>
           </div>
         </form>
         <div id="ciResult" aria-live="polite"></div>
@@ -1033,7 +1046,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <h2 class="title" id="scTitle" tabindex="-1">Opening the scanner…</h2>
           <p class="lead" id="scLead"></p>
         </header>
+        <form class="sc-pin" id="scPinForm" novalidate hidden>
+          <p>Enter the scanner PIN. The data steward sees it in the Google Sheet, in the scanner dialog. Each device asks for it once, while it has signal.</p>
+          <div class="field"><label for="scPin">Scanner PIN</label><input type="text" id="scPin" inputmode="numeric" autocomplete="off" maxlength="6" spellcheck="false"></div>
+          <p class="err-box" id="scPinErr" role="alert" hidden></p>
+          <button type="submit" class="btn-primary" id="scPinGo">Open the scanner</button>
+          <p class="demo-note" id="scPinDemo" hidden>Preview: the PIN is 246810.</p>
+        </form>
         <div id="scMain" hidden>
+          <p class="sc-station-head" id="scStationHead">Hold your QR code up to the camera</p>
           <div class="sc-count"><p><b id="scIn">0</b> of <span id="scOf">0</span> checked in today</p><div class="sc-bar"><i id="scBar" style="width:0"></i></div></div>
           <div class="seg" role="group" aria-label="Scanner">
             <button type="button" data-mode="scan" aria-pressed="true">Scan</button>
@@ -1068,11 +1089,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             <p class="hint" id="scListSum" style="margin-top:8px"></p>
             <ul class="sc-list" id="scPeople"></ul>
           </div>
+          <div class="sc-exit">
+            <button type="button" class="link-btn" id="scExitBtn">Organizers</button>
+            <form class="sc-exit-form" id="scExitForm" novalidate hidden>
+              <label class="sr-only" for="scExitPin">Scanner PIN</label>
+              <input type="text" id="scExitPin" inputmode="numeric" autocomplete="off" maxlength="6" placeholder="PIN">
+              <button type="submit" class="btn-quiet">Leave station</button>
+            </form>
+          </div>
           <div class="sc-foot">
+            <button type="button" class="btn-quiet" id="scStation">Make this a check-in station</button>
+            <p class="hint" style="margin-top:-4px">For a phone or tablet at the entrance where participants scan their own QR codes. It shows only the camera and each person's result; leaving it needs the PIN, even with no signal.</p>
             <button type="button" class="btn-quiet" id="scAdd" aria-expanded="false">Add a device</button>
             <div class="sc-add" id="scAddBox" hidden>
               <div id="scAddQr"></div>
-              <p class="hint">Scan this with the camera of another phone or tablet to open the same scanner there. Every device saves to the same Sheet. Share it only with the door staff.</p>
+              <p class="hint">Scan this with the camera of another phone or tablet to open the same scanner there, then enter the PIN. Every device saves to the same Sheet.</p>
             </div>
           </div>
         </div>
@@ -1575,6 +1606,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     // The door scanner in the preview works on ICS-4, the training happening now.
     var scanSeen = {};
+    function demoPin(d) { if (String(d.pin || '') !== '246810') throw new Error('Wrong scanner PIN. The data steward sees it in the Google Sheet, in the scanner dialog.'); }
     function scanState(withRoster) {
       var t = training('ICS-4'), regs = db.registrations.filter(function (r) { return r.training_id === t.training_id; }), first = {};
       db.attendance.forEach(function (a) {
@@ -1608,8 +1640,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     return {
       db: db, today: today, counts: counts, list: list,
-      getScanner: function () { return scanState(true); },
+      getScanner: function (d) { demoPin(d); return scanState(true); },
       scanSync: function (d) {
+        demoPin(d);
         var t = training('ICS-4'), results = [];
         (d.items || []).forEach(function (it) {
           if (scanSeen[it.id]) { results.push(scanSeen[it.id]); return; }
@@ -1629,6 +1662,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return st;
       },
       scanWalkIn: function (d) {
+        demoPin(d);
         if (scanSeen[d.id]) return scanSeen[d.id];
         var t = training('ICS-4'), f = d.form || {}, ms = Math.min(Number(d.at) || Date.now(), Date.now());
         if (!f.first_name || !f.last_name || !f.agency || !EMAIL_RE.test(f.email || '') || !f.gad_consent || !f.photo_consent || !f.recording_consent || !f.impact_consent) {
@@ -1650,7 +1684,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         return out;
       },
       getAppData: function () {
-        return { today: today, evaluationDaysAfter: 14, selfCheckIn: true, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
+        return { today: today, evaluationDaysAfter: 14, selfCheckIn: 'online', privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
           requestPrivacy: REQUEST_PRIVACY_TEXT, requestTopics: DEFAULT_TOPICS, partnershipTypes: PARTNER_TYPES, organizationTypes: ORG_TYPES,
           partnershipPrivacy: PARTNER_PRIVACY_TEXT, evaluationScale: EVAL_SCALE, evaluationItems: EVAL_ITEMS, trainings: list() };
       },
@@ -1703,12 +1737,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
           S.flash = { tab: 'Registrations', id: r.reg_code };
           res = { already: false, code: r.reg_code, name: r.full_name, training: t, stamp: r.timestamp };
         }
-        if (walkIn) res.checkIn = checkInNow(t, findReg(t.id, res.code), 'Walk-in');
+        if (walkIn && t.mode === 'Online') res.checkIn = checkInNow(t, findReg(t.id, res.code), 'Walk-in');
+        else if (walkIn) res.atDoor = true;
         return res;
       },
       checkIn: function (d) {
         var t = list().filter(function (x) { return x.id === d.training_id; })[0];
         if (!t || !t.happening) throw new Error('Check-in is open only on the training days.');
+        if (t.mode !== 'Online') throw new Error('Check-in for this training is at the door: show your QR code to the organizers.');
         var r = findReg(d.training_id, d.key);
         if (!r) return { status: 'not-found' };
         return checkInNow(t, r, String(d.key).indexOf('@') > -1 ? 'Email' : 'Code');
@@ -1891,9 +1927,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var today = S.data.trainings.filter(function (t) { return t.happening; }).sort(byStart);
       sel.innerHTML = today.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.title + ' · today') + '</option>'; }).join('');
       sel.value = today.some(function (t) { return t.id === S.walkIn; }) ? S.walkIn : (today[0] ? today[0].id : '');
-      $('#regLead').textContent = S.data.selfCheckIn === false
-        ? 'Walk-in registration. When you submit, show your QR code at the door to check in.'
-        : 'Walk-in registration. When you submit, you are also checked in for today.';
+      $('#regLead').textContent = selfOK(trainingById(sel.value))
+        ? 'Walk-in registration. When you submit, you are also checked in for today.'
+        : 'Walk-in registration. When you submit, show your QR code at the door to check in.';
     } else {
       var list = S.data.trainings.filter(function (t) { return t.listed; });
       var open = list.filter(function (t) { return t.state === 'open'; }).sort(byStart);
@@ -1922,23 +1958,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<p class="t-meta">' + esc(seats) + '</p><div class="badges">' + badges.join('') + '</div>';
     box.hidden = false;
   }
+  /* Self check-in by code or email: see selfCheckIn in Code.gs. By default only for online trainings,
+     so nobody can check in to a face-to-face training from home. */
+  function selfOK(t) { var s = S.data.selfCheckIn; return !!t && (s === true || (s === 'online' && t.mode === 'Online')); }
+  function ciMode() {
+    var t = trainingById($('#ciTraining').value), self = selfOK(t);
+    $('#ciSelf').hidden = !t || !self;
+    $('#ciDoor').hidden = !t || self;
+    $('#ciWalkinHint').textContent = !t || self ? "Fill in the attendance form as a walk-in. You're checked in as soon as you submit."
+      : 'Fill in the attendance form as a walk-in, then show your QR code at the door.';
+  }
   function fillAttendance() {
     var list = S.data.trainings.filter(function (t) { return t.happening; }).sort(byStart);
     var sel = $('#ciTraining'), keep = sel.value || S.params.t || '';
     $('#ciLead').textContent = list.length ? 'Check in once each training day. Today is ' + fmtLong(S.today) + '.' : 'Check in once each training day.';
-    var self = S.data.selfCheckIn !== false;
     $('#ciEmpty').hidden = list.length > 0;
-    $('#ciForm').hidden = list.length === 0 || !self;
-    $('#ciDoor').hidden = list.length === 0 || self;
+    $('#ciForm').hidden = list.length === 0;
     $('#ciWalkin').hidden = list.length === 0;
-    $('#ciWalkinHint').textContent = self ? "Fill in the attendance form as a walk-in. You're checked in as soon as you submit."
-      : 'Fill in the attendance form as a walk-in, then show your QR code at the door.';
     sel.innerHTML = (list.length > 1 ? '<option value="" disabled>Choose your training</option>' : '') + list.map(function (t) {
       return '<option value="' + esc(t.id) + '">' + esc(t.title + ' · Day ' + dayNumber(t.start, S.today) + ' of ' + dayNumber(t.start, t.end)) + '</option>';
     }).join('');
     if (list.some(function (t) { return t.id === keep; })) sel.value = keep;
     else if (list.length > 1) sel.value = '';
-    $('#ciHint').textContent = 'The 5-character code you got when you registered, or the email you used.' + (LIVE ? '' : ' Preview: try K7Q2M.');
+    $('#ciHint').textContent = 'The 5-character code you got when you registered, or the email you used.';
+    ciMode();
   }
   function fillEvaluation() {
     var list = S.data.trainings.filter(function (t) { return t.evalOpen; }).sort(byEndDesc);
@@ -2079,7 +2122,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div><dt>Submitted</dt><dd>' + esc(fmtStamp(res.stamp)) + '</dd></div>';
     if (ci) facts += '<div><dt>Checked in</dt><dd>' + esc(ci.time + ' · Day ' + ci.day + ' of ' + ci.days) + '</dd></div>';
     $('#doneFacts').innerHTML = facts;
-    $('#doneCheckIn').hidden = !t.happening || !!ci || S.data.selfCheckIn === false;
+    $('#doneCheckIn').hidden = !t.happening || !!ci || !selfOK(t);
     $('#regDemoNote').hidden = LIVE || res.already;
     $('#regFormWrap').hidden = true;
     $('#regDone').hidden = false;
@@ -2480,7 +2523,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var SC = {
     started: false, key: '', link: '', state: null, roster: {}, inToday: {}, queue: [], recent: [], shown: null, waiters: {},
     offset: 0, busy: false, seq: 0, timer: null, fails: 0, syncedAt: 0, rosterAt: 0, offline: false, inDay: '',
-    mode: 'scan', stream: null, decode: null, looping: false, lastCode: '', lastAt: 0, audio: null, confirm: '', confirmTimer: null
+    mode: 'scan', stream: null, decode: null, looping: false, lastCode: '', lastAt: 0, audio: null, confirm: '', confirmTimer: null,
+    pin: '', pinOk: false, station: false, clearTimer: null
   };
   var JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
   var JSQR_SRI = 'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx';
@@ -2501,6 +2545,29 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
   function isNetErr(e) { return /network|http 0|connection|timed? ?out|failed to fetch|offline|load failed/i.test((e && e.message) || String(e || '')); }
   function isGone(e) { return /scanner link has expired|open the check-in scanner/i.test((e && e.message) || ''); }
+  function isPinErr(e) { return /wrong scanner pin|too many wrong pins/i.test((e && e.message) || ''); }
+  function scAskPin(msg) {
+    clearTimeout(SC.timer);
+    scStopCamera();
+    $('#scMain').hidden = true;
+    $('#scPinForm').hidden = false;
+    $('#scPinDemo').hidden = LIVE;
+    $('#scTitle').textContent = 'Check-in scanner';
+    $('#scLead').textContent = '';
+    $('#scPinErr').textContent = msg || '';
+    $('#scPinErr').hidden = !msg;
+    $('#scPinGo').disabled = false;
+    $('#scPin').focus();
+  }
+  function scPinSubmit(e) {
+    e.preventDefault();
+    var v = $('#scPin').value.replace(/\D/g, '');
+    if (v.length !== 6) { scAskPin('Enter the 6-digit PIN.'); return; }
+    SC.pin = v;
+    $('#scPinGo').disabled = true;
+    $('#scPinErr').hidden = true;
+    scSync(true);
+  }
   function scCode(raw) {
     var s = String(raw || '').trim().toUpperCase();
     if (s.indexOf(QR_PREFIX) === 0) s = s.slice(QR_PREFIX.length);
@@ -2534,7 +2601,13 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     SC.key = LIVE ? String(S.params.k || '').replace(/[^0-9a-f]/gi, '') : 'preview';
     $('#scDemo').hidden = LIVE;
     if (!SC.key) { scLock('Open the scanner from the Google Sheet: ' + BRAND.name + ' › Open the check-in scanner.'); return; }
+    window.addEventListener('online', function () { if (S.view === 'scan' && SC.pinOk) scSync(true); });
+    window.addEventListener('offline', function () { scNet(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && SC.started && SC.pinOk) scSync(true); });
     SC.queue = scKeep('queue') || [];
+    SC.pin = scKeep('pin') || '';
+    SC.pinOk = !!SC.pin;
+    if (!SC.pin) { scAskPin(''); return; }   // the link alone is not enough
     var saved = scKeep('state');
     if (saved && saved.state) {
       SC.link = saved.link || '';
@@ -2542,10 +2615,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       scApply({ training: saved.state.training, today: saved.state.today, trainingDay: saved.state.trainingDay, day: saved.state.day, days: saved.state.days,
         registered: saved.state.registered, checkedIn: saved.state.checkedIn, roster: saved.roster }, true, true);
       scRender();
+      if (scKeep('station')) scStationOn(false);
     }
-    window.addEventListener('online', function () { if (S.view === 'scan') scSync(true); });
-    window.addEventListener('offline', function () { scNet(); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && SC.started) scSync(true); });
     scSync(true);
   }
   function scLock(msg) {
@@ -2571,7 +2642,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var dog = setTimeout(function () { if (seq === SC.seq && SC.busy) { SC.seq++; SC.busy = false; scFailed(); } }, 25000);
     function settle() { clearTimeout(dog); SC.busy = false; }
     if (first && first.kind === 'walkin') {
-      call('scanWalkIn', { key: SC.key, id: first.id, form: first.form, at: first.at }).then(function (res) {
+      call('scanWalkIn', { key: SC.key, pin: SC.pin, id: first.id, form: first.form, at: first.at }).then(function (res) {
         if (seq !== SC.seq) return;
         settle();
         SC.fails = 0; SC.offline = false;
@@ -2582,6 +2653,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (seq !== SC.seq) return;
         settle();
         if (isGone(e)) { scLock(e.message); return; }
+        if (isPinErr(e)) { scAskPin(e.message); return; }
         if (isNetErr(e)) { scFailed(); return; }
         scDrop(first.id);
         scWalkInFailed(first, e.message);
@@ -2594,10 +2666,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var q = SC.queue[i];
       items.push({ id: q.id, code: q.code, at: q.at, how: q.how });
     }
-    call(SC.state ? 'scanSync' : 'getScanner', { key: SC.key, items: items, roster: wantRoster }).then(function (st) {
+    call(SC.state ? 'scanSync' : 'getScanner', { key: SC.key, pin: SC.pin, items: items, roster: wantRoster }).then(function (st) {
       if (seq !== SC.seq) return;
       settle();
       SC.fails = 0; SC.offline = false;
+      if (!SC.pinOk) { SC.pinOk = true; scKeep('pin', SC.pin); $('#scPinForm').hidden = true; $('#scPin').value = ''; }
+      if (scKeep('station') && !SC.station) scStationOn(false);
       if (st.link) SC.link = st.link;
       scApply(st, !!st.roster);
       (st.results || []).forEach(function (r) { scDrop(r.id); scResult(r); });
@@ -2607,6 +2681,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }).catch(function (e) {
       if (seq !== SC.seq) return;
       settle();
+      if (isPinErr(e)) { SC.pin = ''; SC.pinOk = false; scKeep('pin', ''); scAskPin(e.message); return; }
+      if (!SC.pinOk) { scAskPin(isNetErr(e) ? 'No signal. The PIN is checked online the first time: try again where there is signal.' : e.message); return; }
       if (isGone(e) || (!SC.state && !isNetErr(e))) { scLock(e.message); return; }
       scFailed();
     });
@@ -2692,8 +2768,47 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     scRender();
     scSync(true);
   }
+  /* Check-in station: a phone or tablet at the entrance where participants scan their own QR codes.
+     It shows only the camera and each person's result; leaving it needs the PIN (checked on the device, so it works offline). */
+  function scStationOn(startCamera) {
+    SC.station = true;
+    scKeep('station', true);
+    scMode('scan');
+    $('#view-scan').classList.add('station');
+    $('#scResult').innerHTML = '';
+    $('#scExitForm').hidden = true;
+    $('#scExitBtn').hidden = false;
+    if (startCamera) scCamera();
+  }
+  function scStationOff(e) {
+    e.preventDefault();
+    var v = $('#scExitPin').value.replace(/\D/g, '');
+    $('#scExitPin').value = '';
+    if (v !== SC.pin) { $('#scExitPin').placeholder = 'Wrong PIN'; $('#scExitPin').focus(); return; }
+    SC.station = false;
+    scKeep('station', false);
+    $('#view-scan').classList.remove('station');
+    $('#scExitForm').hidden = true;
+    $('#scExitBtn').hidden = false;
+    $('#scExitPin').placeholder = 'PIN';
+    scRender();
+  }
   function scShow(rec, fresh) {
     SC.shown = rec;
+    clearTimeout(SC.clearTimer);
+    if (SC.station) {   // the next person shouldn't see the last one's name for long
+      SC.clearTimer = setTimeout(function () { if (SC.shown === rec) $('#scResult').innerHTML = ''; }, 7000);
+      var say = {
+        ok: "You're checked in · " + rec.time, dup: "You're already checked in, since " + rec.time, wait: SC.offline ? 'Saved' : 'Checking your QR code…',
+        'not-found': "We can't find this QR code", 'other-training': 'This QR code is for another training',
+        'not-a-training-day': "Check-in isn't open today", 'not-sanay': "That isn't a check-in QR code", error: 'Not saved'
+      }[rec.status] || rec.status;
+      var help = rec.status === 'ok' || rec.status === 'dup' ? rec.agency : rec.status === 'wait' && SC.offline ? "If your name doesn't appear, please see the organizers." : 'Please see the organizers.';
+      var kind = { ok: 'ok', dup: '', wait: '', 'not-a-training-day': 'warn' }[rec.status];
+      $('#scResult').innerHTML = '<div class="sc-res ' + (kind === undefined ? 'bad' : kind) + '"><p class="st">' + esc(say) + '</p>' +
+        (rec.name ? '<p class="nm">' + esc(rec.name) + '</p>' : '') + (help ? '<p class="ag">' + esc(help) + '</p>' : '') + '</div>';
+      return;
+    }
     var waiting = rec.id && SC.queue.some(function (q) { return q.id === rec.id; });
     var cls = { ok: 'ok', dup: '', wait: '', error: 'bad', 'not-found': 'bad', 'other-training': 'bad', 'not-sanay': 'bad', 'not-a-training-day': 'warn' }[rec.status] || '';
     var st = SC_STATUS[rec.status] || rec.status;
@@ -2886,7 +3001,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function scCamFail(text) {
     var msg = $('#scCamMsg');
-    msg.textContent = text + ' Meanwhile, type the code below, use a handheld scanner, or find the person in the List.';
+    msg.textContent = text + (SC.station ? ' Please ask an organizer for help.' : ' Meanwhile, type the code below, use a handheld scanner, or find the person in the List.');
     msg.hidden = false;
   }
   function scDecoder() {
@@ -3848,6 +3963,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       SC.confirmTimer = setTimeout(function () { SC.confirm = ''; if (SC.mode === 'list') scPeople(); }, 4000);
     });
     $('#scAdd').addEventListener('click', scAddDevice);
+    $('#scPinForm').addEventListener('submit', scPinSubmit);
+    $('#scStation').addEventListener('click', function () { scAudio(); scStationOn(true); });
+    $('#scExitBtn').addEventListener('click', function () { this.hidden = true; $('#scExitForm').hidden = false; $('#scExitPin').focus(); });
+    $('#scExitForm').addEventListener('submit', scStationOff);
+    $('#ciTraining').addEventListener('change', ciMode);
     $('#ciRegister').addEventListener('click', function () { startWalkIn($('#ciTraining').value); });
     $('#evForm').addEventListener('submit', onEvaluate);
     $('#evLikert').addEventListener('change', function (e) {
@@ -3927,6 +4047,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         scStopCamera();
         clearTimeout(SC.timer);
         SC.started = false; SC.state = null; SC.roster = {}; SC.inToday = {}; SC.queue = []; SC.recent = []; SC.shown = null; SC.offline = false; SC.seq++; SC.busy = false;
+        SC.pin = ''; SC.pinOk = false; SC.station = false; SC.inDay = '';
+        $('#view-scan').classList.remove('station'); $('#scPinForm').hidden = true; $('#scMain').hidden = true;
         $('#scDemoCodes').innerHTML = ''; $('#scResult').innerHTML = ''; $('#scSignal').textContent = 'Turn the signal off'; $('#scAddBox').hidden = true;
         $('#regDone').hidden = true; $('#regFormWrap').hidden = false;
         $('#evDone').hidden = true; $('#evFormWrap').hidden = false;
