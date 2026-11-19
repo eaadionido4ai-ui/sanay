@@ -3,6 +3,7 @@
 
   src/app.html            ->  apps-script/Index.html   (the page, ready for HtmlService)
   assets/logos/*          ->  apps-script/Logos.gs     (logos as data: URIs)
+  assets/figure/*.svg     ->  apps-script/Logos.gs     (the half Oblation at the right edge of the pages)
 
 Run from anywhere:  python3 tools/build.py
 """
@@ -10,12 +11,14 @@ import base64
 import json
 import mimetypes
 import pathlib
+import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / 'src' / 'app.html'
 OUT = ROOT / 'apps-script'
 LOGO_DIR = ROOT / 'assets' / 'logos'
+FIGURE = ROOT / 'assets' / 'figure' / 'oblation.svg'
 
 BODY_MARK = '<!-- sanay:body -->'
 BRAND_MARK = '<!-- sanay:brand -->'
@@ -54,6 +57,15 @@ def build_logos():
           ' * or set src to an image link (https://...). Delete an entry to drop that logo.\n'
           ' */\n'
           'const LOGOS = [\n' + ',\n'.join(items) + '\n];\n')
+    if FIGURE.exists():
+        svg = FIGURE.read_text(encoding='utf-8')
+        box = re.search(r'viewBox="([^"]+)"', svg).group(1)
+        d = re.search(r'<path[^>]*\sd="([^"]+)"', svg).group(1)
+        js += ('\n/**\n'
+               ' * Half silhouette of the Oblation, at the right edge of the pages. Built from assets/figure/oblation.svg.\n'
+               ' * Delete this to leave it out.\n'
+               ' */\n'
+               'const FIGURE = {\n  viewBox: %s,\n  d: %s\n};\n' % (json.dumps(box), json.dumps(d)))
     (OUT / 'Logos.gs').write_text(js, encoding='utf-8')
     return len(js)
 

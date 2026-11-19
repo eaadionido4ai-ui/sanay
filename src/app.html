@@ -42,6 +42,8 @@
   --paper-bar: #014421;
   --wordmark: #7B1113;
   --wordmark-g: #014421;
+  --fig-top: rgba(123, 17, 19, 0.12);
+  --fig-bottom: rgba(1, 68, 33, 0.11);
   --ring: rgba(123, 17, 19, 0.32);
   --band-green: #014421;
   --band-maroon: #7B1113;
@@ -81,6 +83,7 @@
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
     --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
+    --fig-top: rgba(240, 163, 166, 0.1); --fig-bottom: rgba(143, 209, 168, 0.08);
     --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
     --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
     color-scheme: dark;
@@ -93,6 +96,7 @@
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
   --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
+  --fig-top: rgba(240, 163, 166, 0.1); --fig-bottom: rgba(143, 209, 168, 0.08);
   --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
   --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
@@ -133,6 +137,73 @@ button { cursor: pointer; }
 .chip-btn { min-height: 36px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); font-size: 13.5px; font-weight: 600; }
 .chip-btn:hover { border-color: var(--ink); }
 .chip-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+
+/* ---------- the Oblation, half of it, at the right edge (comes with the logos, so only in the deployed app) ---------- */
+.figure { position: fixed; top: calc(var(--band-h) + 18px); right: 0; bottom: 0; z-index: -1; pointer-events: none; }
+.figure svg { display: block; height: 100%; width: auto; margin-left: auto; }
+@media (max-width: 600px) { .figure { opacity: 0.75; } }
+.is-report .figure, .is-sheet .figure { display: none; }
+
+/* ---------- QR codes ---------- */
+.qr { display: block; width: 168px; height: 168px; border-radius: 12px; background: #FFFFFF; image-rendering: pixelated; }
+.qr-sm { width: 132px; height: 132px; }
+.qr-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 14px; }
+.qr-row .hint { flex: 1 1 180px; min-width: 0; }
+
+/* ---------- check-in scanner (organizers at the door) ---------- */
+body[data-view="scan"] .shell { max-width: 560px; }
+.sc-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px 2px; }
+.sc-kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green-text); }
+.sc-net { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; background: var(--sunken); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.sc-net::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.sc-net.ok { background: var(--ok-soft); color: var(--ok); }
+.sc-net.off { background: var(--warn-soft); color: var(--warn); }
+.sc-count { display: grid; gap: 6px; margin-top: 16px; }
+.sc-count p { font-size: 15px; }
+.sc-count b { font-family: var(--display); font-size: 30px; font-weight: 600; line-height: 1; }
+.sc-bar { height: 6px; border-radius: 3px; background: var(--sunken); overflow: hidden; }
+.sc-bar i { display: block; height: 100%; border-radius: 3px; background: var(--green-fill); transition: width 0.3s; }
+.sc-cam { position: relative; display: grid; place-items: center; margin-top: 16px; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 18px; overflow: hidden; background: #0E1210; }
+.sc-cam video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.sc-frame { position: absolute; inset: 12% 24%; display: none; border: 3px solid rgba(255, 255, 255, 0.92); border-radius: 18px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.3); }
+.sc-cam.on .sc-frame { display: block; }
+.sc-cam .btn-primary { position: relative; width: auto; background: var(--green-fill); }
+.sc-cam-msg { position: relative; max-width: 34ch; padding: 0 16px; color: #FFFFFF; font-size: 14.5px; text-align: center; }
+.sc-cam-box { display: grid; gap: 12px; justify-items: center; }
+.sc-off { position: absolute; top: 10px; right: 10px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 999px; background: rgba(0, 0, 0, 0.55); color: #FFFFFF; font-size: 13px; font-weight: 700; }
+.sc-res { display: grid; gap: 2px; margin-top: 14px; padding: 14px 16px 15px; border-left: 8px solid var(--line-strong); border-radius: 14px; background: var(--sunken); }
+.sc-res.ok { border-color: var(--ok); background: var(--ok-soft); }
+.sc-res.bad { border-color: var(--bad); background: var(--bad-soft); }
+.sc-res.warn { border-color: var(--warn); background: var(--warn-soft); }
+.sc-res .st { font-size: 14px; font-weight: 700; }
+.sc-res.ok .st { color: var(--ok); }
+.sc-res.bad .st { color: var(--bad); }
+.sc-res.warn .st { color: var(--warn); }
+.sc-res .nm { font-family: var(--display); font-size: 28px; font-weight: 600; line-height: 1.15; overflow-wrap: anywhere; }
+.sc-res .ag { color: var(--muted); }
+.sc-type { display: grid; gap: 6px; margin-top: 16px; }
+.sc-type label { font-size: 14.5px; font-weight: 600; }
+.sc-type-row { display: flex; gap: 8px; }
+.sc-type-row input { flex: 1 1 auto; min-width: 0; font-family: var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+.sc-type-row .btn-quiet { flex: none; }
+.sc-h { margin-top: 22px; font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.sc-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.sc-list li.sc-none { display: block; color: var(--muted); }
+.sc-who { min-width: 0; }
+.sc-who b { display: block; overflow-wrap: anywhere; }
+.sc-who span { font-size: 13.5px; color: var(--muted); overflow-wrap: anywhere; }
+.sc-tag { font-size: 13px; font-weight: 700; text-align: right; }
+.sc-tag.ok { color: var(--ok); }
+.sc-tag.info { color: var(--muted); }
+.sc-tag.bad { color: var(--bad); }
+.sc-pick { min-height: 40px; padding: 6px 12px; font-size: 14px; }
+.sc-pick.sure { border-color: var(--green-fill); background: var(--green-fill); color: var(--on-fill); }
+.sc-foot { display: grid; justify-items: start; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.sc-add { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.sc-add .hint { flex: 1 1 200px; min-width: 0; }
+.sc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.sc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px 4px 4px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); font-size: 13px; font-weight: 600; }
+.sc-chip svg { width: 28px; height: 28px; }
 
 /* ---------- the template's corner bands ---------- */
 .crest { display: block; width: 100%; height: var(--band-h); }
@@ -188,6 +259,21 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .action-arrow { grid-column: 3; grid-row: 1 / span 2; display: grid; place-items: center; color: var(--on-fill-muted); transition: transform 0.15s; }
 .action:hover .action-arrow { transform: translateX(3px); }
 .asks { display: grid; gap: 12px; }
+
+/* ---------- credits: a small (i) under the home buttons ---------- */
+.credits-row { display: flex; justify-content: center; margin-top: 26px; }
+.credits-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; opacity: 0.85; }
+.credits-btn:hover { border-color: var(--line-strong); color: var(--ink); opacity: 1; }
+.credits { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28); }
+.credits::backdrop { background: rgba(10, 14, 12, 0.5); }
+.credits.fallback { position: fixed; inset: 0; z-index: 30; margin: auto; height: fit-content; }
+.credits-in { display: grid; gap: 16px; padding: 22px 22px 18px; }
+.cr-kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green-text); }
+.cr-title { font-family: var(--display); font-size: 28px; font-weight: 600; line-height: 1.1; }
+.cr-list { display: grid; gap: 12px; }
+.cr-list dt { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cr-list dd { margin-top: 1px; font-size: 15px; overflow-wrap: anywhere; }
+.credits-in .btn-quiet { justify-self: end; }
 .action-request { background: var(--maroon); box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--req-glow); }
 .action-request:hover { background: var(--maroon-hover); box-shadow: 0 2px 4px var(--shadow), 0 14px 24px -12px var(--req-glow); }
 @container app (min-width: 700px) {
@@ -284,7 +370,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .done { display: grid; gap: 18px; }
 .done:focus { outline: none; }
 .done-mark { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--ok-soft); color: var(--ok); }
-.code-card { display: grid; justify-items: start; gap: 6px; padding: 18px 20px; border: 1px dashed var(--line-strong); border-radius: 16px; background: var(--surface); }
+.code-card { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 20px; padding: 18px 20px; border: 1px dashed var(--line-strong); border-radius: 16px; background: var(--surface); }
+.code-card .qr { flex: none; box-shadow: 0 0 0 1px var(--line); }
+.code-side { display: grid; flex: 1 1 200px; justify-items: start; gap: 6px; min-width: 0; }
 .code-label { font-size: 13px; font-weight: 600; color: var(--muted); }
 .code { font-family: var(--mono); font-size: 40px; font-weight: 600; line-height: 1.1; letter-spacing: 0.16em; }
 .copy-note { min-height: 1.2em; font-size: 13.5px; color: var(--muted); }
@@ -419,6 +507,20 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .p-foot b { font-weight: 700; }
 .p-meta { position: absolute; bottom: 0.07in; font-size: 6pt; color: var(--paper-muted); }
 .p-meta.l { left: 0.22in; }
+.paper-tags { padding: 0.3in 0.36in 0.3in; }
+.tags { display: grid; grid-template-columns: repeat(3, 4in); grid-auto-rows: 2.55in; gap: 0.1in; justify-content: center; }
+.tag { display: flex; flex-direction: column; overflow: hidden; border: 0.75pt dashed var(--paper-soft); }
+.tag-band { flex: none; height: 0.16in; }
+.tag-body { display: grid; flex: 1 1 auto; grid-template-columns: minmax(0, 1fr) 1.24in; align-items: center; gap: 0.12in; padding: 0.1in 0.16in 0.12in 0.2in; }
+.tag-training { font-size: 7pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--paper-muted); }
+.tag-name { margin-top: 0.07in; font-family: var(--display); font-size: 22pt; font-weight: 600; line-height: 1.04; overflow-wrap: anywhere; }
+.tag-name.long { font-size: 17pt; }
+.tag-pos { margin-top: 0.08in; font-size: 8.5pt; }
+.tag-agency { font-size: 9pt; font-weight: 700; }
+.tag-qr { display: grid; justify-items: center; gap: 0.02in; }
+.tag-qr svg { display: block; width: 1.2in; height: 1.2in; }
+.tag-code { font-family: var(--mono); font-size: 8.5pt; font-weight: 600; letter-spacing: 0.14em; }
+.tag-blank { border-style: dotted; }
 .p-meta.r { right: 0.22in; }
 .p-empty { padding: 0.3in; text-align: center; font-size: 10pt; color: var(--paper-muted); }
 
@@ -527,7 +629,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 
 @media print {
   html, body { background: #FFFFFF !important; }
-  body::before { display: none !important; }
+  body::before, .figure { display: none !important; }
   .demo-wrap, .crest, .sheet, .report-chrome, .view:not(.view-report), .measure { display: none !important; }
   .page, .shell, .app, .view-report, .paper-desk { max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; overflow: visible !important; }
   .paper-stack { display: block !important; zoom: 1 !important; width: auto !important; }
@@ -542,12 +644,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     <p><strong>Preview with sample data.</strong> Nothing here is saved. In the real app, every submission becomes a row in your Google Sheet.</p>
     <div class="demo-actions">
       <button type="button" class="chip-btn" id="fillSample">Fill in a sample registration</button>
+      <button type="button" class="chip-btn" id="openScanner">Check-in scanner</button>
       <button type="button" class="chip-btn" id="openReport">Organizer report</button>
       <button type="button" class="chip-btn" id="toggleSheet" aria-pressed="false">Show the Google Sheet</button>
       <button type="button" class="chip-btn" id="resetDemo">Reset</button>
     </div>
   </div>
 </div>
+<div class="figure" id="figure" aria-hidden="true" hidden></div>
 <svg class="crest" viewBox="0 0 1300 106" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="band-g" points="0,0 795,0 645,20 0,106"></polygon><polygon class="band-m" points="795,0 1300,0 1300,106 645,20"></polygon></svg>
 <div class="page gutter">
   <div class="shell">
@@ -603,11 +707,23 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             </button>
           </div>
         </nav>
+        <div class="credits-row">
+          <button type="button" class="credits-btn" id="creditsBtn" aria-haspopup="dialog" aria-label="Credits" title="Credits">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 11v6"></path><path d="M12 7.4v.1"></path></svg>
+          </button>
+        </div>
+        <dialog class="credits" id="credits" aria-labelledby="crTitle">
+          <div class="credits-in">
+            <div><p class="cr-kicker" id="crKicker"></p><h2 class="cr-title" id="crTitle">Credits</h2></div>
+            <dl class="cr-list" id="crList"></dl>
+            <button type="button" class="btn-quiet" id="crClose">Close</button>
+          </div>
+        </dialog>
       </section>
 
       <!-- ===================== REGISTER ===================== -->
       <section class="view view-card" id="view-register" aria-labelledby="regTitle" hidden>
-        <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
+        <div class="topbar"><button type="button" class="back" id="regBack" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg><span>Home</span></button><span class="mini-mark" data-brand-name>SANAY</span></div>
         <div id="regFormWrap">
           <header class="view-head">
             <h2 class="title" id="regTitle" tabindex="-1">Register</h2>
@@ -689,18 +805,23 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             <h2 class="title" id="doneTitle">You're registered</h2>
             <p class="lead" id="doneLead"></p>
           </div>
-          <div class="code-card">
-            <p class="code-label">Your registration code</p>
-            <p class="code" id="doneCode"></p>
-            <button type="button" class="btn-quiet" id="copyCode">Copy code</button>
-            <p class="copy-note" id="copyNote" aria-live="polite"></p>
+          <div class="code-card" id="doneCard">
+            <img class="qr" id="doneQr" alt="" width="168" height="168" hidden>
+            <div class="code-side">
+              <p class="code-label" id="doneCodeLabel">Your registration code</p>
+              <p class="code" id="doneCode"></p>
+              <p class="hint" id="doneQrHint">Show this QR code at the door each training day. Keep it: take a screenshot, or press and hold the QR code to save it.</p>
+              <button type="button" class="btn-quiet" id="copyCode">Copy code</button>
+              <p class="copy-note" id="copyNote" aria-live="polite"></p>
+            </div>
           </div>
           <dl class="facts" id="doneFacts"></dl>
           <p class="demo-note" id="regDemoNote" hidden>Preview: a row was added to the Registrations tab. <button type="button" class="link-btn" data-see="Registrations">See it</button></p>
           <div class="done-actions">
             <button type="button" class="btn-primary" id="doneCheckIn" hidden>Check in now</button>
             <button type="button" class="btn-quiet" id="doneAnother">Register another person</button>
-            <button type="button" class="btn-quiet" data-home>Back to home</button>
+            <button type="button" class="btn-primary" id="doneScan" hidden>Back to scanning</button>
+            <button type="button" class="btn-quiet" id="doneHome" data-home>Back to home</button>
           </div>
         </div>
       </section>
@@ -712,6 +833,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <h2 class="title" id="ciTitle" tabindex="-1">Attendance</h2>
           <p class="lead" id="ciLead">Check in once each training day.</p>
         </header>
+        <div class="walkin-card" id="ciDoor" hidden>
+          <p class="walkin-title">Check in at the door</p>
+          <p class="hint">Show the QR code you got when you registered. The organizers scan it. Lost it? Tell them your name.</p>
+        </div>
         <form class="form" id="ciForm" novalidate>
           <div class="group">
             <div class="field"><label for="ciTraining">Training</label><div class="select"><select id="ciTraining"></select></div></div>
@@ -723,7 +848,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         <div id="ciResult" aria-live="polite"></div>
         <div class="walkin-card" id="ciWalkin">
           <p class="walkin-title">Didn't register?</p>
-          <p class="hint">Fill in the attendance form as a walk-in. You're checked in as soon as you submit.</p>
+          <p class="hint" id="ciWalkinHint">Fill in the attendance form as a walk-in. You're checked in as soon as you submit.</p>
           <button type="button" class="btn-outline" id="ciRegister">Walk-in registration</button>
         </div>
         <p class="empty" id="ciEmpty" hidden>No training is happening today. Check-in opens on the training days.</p>
@@ -895,12 +1020,69 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       </section>
 
       <!-- ===================== ORGANIZER REPORT ===================== -->
+      <!-- ===================== CHECK-IN SCANNER (organizers at the door) ===================== -->
+      <section class="view view-card" id="view-scan" aria-labelledby="scTitle" hidden>
+        <div class="sc-top"><span class="mini-mark" data-brand-name>SANAY</span><span class="sc-net" id="scNet" role="status">Connecting…</span></div>
+        <header class="view-head">
+          <p class="sc-kicker">Check-in scanner</p>
+          <h2 class="title" id="scTitle" tabindex="-1">Opening the scanner…</h2>
+          <p class="lead" id="scLead"></p>
+        </header>
+        <div id="scMain" hidden>
+          <div class="sc-count"><p><b id="scIn">0</b> of <span id="scOf">0</span> checked in today</p><div class="sc-bar"><i id="scBar" style="width:0"></i></div></div>
+          <div class="seg" role="group" aria-label="Scanner">
+            <button type="button" data-mode="scan" aria-pressed="true">Scan</button>
+            <button type="button" data-mode="list" aria-pressed="false">List</button>
+            <button type="button" data-mode="walkin" aria-pressed="false">Walk-in</button>
+          </div>
+          <div id="scScan">
+            <div class="sc-cam" id="scCam">
+              <video id="scVideo" playsinline muted></video>
+              <div class="sc-frame" aria-hidden="true"></div>
+              <button type="button" class="sc-off" id="scCamOff" hidden>Stop the camera</button>
+              <div class="sc-cam-box" id="scCamBox">
+                <button type="button" class="btn-primary" id="scStart">Start the camera</button>
+                <p class="sc-cam-msg" id="scCamMsg" hidden></p>
+              </div>
+            </div>
+            <div id="scResult" aria-live="assertive"></div>
+            <form class="sc-type" id="scType" novalidate autocomplete="off">
+              <label for="scCode">Or type the code. A handheld scanner types here too.</label>
+              <div class="sc-type-row"><input type="text" id="scCode" autocapitalize="characters" spellcheck="false" maxlength="40"><button type="submit" class="btn-quiet">Check in</button></div>
+            </form>
+            <div class="demo-note" id="scDemo" hidden style="margin-top:14px">
+              Preview: the camera can't open here. Tap a QR code to scan it.
+              <div class="sc-chips" id="scDemoCodes"></div>
+              <p style="margin-top:8px"><button type="button" class="link-btn" id="scSignal">Turn the signal off</button> to see scans wait on this device and go out when it's back.</p>
+            </div>
+            <h3 class="sc-h">Latest</h3>
+            <ol class="sc-list" id="scRecent"></ol>
+          </div>
+          <div id="scListPane" hidden>
+            <div class="field" style="margin-top:16px"><label for="scSearch">Find a person</label><input type="text" id="scSearch" placeholder="Name or office" autocomplete="off"></div>
+            <p class="hint" id="scListSum" style="margin-top:8px"></p>
+            <ul class="sc-list" id="scPeople"></ul>
+          </div>
+          <div class="sc-foot">
+            <button type="button" class="btn-quiet" id="scAdd" aria-expanded="false">Add a device</button>
+            <div class="sc-add" id="scAddBox" hidden>
+              <div id="scAddQr"></div>
+              <p class="hint">Scan this with the camera of another phone or tablet to open the same scanner there. Every device saves to the same Sheet. Share it only with the door staff.</p>
+            </div>
+          </div>
+        </div>
+        <div class="locked" id="scLocked" hidden>
+          <p><strong>This page is for the organizers at the door.</strong></p>
+          <p id="scLockedMsg"></p>
+        </div>
+      </section>
+
       <section class="view view-report" id="view-report" aria-labelledby="rpTitle" hidden>
         <div class="report-chrome view-card">
           <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
           <header class="view-head">
             <h2 class="title" id="rpTitle" tabindex="-1">Training report</h2>
-            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, evaluation results, consents, training requests and partnership requests.</p>
+            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, evaluation results, name tags with QR codes, consents, training requests and partnership requests.</p>
           </header>
           <div id="rpMain">
             <div class="seg" role="group" aria-label="Report part">
@@ -908,6 +1090,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
               <button type="button" data-section="certs" aria-pressed="false">Certificates</button>
               <button type="button" data-section="profile" aria-pressed="false">Participant profile</button>
               <button type="button" data-section="evals" aria-pressed="false">Evaluation results</button>
+              <button type="button" data-section="tags" aria-pressed="false">Name tags</button>
               <button type="button" data-section="media" aria-pressed="false">Photo and recording</button>
               <button type="button" data-section="impact" aria-pressed="false">Impact interviews</button>
               <button type="button" data-section="requests" aria-pressed="false">Training requests</button>
@@ -960,6 +1143,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 </div>
 <div class="measure" id="measure" aria-hidden="true"></div>
 
+<script>
+/* QR Code Generator for JavaScript 2.0.4. Copyright (c) 2009 Kazuhiko Arase. MIT license.
+   https://github.com/kazuhikoarase/qrcode-generator  "QR Code" is a registered trademark of DENSO WAVE INCORPORATED. */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(o*r,n*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(t,r){var e=n("友");if(2!=e.length||38726!=(e[0]<<8|e[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+</script>
 <script>
 (function () {
   'use strict';
@@ -1024,13 +1212,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       institution: ['INSTITUTION NAME', 'Office or center name'],
       address: 'Office address', contact: 'Telephone number', email: 'Office email',
       bands: ['#014421', '#7B1113'],
-      logos: []
+      logos: [],
+      credits: [['Developed by', 'Your office or team']]
     };
     var s = window.SANAY_BRAND || {};
     Object.keys(s).forEach(function (k) { if (s[k] !== undefined && s[k] !== null && s[k] !== '') b[k] = s[k]; });
     if (!Array.isArray(b.institution)) b.institution = [String(b.institution)];
     if (!Array.isArray(b.logos)) b.logos = [];
     if (!Array.isArray(b.bands) || b.bands.length < 2) b.bands = ['#014421', '#7B1113'];
+    if (!Array.isArray(b.credits)) b.credits = [];
     return b;
   })();
 
@@ -1046,7 +1236,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   var PX_PER_IN = 96;
 
   var S = {
-    data: null, today: '', view: 'home', params: {}, walkIn: null, lastReg: null,
+    data: null, today: '', view: 'home', params: {}, walkIn: null, lastReg: null, desk: null, demoOffline: false,
     sheetOpen: false, sheetTab: 'Trainings', flash: null,
     report: null, rpTraining: '', rpList: '', rpSection: 'sheet', rpShow: 'all', rpBusy: false
   };
@@ -1064,18 +1254,19 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   function ageLabel(a) { return String(a).replace('-', '–'); }
 
   /* ---------------- dates, all in Philippine time ---------------- */
-  function manilaParts() {
+  function manilaParts(when) {
+    var d = when || new Date();
     try {
       var o = {};
       new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
-        .formatToParts(new Date()).forEach(function (p) { o[p.type] = p.value; });
+        .formatToParts(d).forEach(function (p) { o[p.type] = p.value; });
       if (o.hour === '24') o.hour = '00';
       return o;
     } catch (e) {
-      var d = new Date();
       return { year: String(d.getFullYear()), month: pad(d.getMonth() + 1), day: pad(d.getDate()), hour: pad(d.getHours()), minute: pad(d.getMinutes()) };
     }
   }
+  function stampAt(ms) { var p = manilaParts(new Date(ms)); return p.year + '-' + p.month + '-' + p.day + ' ' + p.hour + ':' + p.minute; }
   function manilaToday() { var p = manilaParts(); return p.year + '-' + p.month + '-' + p.day; }
   function manilaStamp() { var p = manilaParts(); return p.year + '-' + p.month + '-' + p.day + ' ' + p.hour + ':' + p.minute; }
   function parseISO(s) { var p = String(s).split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2])); }
@@ -1134,6 +1325,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   /* ---------------- talking to the Google Sheet ---------------- */
   function call(fn, arg) {
     return new Promise(function (resolve, reject) {
+      if (!LIVE && S.demoOffline && /^(getScanner|scanSync|scanWalkIn)$/.test(fn)) {
+        setTimeout(function () { reject(new Error('NetworkError: Connection failure due to HTTP 0')); }, 350);
+        return;
+      }
       if (LIVE) {
         google.script.run
           .withSuccessHandler(resolve)
@@ -1371,12 +1566,86 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       var ts = manilaStamp();
       db.attendance.push({ timestamp: ts, date: today, training_id: t.id, reg_code: r.reg_code, full_name: r.full_name, sex: r.sex, agency: r.agency, method: method });
       S.flash = { tab: 'Attendance', id: r.reg_code + today };
-      return { status: 'ok', name: r.full_name, time: stampTime(ts), day: dayNumber(t.start, today), days: dayNumber(t.start, t.end) };
+      return { status: 'ok', name: r.full_name, code: r.reg_code, time: stampTime(ts), day: dayNumber(t.start, today), days: dayNumber(t.start, t.end) };
+    }
+    // The door scanner in the preview works on ICS-4, the training happening now.
+    var scanSeen = {};
+    function scanState(withRoster) {
+      var t = training('ICS-4'), regs = db.registrations.filter(function (r) { return r.training_id === t.training_id; }), first = {};
+      db.attendance.forEach(function (a) {
+        if (a.training_id === t.training_id && a.date === today && (!first[a.reg_code] || a.timestamp < first[a.reg_code])) first[a.reg_code] = a.timestamp;
+      });
+      var st = {
+        training: { id: t.training_id, title: t.title, start: t.start_date, end: t.end_date, venue: t.venue }, today: today, now: Date.now(),
+        trainingDay: t.start_date <= today && today <= t.end_date, day: dayNumber(t.start_date, today), days: dayNumber(t.start_date, t.end_date),
+        registered: regs.length, checkedIn: Object.keys(first).map(function (c) { return { code: c, time: stampTime(first[c]) }; })
+      };
+      if (withRoster) {
+        st.roster = regs.map(function (r) { return { code: r.reg_code, name: r.full_name, agency: r.agency, walkIn: r.registered_as === 'Walk-in' }; });
+        st.link = 'https://script.google.com/macros/s/your-web-app/exec?page=scan&k=preview';
+      }
+      return st;
+    }
+    function checkInAt(t, r, method, ms) {
+      var stamp = stampAt(ms), date = stamp.slice(0, 10);
+      var out = { name: r.full_name, code: r.reg_code, day: dayNumber(t.start_date, date), days: dayNumber(t.start_date, t.end_date) };
+      var prev = db.attendance.filter(function (a) { return a.training_id === t.training_id && a.reg_code === r.reg_code && a.date === date; })[0];
+      if (prev) {
+        if (stamp < prev.timestamp) prev.timestamp = stamp;   // an earlier scan arriving late keeps its time
+        out.status = 'already'; out.time = stampTime(prev.timestamp);
+        return out;
+      }
+      db.attendance.push({ timestamp: stamp, date: date, training_id: t.training_id, reg_code: r.reg_code, full_name: r.full_name, sex: r.sex, agency: r.agency, method: method });
+      db.attendance.sort(byStamp);
+      S.flash = { tab: 'Attendance', id: r.reg_code + date };
+      out.status = 'ok'; out.time = stampTime(stamp);
+      return out;
     }
     return {
       db: db, today: today, counts: counts, list: list,
+      getScanner: function () { return scanState(true); },
+      scanSync: function (d) {
+        var t = training('ICS-4'), results = [];
+        (d.items || []).forEach(function (it) {
+          if (scanSeen[it.id]) { results.push(scanSeen[it.id]); return; }
+          var code = String(it.code || '').toUpperCase().replace(/^[A-Z]+:/, '').replace(/[^A-Z0-9]/g, '');
+          var ms = Math.min(Number(it.at) || Date.now(), Date.now()), date = stampAt(ms).slice(0, 10), res;
+          var r = db.registrations.filter(function (x) { return x.reg_code === code; })[0];
+          if (date < t.start_date || date > t.end_date) res = { status: 'not-a-training-day', code: code };
+          else if (!r) res = { status: 'not-found', code: code };
+          else if (r.training_id !== t.training_id) res = { status: 'other-training', code: code, name: r.full_name, training: r.training_title };
+          else res = checkInAt(t, r, it.how || 'QR', ms);
+          res.id = it.id;
+          scanSeen[it.id] = res;
+          results.push(res);
+        });
+        var st = scanState(d.roster === true);
+        st.results = results;
+        return st;
+      },
+      scanWalkIn: function (d) {
+        if (scanSeen[d.id]) return scanSeen[d.id];
+        var t = training('ICS-4'), f = d.form || {}, ms = Math.min(Number(d.at) || Date.now(), Date.now());
+        if (!f.first_name || !f.last_name || !f.agency || !EMAIL_RE.test(f.email || '') || !f.gad_consent || !f.photo_consent || !f.recording_consent || !f.impact_consent) {
+          throw new Error('Please fill in every required part of the form.');
+        }
+        var email = String(f.email).trim().toLowerCase(), g = f.gad_consent === 'Yes';
+        var r = db.registrations.filter(function (x) { return x.training_id === t.training_id && x.email.toLowerCase() === email; })[0], already = !!r;
+        if (!r) {
+          r = add(t, {
+            first_name: f.first_name, last_name: f.last_name, middle_initial: f.middle_initial, suffix: f.suffix, position: f.position, agency: f.agency,
+            email: email, contact_no: f.contact_no, gad_consent: f.gad_consent,
+            sex: g ? f.sex : '', age_range: g ? f.age_range : '', senior_citizen: g ? f.senior_citizen : '', pwd: g ? f.pwd : '',
+            indigenous_people: g ? f.indigenous_people : '', tribe: g && f.indigenous_people === 'Yes' ? f.tribe : '',
+            photo_consent: f.photo_consent, recording_consent: f.recording_consent, impact_consent: f.impact_consent
+          }, stampAt(ms), 'Walk-in');
+        }
+        var out = { status: 'ok', already: already, code: r.reg_code, name: r.full_name, checkIn: checkInAt(t, r, 'Walk-in', ms) };
+        scanSeen[d.id] = out;
+        return out;
+      },
       getAppData: function () {
-        return { today: today, evaluationDaysAfter: 14, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
+        return { today: today, evaluationDaysAfter: 14, selfCheckIn: true, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
           requestPrivacy: REQUEST_PRIVACY_TEXT, requestTopics: DEFAULT_TOPICS, partnershipTypes: PARTNER_TYPES, organizationTypes: ORG_TYPES,
           partnershipPrivacy: PARTNER_PRIVACY_TEXT, evaluationScale: EVAL_SCALE, evaluationItems: EVAL_ITEMS, trainings: list() };
       },
@@ -1520,6 +1789,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var exp = acronymHTML(BRAND.projectExpansion, mark), word = esc(BRAND.projectAccent || '');
     if (word && exp.indexOf(word) > -1) exp = exp.replace(word, '<span class="kw">' + word + '</span>');
     $('#projectExp').innerHTML = exp;
+    var fig = BRAND.figure;
+    if (fig && fig.d && fig.viewBox) {
+      $('#figure').innerHTML = '<svg viewBox="' + esc(fig.viewBox) + '" preserveAspectRatio="xMaxYMax meet" focusable="false">' +
+        '<defs><linearGradient id="figFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--fig-top)"></stop>' +
+        '<stop offset="1" style="stop-color:var(--fig-bottom)"></stop></linearGradient></defs><path fill="url(#figFade)" d="' + esc(fig.d) + '"></path></svg>';
+      $('#figure').hidden = false;
+    }
     document.title = BRAND.name + ' Training Registration';
   }
 
@@ -1601,11 +1877,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 
   function fillRegister() {
     var sel = $('#regTraining'), keep = sel.value || S.params.t || '';
-    if (S.walkIn) {
+    $('#regBack').querySelector('span').textContent = S.desk ? 'Scanner' : 'Home';
+    if (S.desk) {
+      sel.innerHTML = '<option value="' + esc(S.desk.id) + '">' + esc(S.desk.title + ' · walk-in today') + '</option>';
+      sel.value = S.desk.id;
+      $('#regLead').textContent = 'Walk-in registration at the door. When you submit, the person is checked in for today.';
+    } else if (S.walkIn) {
       var today = S.data.trainings.filter(function (t) { return t.happening; }).sort(byStart);
       sel.innerHTML = today.map(function (t) { return '<option value="' + esc(t.id) + '">' + esc(t.title + ' · today') + '</option>'; }).join('');
       sel.value = today.some(function (t) { return t.id === S.walkIn; }) ? S.walkIn : (today[0] ? today[0].id : '');
-      $('#regLead').textContent = 'Walk-in registration. When you submit, you are also checked in for today.';
+      $('#regLead').textContent = S.data.selfCheckIn === false
+        ? 'Walk-in registration. When you submit, show your QR code at the door to check in.'
+        : 'Walk-in registration. When you submit, you are also checked in for today.';
     } else {
       var list = S.data.trainings.filter(function (t) { return t.listed; });
       var open = list.filter(function (t) { return t.state === 'open'; }).sort(byStart);
@@ -1638,9 +1921,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var list = S.data.trainings.filter(function (t) { return t.happening; }).sort(byStart);
     var sel = $('#ciTraining'), keep = sel.value || S.params.t || '';
     $('#ciLead').textContent = list.length ? 'Check in once each training day. Today is ' + fmtLong(S.today) + '.' : 'Check in once each training day.';
+    var self = S.data.selfCheckIn !== false;
     $('#ciEmpty').hidden = list.length > 0;
-    $('#ciForm').hidden = list.length === 0;
+    $('#ciForm').hidden = list.length === 0 || !self;
+    $('#ciDoor').hidden = list.length === 0 || self;
     $('#ciWalkin').hidden = list.length === 0;
+    $('#ciWalkinHint').textContent = self ? "Fill in the attendance form as a walk-in. You're checked in as soon as you submit."
+      : 'Fill in the attendance form as a walk-in, then show your QR code at the door.';
     sel.innerHTML = (list.length > 1 ? '<option value="" disabled>Choose your training</option>' : '') + list.map(function (t) {
       return '<option value="' + esc(t.id) + '">' + esc(t.title + ' · Day ' + dayNumber(t.start, S.today) + ' of ' + dayNumber(t.start, t.end)) + '</option>';
     }).join('');
@@ -1661,13 +1948,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   }
 
   /* ---------------- views ---------------- */
-  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'partner', 'report'];
+  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'partner', 'report', 'scan'];
   function show(view, opts) {
     opts = opts || {};
     if (VIEWS.indexOf(view) === -1) view = 'home';
     var changed = view !== S.view;
     S.view = view;
     if (view !== 'register' && S.walkIn) { S.walkIn = null; if (S.data) fillRegister(); }
+    if (view !== 'register' && view !== 'scan' && S.desk) { S.desk = null; if (S.data) fillRegister(); deskButtons(false); }
+    if (view !== 'scan') scStopCamera();
     VIEWS.forEach(function (v) { $('#view-' + v).hidden = v !== view; });
     document.body.setAttribute('data-view', view);
     document.body.classList.toggle('is-report', view === 'report');
@@ -1677,6 +1966,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       try { var h = view === 'home' ? '' : '#' + view; if (location.hash !== h) history.replaceState(null, '', h || location.pathname + location.search); } catch (e) { /* ignore */ }
     }
     if (view === 'report') openReportView();
+    if (view === 'scan') startScanner();
     if (changed && !opts.keepScroll) {
       try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
       var head = view === 'home' ? $('#brandName') : $('#view-' + view + ' .title');
@@ -1751,6 +2041,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var f = readReg(), first = showRegErrors(validateReg(f));
     $('#regError').hidden = true;
     if (first) { first.focus(); return; }
+    if (S.desk) { deskSubmit(f); return; }
     var btn = $('#regSubmit');
     busy(btn, true, 'Submitting…');
     call('register', f).then(function (res) {
@@ -1768,10 +2059,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#doneTitle').textContent = ci && ci.status === 'already' ? "You're already checked in today"
       : ci ? (res.already ? "You're checked in" : "You're registered and checked in")
       : res.already ? "You're already registered" : "You're registered";
-    $('#doneLead').textContent = res.already
+    $('#doneLead').textContent = (res.already
       ? 'This email was already registered for ' + t.title + '. Here is the same code.'
-      : res.name + ' is registered for ' + t.title + '.';
+      : res.name + ' is registered for ' + t.title + '.') + (res.atDoor ? ' Show your QR code at the door to check in.' : '');
+    $('#doneCard').hidden = false;
     $('#doneCode').textContent = res.code;
+    setQR($('#doneQr'), res.code);
+    $('#doneQrHint').textContent = 'Show this QR code at the door each training day. Keep it: take a screenshot, or press and hold the QR code to save it.';
+    deskButtons(false);
     $('#copyNote').textContent = '';
     var facts = '<div><dt>Training</dt><dd>' + esc(t.title) + '</dd></div>' +
       '<div><dt>When</dt><dd>' + esc(fmtWhen(t)) + '</dd></div>' +
@@ -1779,7 +2074,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       '<div><dt>Submitted</dt><dd>' + esc(fmtStamp(res.stamp)) + '</dd></div>';
     if (ci) facts += '<div><dt>Checked in</dt><dd>' + esc(ci.time + ' · Day ' + ci.day + ' of ' + ci.days) + '</dd></div>';
     $('#doneFacts').innerHTML = facts;
-    $('#doneCheckIn').hidden = !t.happening || !!ci;
+    $('#doneCheckIn').hidden = !t.happening || !!ci || S.data.selfCheckIn === false;
     $('#regDemoNote').hidden = LIVE || res.already;
     $('#regFormWrap').hidden = true;
     $('#regDone').hidden = false;
@@ -2078,11 +2373,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     busy(btn, true, 'Checking in…');
     call('checkIn', { training_id: tid, key: key }).then(function (r) {
       var demo = LIVE ? '' : '<p class="demo-note" style="margin-top:12px">Preview: a row was added to the Attendance tab. <button type="button" class="link-btn" data-see="Attendance">See it</button></p>';
+      var qr = r.code ? qrPNG(QR_PREFIX + r.code, r.code) : '';
+      var keep = qr ? '<div class="qr-row"><img class="qr qr-sm" src="' + qr + '" alt="QR code for registration ' + esc(r.code) + '">' +
+        '<p class="hint">Next time, just show this QR code at the door. Keep it with a screenshot.</p></div>' : '';
       if (r.status === 'ok') {
-        out.innerHTML = resultHTML('ok', "You're checked in", [r.name, r.time + ' · Day ' + r.day + ' of ' + r.days]) + demo;
+        out.innerHTML = resultHTML('ok', "You're checked in", [r.name, r.time + ' · Day ' + r.day + ' of ' + r.days], keep) + demo;
         $('#ciKey').value = '';
       } else if (r.status === 'already') {
-        out.innerHTML = resultHTML('info', 'Already checked in today', [r.name + ' checked in at ' + r.time + '.']);
+        out.innerHTML = resultHTML('info', 'Already checked in today', [r.name + ' checked in at ' + r.time + '.'], keep);
       } else {
         out.innerHTML = resultHTML('warn', "We couldn't find that registration", ['Check the code or email. If you did not register, register now as a walk-in.'],
           '<button type="button" class="btn-quiet" data-walkin="' + esc(tid) + '">Register as a walk-in</button>');
@@ -2092,6 +2390,557 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       err.textContent = e.message || 'Something went wrong. Please try again.';
       err.hidden = false;
     }).then(function () { busy(btn, false); });
+  }
+
+  /* ---------------- credits ---------------- */
+  function openCredits() {
+    var lines = BRAND.credits.filter(function (c) { return c && c[0] && c[1]; }).map(function (c) { return [String(c[0]), String(c[1])]; });
+    if (BRAND.figure) lines.push(['The Oblation', "Silhouette after Guillermo E. Tolentino's Oblation"]);
+    if (BRAND.logos.length) lines.push(['Logos', BRAND.logos.map(function (l) { return l.alt; }).filter(Boolean).join(', ')]);
+    lines.push(['QR codes', 'QR Code Generator by Kazuhiko Arase (MIT License); jsQR (Apache License 2.0) on phones without a built-in reader. QR Code is a registered trademark of DENSO WAVE INCORPORATED.']);
+    lines.push(['Fonts', 'EB Garamond, Source Sans 3 and Source Code Pro (SIL Open Font License)']);
+    lines.push(['Runs on', 'Google Apps Script and Google Sheets']);
+    $('#crKicker').textContent = BRAND.project + ' · ' + BRAND.name;
+    $('#crList').innerHTML = lines.map(function (c) { return '<div><dt>' + esc(c[0]) + '</dt><dd>' + esc(c[1]) + '</dd></div>'; }).join('');
+    var d = $('#credits');
+    if (typeof d.showModal === 'function') d.showModal();
+    else { d.classList.add('fallback'); d.setAttribute('open', ''); }
+    $('#crClose').focus();
+  }
+  function closeCredits() {
+    var d = $('#credits');
+    if (typeof d.close === 'function' && d.open) d.close(); else d.removeAttribute('open');
+    $('#creditsBtn').focus();
+  }
+
+  /* ---------------- QR codes ---------------- */
+  var QR_PREFIX = 'SANAY:';   // what a participant's QR code holds: SANAY:K7Q2M. Only the code, never a name or email.
+  function qrModules(text) {
+    if (typeof window.qrcode !== 'function') return null;
+    try {
+      var q = window.qrcode(0, 'M');
+      q.addData(String(text), /^[0-9A-Z $%*+\-.\/:]+$/.test(text) ? 'Alphanumeric' : 'Byte');
+      q.make();
+      var n = q.getModuleCount(), m = [];
+      for (var r = 0; r < n; r++) { var row = []; for (var c = 0; c < n; c++) row.push(q.isDark(r, c)); m.push(row); }
+      return m;
+    } catch (e) { return null; }
+  }
+  /* Sharp at any size, for printing */
+  function qrSVG(text, cls) {
+    var m = qrModules(text);
+    if (!m) return '';
+    var n = m.length, z = n + 8, d = '';
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        if (!m[r][c]) continue;
+        var run = 1;
+        while (c + run < n && m[r][c + run]) run++;
+        d += 'M' + (c + 4) + ' ' + (r + 4) + 'h' + run + 'v1h-' + run + 'z';
+        c += run - 1;
+      }
+    }
+    return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' viewBox="0 0 ' + z + ' ' + z + '" shape-rendering="crispEdges" aria-hidden="true" focusable="false">' +
+      '<rect width="' + z + '" height="' + z + '" fill="#FFFFFF"></rect><path d="' + d + '" fill="#000000"></path></svg>';
+  }
+  /* A picture people can keep on their phone: the QR code, with the registration code under it */
+  function qrPNG(text, caption) {
+    var m = qrModules(text);
+    if (!m) return '';
+    var n = m.length, s = 10, w = (n + 8) * s, h = w + (caption ? 40 : 0);
+    var cv = document.createElement('canvas'), g = cv.getContext && cv.getContext('2d');
+    if (!g) return '';
+    cv.width = w; cv.height = h;
+    g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#000000';
+    for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (m[r][c]) g.fillRect((c + 4) * s, (r + 4) * s, s, s);
+    if (caption) {
+      g.font = '600 26px "Source Code Pro", ui-monospace, Menlo, Consolas, monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(String(caption).split('').join(' '), w / 2, w + 6);
+    }
+    try { return cv.toDataURL('image/png'); } catch (e) { return ''; }
+  }
+  function setQR(img, code) {
+    var src = code ? qrPNG(QR_PREFIX + code, code) : '';
+    img.hidden = !src;
+    if (src) { img.src = src; img.alt = 'QR code for registration ' + code; }
+  }
+
+  /* ------------------------------------------------------------------
+   * Check-in scanner, for the organizers at the door. Every scan counts on the
+   * device at once and waits in a queue there; the queue goes to the Sheet in the
+   * background, so a weak signal only delays it. Several devices can scan at once.
+   * ------------------------------------------------------------------ */
+  var SC = {
+    started: false, key: '', link: '', state: null, roster: {}, inToday: {}, queue: [], recent: [], shown: null, waiters: {},
+    offset: 0, busy: false, seq: 0, timer: null, fails: 0, syncedAt: 0, rosterAt: 0, offline: false,
+    mode: 'scan', stream: null, decode: null, looping: false, lastCode: '', lastAt: 0, audio: null, confirm: '', confirmTimer: null
+  };
+  var JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+  var JSQR_SRI = 'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx';
+  var SC_STATUS = {
+    ok: 'Checked in', dup: 'Already checked in', wait: 'Checking…', 'not-found': 'Not registered for this training',
+    'other-training': 'Registered for another training', 'not-a-training-day': "Today isn't a training day",
+    'not-sanay': "That isn't a " + 'SANAY' + ' QR code', error: 'Not saved'
+  };
+  function scKeep(name, value) {
+    if (!LIVE) return null;   // the preview starts fresh each time
+    var k = 'sanay.scanner.' + name + '.' + SC.key;
+    try {
+      if (value === undefined) return JSON.parse(localStorage.getItem(k) || 'null');
+      localStorage.setItem(k, JSON.stringify(value));
+    } catch (e) { /* storage blocked: the queue still lives in memory */ }
+    return null;
+  }
+  function uid() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10); }
+  function isNetErr(e) { return /network|http 0|connection|timed? ?out|failed to fetch|offline|load failed/i.test((e && e.message) || String(e || '')); }
+  function isGone(e) { return /scanner link has expired|open the check-in scanner/i.test((e && e.message) || ''); }
+  function scCode(raw) {
+    var s = String(raw || '').trim().toUpperCase();
+    if (s.indexOf(QR_PREFIX) === 0) s = s.slice(QR_PREFIX.length);
+    s = s.replace(/[^A-Z0-9]/g, '');
+    return /^[A-Z0-9]{4,12}$/.test(s) ? s : '';
+  }
+  function timeAt(ms) { var p = manilaParts(new Date(ms)), h = Number(p.hour); return ((h + 11) % 12 + 1) + ':' + p.minute + (h >= 12 ? ' PM' : ' AM'); }
+  function scLater(ms, fn) { clearTimeout(SC.timer); SC.timer = setTimeout(fn || function () { scSync(false); }, ms); }
+
+  function startScanner() {
+    if (SC.started) { scRender(); return; }
+    SC.started = true;
+    SC.key = LIVE ? String(S.params.k || '').replace(/[^0-9a-f]/gi, '') : 'preview';
+    $('#scDemo').hidden = LIVE;
+    if (!SC.key) { scLock('Open the scanner from the Google Sheet: ' + BRAND.name + ' › Open the check-in scanner.'); return; }
+    SC.queue = scKeep('queue') || [];
+    var saved = scKeep('state');
+    if (saved && saved.state) {
+      SC.link = saved.link || '';
+      scApply({ training: saved.state.training, today: saved.state.today, trainingDay: saved.state.trainingDay, day: saved.state.day, days: saved.state.days,
+        registered: saved.state.registered, checkedIn: saved.state.checkedIn, roster: saved.roster }, true, true);
+      SC.queue.forEach(function (it) {   // scans still waiting on this device count as checked in
+        if (it.kind === 'scan' && SC.roster[it.code] && stampAt(it.at).slice(0, 10) === SC.state.today && !SC.inToday[it.code]) {
+          SC.inToday[it.code] = { time: timeAt(it.at), sent: false, id: it.id };
+        }
+      });
+      scRender();
+    }
+    window.addEventListener('online', function () { if (S.view === 'scan') scSync(true); });
+    window.addEventListener('offline', function () { scNet(); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden && SC.started) scSync(true); });
+    scSync(true);
+  }
+  function scLock(msg) {
+    clearTimeout(SC.timer);
+    scStopCamera();
+    $('#scMain').hidden = true;
+    $('#scLocked').hidden = false;
+    $('#scLockedMsg').textContent = msg;
+    $('#scTitle').textContent = 'Check-in scanner';
+    $('#scLead').textContent = '';
+    $('#scNet').hidden = true;
+  }
+  /* Sends what is waiting, one walk-in or up to 50 scans at a time, and gets back who is in today */
+  function scSync(force) {
+    if (SC.busy || !SC.key || !$('#scLocked').hidden) return;
+    clearTimeout(SC.timer);
+    var now = Date.now(), first = SC.queue[0];
+    var wantRoster = !SC.state || now - SC.rosterAt > 60000;
+    if (!first && !force && !wantRoster && now - SC.syncedAt < 25000) { scLater(25000 - (now - SC.syncedAt)); return; }
+    SC.busy = true;
+    var seq = ++SC.seq;
+    scNet('busy');
+    var dog = setTimeout(function () { if (seq === SC.seq && SC.busy) { SC.seq++; SC.busy = false; scFailed(); } }, 25000);
+    function settle() { clearTimeout(dog); SC.busy = false; }
+    if (first && first.kind === 'walkin') {
+      call('scanWalkIn', { key: SC.key, id: first.id, form: first.form, at: first.at }).then(function (res) {
+        if (seq !== SC.seq) return;
+        settle();
+        SC.fails = 0; SC.offline = false;
+        scDrop(first.id);
+        scWalkInSaved(first, res);
+        scLater(30);
+      }).catch(function (e) {
+        if (seq !== SC.seq) return;
+        settle();
+        if (isGone(e)) { scLock(e.message); return; }
+        if (isNetErr(e)) { scFailed(); return; }
+        scDrop(first.id);
+        scWalkInFailed(first, e.message);
+        scLater(30);
+      });
+      return;
+    }
+    var items = [];
+    for (var i = 0; i < SC.queue.length && items.length < 50 && SC.queue[i].kind !== 'walkin'; i++) {
+      var q = SC.queue[i];
+      items.push({ id: q.id, code: q.code, at: q.at, how: q.how });
+    }
+    call(SC.state ? 'scanSync' : 'getScanner', { key: SC.key, items: items, roster: wantRoster }).then(function (st) {
+      if (seq !== SC.seq) return;
+      settle();
+      SC.fails = 0; SC.offline = false;
+      if (st.link) SC.link = st.link;
+      scApply(st, !!st.roster);
+      (st.results || []).forEach(function (r) { scDrop(r.id); scResult(r); });
+      SC.syncedAt = Date.now();
+      scRender();
+      scLater(SC.queue.length ? 30 : 25000);
+    }).catch(function (e) {
+      if (seq !== SC.seq) return;
+      settle();
+      if (isGone(e) || (!SC.state && !isNetErr(e))) { scLock(e.message); return; }
+      scFailed();
+    });
+  }
+  function scFailed() {
+    SC.fails++;
+    SC.offline = true;
+    SC.queue.forEach(function (it) { if (it.kind === 'walkin' && SC.waiters[it.id]) SC.waiters[it.id](null); });
+    if (!SC.state) { $('#scTitle').textContent = 'Waiting for a signal…'; $('#scLead').textContent = 'The scanner opens as soon as this device is back online.'; }
+    scNet();
+    scRender();
+    scLater(Math.min(30000, 2000 * Math.pow(2, Math.min(SC.fails, 4)) / 2));
+  }
+  function scDrop(id) {
+    SC.queue = SC.queue.filter(function (q) { return q.id !== id; });
+    scKeep('queue', SC.queue);
+  }
+  function scApply(st, full, cached) {
+    if (SC.state && SC.state.today !== st.today) SC.inToday = {};   // a new training day
+    if (full && st.roster) {
+      SC.roster = {};
+      st.roster.forEach(function (p) { SC.roster[p.code] = p; });
+      if (!cached) SC.rosterAt = Date.now();
+    }
+    var next = {};
+    Object.keys(SC.inToday).forEach(function (c) { if (!SC.inToday[c].sent) next[c] = SC.inToday[c]; });
+    (st.checkedIn || []).forEach(function (c) { next[c.code] = { time: c.time, sent: true }; });
+    SC.inToday = next;
+    SC.state = { training: st.training, today: st.today, trainingDay: st.trainingDay, day: st.day, days: st.days, registered: st.registered,
+      checkedIn: (st.checkedIn || []).slice() };
+    if (!cached && typeof st.now === 'number') SC.offset = st.now - Date.now();
+    scKeep('state', { state: SC.state, roster: Object.keys(SC.roster).map(function (k) { return SC.roster[k]; }), link: SC.link });
+    $('#scLocked').hidden = true;
+    $('#scMain').hidden = false;
+  }
+  function scResult(r) {
+    var rec = SC.recent.filter(function (x) { return x.id === r.id; })[0], mine = SC.inToday[r.code];
+    if (r.status === 'ok' || r.status === 'already') {
+      SC.inToday[r.code] = { time: r.time, sent: true };
+      if (rec) { rec.status = r.status === 'ok' ? 'ok' : 'dup'; rec.time = r.time; rec.name = rec.name || r.name; }
+    } else {
+      if (mine && !mine.sent && mine.id === r.id) delete SC.inToday[r.code];
+      if (rec) { rec.status = r.status; rec.name = rec.name || r.name || ''; rec.note = r.status === 'other-training' ? r.training : ''; }
+    }
+    if (rec && SC.shown && SC.shown.id === r.id) scShow(rec, false);
+  }
+  function scHandle(raw, how) {
+    if (!SC.state) return;
+    var text = String(raw || '').trim(), code = scCode(text), now = Date.now();
+    if (!code || (how === 'QR' && text.toUpperCase().indexOf(QR_PREFIX) !== 0 && !/^[A-Z0-9]{5}$/i.test(text))) {
+      if (how === 'QR' && text === SC.lastCode && now - SC.lastAt < 4000) return;
+      SC.lastCode = text; SC.lastAt = now;
+      scFeedback('bad');
+      scShow({ id: '', status: 'not-sanay', name: '', agency: '' }, true);
+      return;
+    }
+    if (how === 'QR' && code === SC.lastCode && now - SC.lastAt < 4000) return;   // the same code, still in front of the camera
+    SC.lastCode = code; SC.lastAt = now;
+    var at = now + SC.offset, p = SC.roster[code], have = SC.inToday[code];
+    if (!SC.state.trainingDay) {
+      scFeedback('bad');
+      scShow({ id: '', status: 'not-a-training-day', name: p ? p.name : code, agency: p ? p.agency : '' }, true);
+      return;
+    }
+    if (p && have) {
+      scFeedback('info');
+      scShow({ id: '', status: 'dup', name: p.name, agency: p.agency, time: have.time }, true);
+      return;
+    }
+    var item = { id: uid(), kind: 'scan', code: code, at: at, how: how };
+    SC.queue.push(item);
+    scKeep('queue', SC.queue);
+    var rec = { id: item.id, code: code, name: p ? p.name : '', agency: p ? p.agency : '', time: timeAt(at), status: p ? 'ok' : 'wait', how: how };
+    if (p) SC.inToday[code] = { time: rec.time, sent: false, id: item.id };
+    SC.recent.unshift(rec);
+    SC.recent = SC.recent.slice(0, 15);
+    scFeedback(p ? 'ok' : 'info');
+    scShow(rec, true);
+    scRender();
+    scSync(true);
+  }
+  function scShow(rec, fresh) {
+    SC.shown = rec;
+    var waiting = rec.id && SC.queue.some(function (q) { return q.id === rec.id; });
+    var cls = { ok: 'ok', dup: '', wait: '', error: 'bad', 'not-found': 'bad', 'other-training': 'bad', 'not-sanay': 'bad', 'not-a-training-day': 'warn' }[rec.status] || '';
+    var st = SC_STATUS[rec.status] || rec.status;
+    if (rec.status === 'ok') st += ' · ' + rec.time;
+    if (rec.status === 'dup') st += ' at ' + rec.time;
+    if (rec.status === 'wait') st = SC.offline ? "Not on this device's list yet" : 'Checking this code…';
+    var line = rec.note || rec.agency || '';
+    if (rec.status === 'wait' && SC.offline) line = 'Saved. It will be checked when the signal is back.';
+    if (rec.status === 'not-found') line = 'Send them to the walk-in desk.';
+    if (rec.status === 'ok' && waiting) line += (line ? ' · ' : '') + 'waiting to send';
+    $('#scResult').innerHTML = '<div class="sc-res ' + cls + '"><p class="st">' + esc(st) + '</p>' +
+      (rec.name ? '<p class="nm">' + esc(rec.name) + '</p>' : '') + (line ? '<p class="ag">' + esc(line) + '</p>' : '') + '</div>';
+    if (fresh && SC.mode !== 'scan') scMode('scan');
+  }
+  function scWalkInSaved(item, res) {
+    var p = { code: res.code, name: res.name, agency: item.form.agency, walkIn: true };
+    SC.roster[res.code] = p;
+    SC.inToday[res.code] = { time: res.checkIn ? res.checkIn.time : timeAt(item.at), sent: true };
+    var rec = SC.recent.filter(function (x) { return x.id === item.id; })[0];
+    if (rec) { rec.code = res.code; rec.name = res.name; rec.status = 'ok'; rec.time = SC.inToday[res.code].time; rec.note = 'Walk-in'; }
+    if (SC.waiters[item.id]) SC.waiters[item.id](res);
+    scRender();
+  }
+  function scWalkInFailed(item, msg) {
+    var rec = SC.recent.filter(function (x) { return x.id === item.id; })[0];
+    if (rec) { rec.status = 'error'; rec.note = 'Walk-in not saved: ' + msg; }
+    if (SC.waiters[item.id]) SC.waiters[item.id](null, msg);
+    scRender();
+  }
+  function scNet(kind) {
+    var el = $('#scNet'), n = SC.queue.length, off = SC.offline || (navigator.onLine === false);
+    el.hidden = false;
+    el.className = 'sc-net ' + (kind === 'busy' ? '' : off ? 'off' : 'ok');
+    el.textContent = kind === 'busy' ? (n ? 'Sending ' + n + '…' : 'Updating…')
+      : off ? 'No signal' + (n ? ' · ' + n + ' waiting to send' : '')
+      : n ? n + ' waiting to send' : 'Online · all sent';
+  }
+  function scRender() {
+    if (!SC.state) return;
+    var t = SC.state.training;
+    $('#scTitle').textContent = t.title;
+    $('#scLead').textContent = SC.state.trainingDay ? 'Day ' + SC.state.day + ' of ' + SC.state.days + ' · ' + fmtLong(SC.state.today)
+      : "Today isn't one of the training days (" + fmtRange(t.start, t.end) + '). Scans are refused until then.';
+    var codes = Object.keys(SC.roster), inN = codes.filter(function (c) { return SC.inToday[c]; }).length;
+    $('#scIn').textContent = inN;
+    $('#scOf').textContent = codes.length;
+    $('#scBar').style.width = (codes.length ? Math.round(inN / codes.length * 100) : 0) + '%';
+    $('#scRecent').innerHTML = SC.recent.map(function (r) {
+      var waiting = SC.queue.some(function (q) { return q.id === r.id; });
+      var cls = r.status === 'ok' ? 'ok' : r.status === 'dup' || r.status === 'wait' ? 'info' : 'bad';
+      var tag = (r.status === 'ok' ? r.time : r.status === 'dup' ? 'Already in' : SC_STATUS[r.status] || r.status) + (waiting ? ' · waiting' : '');
+      return '<li><span class="sc-who"><b>' + esc(r.name || r.code) + '</b><span>' + esc(r.note || r.agency || '') + '</span></span>' +
+        '<span class="sc-tag ' + cls + '">' + esc(tag) + '</span></li>';
+    }).join('') || '<li class="sc-none">Scans appear here.</li>';
+    if (SC.mode === 'list') scPeople();
+    if (!LIVE) scDemoCodes();
+    scNet();
+  }
+  function scPeople() {
+    var q = $('#scSearch').value.trim().toLowerCase();
+    var all = Object.keys(SC.roster).map(function (c) { return SC.roster[c]; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var shown = q ? all.filter(function (p) { return (p.name + ' ' + p.agency + ' ' + p.code).toLowerCase().indexOf(q) > -1; }) : all;
+    var inN = all.filter(function (p) { return SC.inToday[p.code]; }).length;
+    $('#scListSum').textContent = (q ? shown.length + (shown.length === 1 ? ' person' : ' people') + ' found · ' : '') + inN + ' of ' + all.length + ' checked in today';
+    $('#scPeople').innerHTML = shown.slice(0, 400).map(function (p) {
+      var have = SC.inToday[p.code], sure = SC.confirm === p.code;
+      return '<li><span class="sc-who"><b>' + esc(p.name) + '</b><span>' + esc(p.agency + (p.walkIn ? ' · walk-in' : '')) + '</span></span>' +
+        (have ? '<span class="sc-tag ok">In · ' + esc(have.time) + (have.sent ? '' : ' · waiting') + '</span>'
+          : '<button type="button" class="btn-quiet sc-pick' + (sure ? ' sure' : '') + '" data-code="' + esc(p.code) + '">' + (sure ? 'Tap again to confirm' : 'Check in') + '</button>') + '</li>';
+    }).join('') || '<li class="sc-none">No one matches. If they did not register, use Walk-in.</li>';
+  }
+  function scMode(mode) {
+    if (mode === 'walkin') { scWalkIn(); return; }
+    SC.mode = mode;
+    $$('#scMain .seg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.mode === mode ? 'true' : 'false'); });
+    $('#scScan').hidden = mode !== 'scan';
+    $('#scListPane').hidden = mode !== 'list';
+    if (mode === 'list') { scStopCamera(); scPeople(); }
+  }
+  function scWalkIn() {
+    if (!SC.state) return;
+    scMode('scan');   // coming back from the form lands on scanning
+    scStopCamera();
+    S.desk = { id: SC.state.training.id, title: SC.state.training.title };
+    resetRegForm(false);
+    $('#regDone').hidden = true;
+    $('#regFormWrap').hidden = false;
+    show('register');
+    fillRegister();
+    $('#firstName').focus();
+  }
+  /* Walk-in at the door: saved on this device first, so a dropped signal loses nothing */
+  function deskSubmit(f) {
+    var item = { id: uid(), kind: 'walkin', at: Date.now() + SC.offset, form: f, name: fullName(f) };
+    SC.queue.push(item);
+    scKeep('queue', SC.queue);
+    SC.recent.unshift({ id: item.id, code: '', name: item.name, agency: f.agency, time: timeAt(item.at), status: 'wait', how: 'Walk-in', note: 'Walk-in' });
+    var btn = $('#regSubmit'), settled = false;
+    busy(btn, true, 'Saving…');
+    function finish(res, err) {
+      if (settled) return;
+      settled = true;
+      delete SC.waiters[item.id];
+      busy(btn, false);
+      if (err) { $('#regError').textContent = err; $('#regError').hidden = false; return; }
+      showDeskDone(item, res);
+    }
+    SC.waiters[item.id] = finish;
+    setTimeout(function () { finish(null); }, 10000);   // no answer yet: it waits on this device
+    scSync(true);
+  }
+  function showDeskDone(item, res) {
+    var ci = res && res.checkIn;
+    $('#doneTitle').textContent = !res ? 'Saved on this device' : ci && ci.status === 'already' ? 'Already checked in today' : res.already ? 'Already registered, now checked in' : 'Registered and checked in';
+    $('#doneLead').textContent = res
+      ? res.name + (ci && ci.status === 'already' ? ' checked in at ' + ci.time + '.' : ' is checked in for today.') + ' Give them their QR code for the next days.'
+      : item.name + ' counts as checked in from ' + timeAt(item.at) + ". The form goes to the Sheet when the signal is back; their QR code appears on the scanner's list then.";
+    $('#doneCard').hidden = !res;
+    if (res) {
+      $('#doneCode').textContent = res.code;
+      setQR($('#doneQr'), res.code);
+      $('#doneQrHint').textContent = 'Let them take a photo of this QR code, or print it on a name tag from the report.';
+      $('#copyNote').textContent = '';
+    }
+    $('#doneFacts').innerHTML = '<div><dt>Training</dt><dd>' + esc(S.desk ? S.desk.title : '') + '</dd></div>' +
+      '<div><dt>Checked in</dt><dd>' + esc(ci ? ci.time + ' · Day ' + ci.day + ' of ' + ci.days : timeAt(item.at) + ' · waiting to send') + '</dd></div>';
+    $('#doneCheckIn').hidden = true;
+    $('#regDemoNote').hidden = LIVE || !res;
+    deskButtons(true);
+    $('#regFormWrap').hidden = true;
+    $('#regDone').hidden = false;
+    try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+    $('#regDone').focus();
+  }
+  function deskButtons(desk) {
+    $('#doneCodeLabel').textContent = desk ? 'Registration code' : 'Your registration code';
+    $('#doneScan').hidden = !desk;
+    $('#doneHome').hidden = desk;
+    $('#doneAnother').textContent = desk ? 'Next walk-in' : 'Register another person';
+  }
+  function scFeedback(kind) {
+    try { if (navigator.vibrate) navigator.vibrate(kind === 'ok' ? 60 : kind === 'bad' ? [70, 60, 70] : 30); } catch (e) { /* ignore */ }
+    var a = SC.audio;
+    if (!a) return;
+    try {
+      var o = a.createOscillator(), g = a.createGain();
+      o.frequency.value = kind === 'ok' ? 880 : kind === 'bad' ? 220 : 520;
+      g.gain.value = 0.06;
+      o.connect(g); g.connect(a.destination);
+      o.start(); o.stop(a.currentTime + (kind === 'bad' ? 0.3 : 0.12));
+    } catch (e) { /* ignore */ }
+  }
+  function scAudio() {
+    try {
+      var C = window.AudioContext || window.webkitAudioContext;
+      if (!SC.audio && C) SC.audio = new C();
+      if (SC.audio && SC.audio.state === 'suspended') SC.audio.resume();
+    } catch (e) { /* no sound, that's fine */ }
+  }
+  function scCamera() {
+    scAudio();
+    $('#scCamMsg').hidden = true;
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { scCamFail("This browser can't open the camera on this page."); return; }
+    var btn = $('#scStart');
+    btn.disabled = true;
+    btn.textContent = 'Opening the camera…';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }).then(function (stream) {
+      if (S.view !== 'scan' || SC.mode !== 'scan') { stream.getTracks().forEach(function (t) { t.stop(); }); throw new Error('stopped'); }
+      SC.stream = stream;
+      var v = $('#scVideo');
+      v.srcObject = stream;
+      return v.play();
+    }).then(function () {
+      $('#scCam').classList.add('on');
+      $('#scCamBox').hidden = true;
+      $('#scCamOff').hidden = false;
+      return scDecoder();
+    }).then(function (decode) {
+      SC.decode = decode;
+      scLoop();
+    }).catch(function (e) {
+      var stopped = e && e.message === 'stopped';
+      scStopCamera();
+      if (stopped) return;
+      scCamFail(e && e.name === 'NotAllowedError' ? "The camera is blocked for this page. Allow it in the browser's settings for this site, then try again."
+        : e && e.name === 'NotFoundError' ? 'No camera was found on this device.' : (e && e.message) || "The camera didn't open.");
+    }).then(function () { btn.disabled = false; btn.textContent = 'Start the camera'; });
+  }
+  function scCamFail(text) {
+    var msg = $('#scCamMsg');
+    msg.textContent = text + ' Meanwhile, type the code below, use a handheld scanner, or find the person in the List.';
+    msg.hidden = false;
+  }
+  function scDecoder() {
+    var BD = window.BarcodeDetector;
+    var native = BD && BD.getSupportedFormats ? BD.getSupportedFormats().then(function (f) { return f.indexOf('qr_code') > -1; }, function () { return false; }) : Promise.resolve(false);
+    return native.then(function (ok) {
+      if (ok) {
+        var det = new BD({ formats: ['qr_code'] });
+        return function (video) { return det.detect(video).then(function (found) { return found && found[0] ? found[0].rawValue : ''; }); };
+      }
+      return scJsQR().then(function (jsQR) {
+        var cv = document.createElement('canvas'), g = cv.getContext('2d', { willReadFrequently: true });
+        return function (video) {
+          var w = video.videoWidth, h = video.videoHeight;
+          if (!w || !h) return Promise.resolve('');
+          var k = Math.min(1, 720 / Math.max(w, h));
+          cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+          g.drawImage(video, 0, 0, cv.width, cv.height);
+          var img = g.getImageData(0, 0, cv.width, cv.height), found = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+          return Promise.resolve(found ? found.data : '');
+        };
+      });
+    });
+  }
+  var jsqrLoad = null;
+  /* The QR reader for phones without a built-in one (iPhones, Windows laptops): loaded only when needed */
+  function scJsQR() {
+    if (window.jsQR) return Promise.resolve(window.jsQR);
+    if (!jsqrLoad) {
+      jsqrLoad = new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = JSQR_URL; s.integrity = JSQR_SRI; s.crossOrigin = 'anonymous'; s.async = true;
+        s.onload = function () { if (window.jsQR) resolve(window.jsQR); else reject(new Error("The QR reader didn't load.")); };
+        s.onerror = function () { jsqrLoad = null; reject(new Error("The QR reader couldn't load. Check the signal and try again.")); };
+        document.head.appendChild(s);
+      });
+    }
+    return jsqrLoad;
+  }
+  function scLoop() {
+    if (SC.looping) return;
+    SC.looping = true;
+    (function tick() {
+      if (!SC.stream || S.view !== 'scan' || SC.mode !== 'scan') { SC.looping = false; return; }
+      var v = $('#scVideo');
+      var next = document.hidden || !SC.decode || v.readyState < 2 ? Promise.resolve('') : SC.decode(v).then(null, function () { return ''; });
+      next.then(function (text) {
+        if (text) scHandle(text, 'QR');
+        setTimeout(tick, 150);
+      });
+    })();
+  }
+  function scStopCamera() {
+    if (SC.stream) { try { SC.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { /* ignore */ } }
+    SC.stream = null;
+    var v = $('#scVideo');
+    if (v) { try { v.srcObject = null; } catch (e) { /* ignore */ } }
+    $('#scCam').classList.remove('on');
+    $('#scCamBox').hidden = false;
+    $('#scCamOff').hidden = true;
+  }
+  function scAddDevice() {
+    var box = $('#scAddBox'), open = box.hidden;
+    box.hidden = !open;
+    $('#scAdd').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) $('#scAddQr').innerHTML = SC.link ? qrSVG(SC.link, 'qr') : '<p class="hint">The link appears when this device is online.</p>';
+  }
+  function scDemoCodes() {
+    var box = $('#scDemoCodes');
+    if (!box || box.childElementCount) return;
+    var pick = function (code) { return Demo.db.registrations.filter(function (r) { return r.reg_code === code; })[0]; };
+    var ics4 = Demo.db.registrations.filter(function (r) { return r.training_id === 'ICS-4'; });
+    var notYet = ics4.filter(function (r) { return !Demo.db.attendance.some(function (a) { return a.reg_code === r.reg_code && a.date === Demo.today; }); });
+    var other = Demo.db.registrations.filter(function (r) { return r.training_id === 'RDANA-1'; })[0];
+    var list = [pick('K7Q2M'), notYet[3], pick('R4XTP'), other].filter(Boolean).map(function (r) { return { code: r.reg_code, label: r.first_name + ' ' + r.last_name }; });
+    list.push({ code: 'ZZZZZ', label: 'Unknown code' });
+    box.innerHTML = list.map(function (x) {
+      return '<button type="button" class="sc-chip" data-scan="' + esc(x.code) + '">' + qrSVG(QR_PREFIX + x.code) + esc(x.label) + '</button>';
+    }).join('');
   }
 
   /* ---------------- evaluation ---------------- */
@@ -2210,6 +3059,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   function syncReportControls() {
     var sec = S.rpSection;
     $('#rpTrainingField').hidden = sec === 'requests' || sec === 'partners';
+    if (sec === 'tags' && S.report && S.rpList !== 'reg' && $('#rpList').querySelector('option[value="reg"]')) { S.rpList = 'reg'; $('#rpList').value = 'reg'; }
     $('#rpListField').hidden = sec === 'certs' || sec === 'requests' || sec === 'partners' || sec === 'evals';
     $('#rpShowField').hidden = sec !== 'certs';
     $('#rpCopy').hidden = sec !== 'certs';
@@ -2252,6 +3102,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         out = evalPages(rp);
         n = (rp.evaluations || []).length;
         unit = n === 1 ? 'evaluation' : 'evaluations';
+      } else if (sec === 'tags' && rp.training) {
+        out = tagPages(rp, rows);
+        unit = n === 1 ? 'name tag' : 'name tags';
       } else if (sec === 'partners') {
         out = partnerPages(rp);
         n = (rp.partnerships || []).length;
@@ -2274,7 +3127,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       }
       $('#paperStack').innerHTML = out.html;
       var what = { sheet: 'Attendance sheet', certs: 'Certificates', profile: 'Participant profile', media: 'Photo and recording', impact: 'Impact interviews',
-        requests: 'Training requests', partners: 'Partnership requests', evals: 'Evaluation results' }[sec];
+        requests: 'Training requests', partners: 'Partnership requests', evals: 'Evaluation results', tags: 'Name tags' }[sec];
       $('#rpSummary').textContent = !rp.training && sec !== 'requests' && sec !== 'partners' ? 'No trainings in the Sheet yet.'
         : what + ' · ' + n + ' ' + unit + extra + ' · ' + out.pages + (out.pages === 1 ? ' page' : ' pages');
       fitPapers();
@@ -2489,6 +3342,26 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       noShow: rp.registrations.length - all.length, final: end < rp.today,
       shown: all.filter(function (x) { return S.rpShow === 'eligible' ? x.ok : S.rpShow === 'check' ? !x.ok : true; })
     };
+  }
+  /* Name tags with each person's QR code: nine to a page, with dashed lines to cut along */
+  function tagPages(rp, rows) {
+    var per = 9, pages = [], t = rp.training;
+    for (var i = 0; i < rows.length; i += per) pages.push(rows.slice(i, i + per));
+    if (!pages.length) pages.push([]);
+    var band = 'background:linear-gradient(100deg,' + esc(BRAND.bands[0]) + ' 0 61%,' + esc(BRAND.bands[1]) + ' 61%)';
+    var html = pages.map(function (chunk, k) {
+      var cells = chunk.map(function (x) {
+        var r = x.reg, name = String(r.full_name || '');
+        return '<div class="tag"><div class="tag-band" style="' + band + '"></div><div class="tag-body"><div>' +
+          '<p class="tag-training">' + esc(t.title) + '</p><p class="tag-name' + (name.length > 22 ? ' long' : '') + '">' + esc(name) + '</p>' +
+          (r.position ? '<p class="tag-pos">' + esc(r.position) + '</p>' : '') + '<p class="tag-agency">' + esc(r.agency) + '</p></div>' +
+          '<div class="tag-qr">' + qrSVG(QR_PREFIX + r.reg_code) + '<p class="tag-code">' + esc(r.reg_code) + '</p></div></div></div>';
+      });
+      while (cells.length < per && chunk.length) cells.push('<div class="tag tag-blank"></div>');
+      return '<article class="paper paper-tags"><div class="tags">' + cells.join('') + '</div>' +
+        '<p class="p-meta l">' + esc(reportMeta(rp) + ' · Name tags · ' + t.title) + '</p><p class="p-meta r">Page ' + (k + 1) + ' of ' + pages.length + '</p></article>';
+    }).join('');
+    return { html: html, pages: pages.length };
   }
   function certPages(rp, c) {
     var t = rp.training, meta = reportMeta(rp);
@@ -2876,7 +3749,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       });
     });
     document.addEventListener('click', function (e) {
-      if (e.target.closest('[data-home]')) { show('home'); return; }
+      if (e.target.closest('[data-home]')) { show(S.desk && S.view === 'register' ? 'scan' : 'home'); return; }
+      var demoScan = e.target.closest('[data-scan]');
+      if (demoScan) { scAudio(); scHandle(QR_PREFIX + demoScan.getAttribute('data-scan'), 'QR'); return; }
       var walk = e.target.closest('[data-walkin]');
       if (walk) { startWalkIn(walk.getAttribute('data-walkin')); return; }
       var see = e.target.closest('[data-see]');
@@ -2920,6 +3795,34 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       doCheckIn(S.lastReg.trainingId, S.lastReg.code);
     });
     $('#ciForm').addEventListener('submit', onCheckIn);
+    $('#doneScan').addEventListener('click', function () { show('scan'); });
+    $('#creditsBtn').addEventListener('click', openCredits);
+    $('#crClose').addEventListener('click', closeCredits);
+    $('#credits').addEventListener('click', function (e) { if (e.target === this) closeCredits(); });   // a tap outside the box
+    $$('#scMain .seg button').forEach(function (b) { b.addEventListener('click', function () { scMode(b.dataset.mode); }); });
+    $('#scStart').addEventListener('click', scCamera);
+    $('#scCamOff').addEventListener('click', scStopCamera);
+    $('#scType').addEventListener('submit', function (e) {
+      e.preventDefault();
+      scAudio();
+      var v = $('#scCode').value;
+      $('#scCode').value = '';
+      if (!v.trim()) return;
+      SC.lastCode = '';
+      scHandle(v, String(v).trim().toUpperCase().indexOf(QR_PREFIX) === 0 ? 'QR' : 'Typed code');
+    });
+    $('#scSearch').addEventListener('input', scPeople);
+    $('#scPeople').addEventListener('click', function (e) {
+      var b = e.target.closest('.sc-pick');
+      if (!b) return;
+      var code = b.getAttribute('data-code');
+      clearTimeout(SC.confirmTimer);
+      if (SC.confirm === code) { SC.confirm = ''; SC.lastCode = ''; scAudio(); scHandle(code, 'Name search'); scMode('list'); return; }
+      SC.confirm = code;
+      scPeople();
+      SC.confirmTimer = setTimeout(function () { SC.confirm = ''; if (SC.mode === 'list') scPeople(); }, 4000);
+    });
+    $('#scAdd').addEventListener('click', scAddDevice);
     $('#ciRegister').addEventListener('click', function () { startWalkIn($('#ciTraining').value); });
     $('#evForm').addEventListener('submit', onEvaluate);
     $('#evLikert').addEventListener('change', function (e) {
@@ -2986,10 +3889,20 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       });
       $('#fillSample').addEventListener('click', fillSample);
       $('#openReport').addEventListener('click', function () { show('report'); });
+      $('#openScanner').addEventListener('click', function () { show('scan'); });
+      $('#scSignal').addEventListener('click', function () {
+        S.demoOffline = !S.demoOffline;
+        this.textContent = S.demoOffline ? 'Turn the signal back on' : 'Turn the signal off';
+        if (S.demoOffline) { SC.offline = true; scNet(); } else scSync(true);
+      });
       $('#toggleSheet').addEventListener('click', function () { setSheet(!S.sheetOpen); });
       $('#resetDemo').addEventListener('click', function () {
         Demo = makeDemo();
-        S.flash = null; S.lastReg = null; S.walkIn = null; S.sheetTab = 'Trainings'; S.report = null;
+        S.flash = null; S.lastReg = null; S.walkIn = null; S.desk = null; S.sheetTab = 'Trainings'; S.report = null; S.demoOffline = false;
+        scStopCamera();
+        clearTimeout(SC.timer);
+        SC.started = false; SC.state = null; SC.roster = {}; SC.inToday = {}; SC.queue = []; SC.recent = []; SC.shown = null; SC.offline = false; SC.seq++; SC.busy = false;
+        $('#scDemoCodes').innerHTML = ''; $('#scResult').innerHTML = ''; $('#scSignal').textContent = 'Turn the signal off'; $('#scAddBox').hidden = true;
         $('#regDone').hidden = true; $('#regFormWrap').hidden = false;
         $('#evDone').hidden = true; $('#evFormWrap').hidden = false;
         $('#ciResult').innerHTML = ''; $('#evResult').innerHTML = '';
@@ -3016,7 +3929,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     readParams().then(function (p) {
       S.params = p || {};
       var page = String(S.params.page || '').toLowerCase();
-      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request', partnership: 'partner', partners: 'partner' }[page] || page;
+      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request', partnership: 'partner', partners: 'partner', scanner: 'scan' }[page] || page;
       var hashView = LIVE ? '' : location.hash.replace('#', '');
       show(VIEWS.indexOf(page) > -1 ? page : VIEWS.indexOf(hashView) > -1 ? hashView : 'home', { focus: false });
       return load();

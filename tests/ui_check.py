@@ -10,6 +10,7 @@ the real fonts when Google Fonts can't be reached. Needs: pip install playwright
 import json
 import pathlib
 import base64
+import re
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -36,6 +37,11 @@ BRAND = {   # what Code.gs writes into the deployed page
     'bands': ['#014421', '#7B1113'],
     'logos': [{'alt': l['alt'], 'src': 'data:image/webp;base64,' + base64.b64encode((ROOT / 'assets' / 'logos' / l['file']).read_bytes()).decode()} for l in LOGOS],
 }
+_FIG = (ROOT / 'assets' / 'figure' / 'oblation.svg').read_text(encoding='utf-8')
+BRAND['figure'] = {'viewBox': re.search(r'viewBox="([^"]+)"', _FIG).group(1), 'd': re.search(r'<path[^>]*\sd="([^"]+)"', _FIG).group(1)}
+
+JSQR = ROOT / 'tests' / 'vendor' / 'jsQR.js'   # the same file the scanner loads from the CDN, checked against its integrity hash
+JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
 
 FONT_FILES = [
     ('EB Garamond', 500, 'eb-garamond-latin-500-normal.woff2'), ('EB Garamond', 600, 'eb-garamond-latin-600-normal.woff2'),
@@ -79,6 +85,31 @@ def open_page(browser, w, h, dark=False, brand=None, dsf=1):
     return ctx, pg, errors
 
 
+def route_jsqr(pg):
+    pg.route(JSQR_URL, lambda r: r.fulfill(status=200, path=str(JSQR), headers=dict(CORS, **{'Content-Type': 'application/javascript'})))
+
+
+def read_qr(pg, selector):
+    """Reads a QR code on the page (an <img> or an <svg>) the way a phone would, with jsQR."""
+    if not pg.evaluate('!!window.jsQR'):
+        pg.add_script_tag(path=str(JSQR))
+    return pg.evaluate('''async (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const src = el.tagName.toLowerCase() === 'img' ? el.src
+          : 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(el).replace('<svg', '<svg width="400" height="400"'));
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        const w = 400, h = Math.round(400 * (img.naturalHeight || 400) / (img.naturalWidth || 400));
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const g = c.getContext('2d');
+        g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+        const d = g.getImageData(0, 0, w, h), r = jsQR(d.data, w, h);
+        return r ? r.data : null; }''', selector)
+
+
 def no_overflow(pg, label):
     sw, iw = pg.evaluate('[document.documentElement.scrollWidth, window.innerWidth]')
     check(sw <= iw, '%s: no sideways scroll (%d <= %d)' % (label, sw, iw))
@@ -111,6 +142,13 @@ with sync_playwright() as p:
     check(pg.locator('.action .action-icon').count() == 5, 'each button has an icon')
     no_overflow(pg, 'home (phone)')
     pg.screenshot(path=str(OUT / '01-phone-home.png'))
+    pg.click('#creditsBtn')
+    credits = pg.text_content('#crList')
+    check(pg.is_visible('#credits') and 'Developed by' in credits and 'Kazuhiko Arase' in credits and 'Oblation' not in credits,
+          'the (i) under the buttons opens the credits (the preview has no Oblation, so no credit for it)')
+    pg.screenshot(path=str(OUT / '01b-phone-credits.png'))
+    pg.keyboard.press('Escape')
+    check(pg.is_hidden('#credits'), 'Escape closes the credits')
 
     go(pg, 'register')
     groups = pg.eval_on_selector_all('#regTraining optgroup', 'gs => gs.map(g => g.label)')
@@ -146,6 +184,7 @@ with sync_playwright() as p:
     pg.wait_for_selector('#regDone:not([hidden])')
     code = pg.inner_text('#doneCode')
     check(len(code) == 5, 'registration code shown: ' + code)
+    check(read_qr(pg, '#doneQr') == 'SANAY:' + code, 'the confirmation has a QR code that reads SANAY:' + code)
     check('Submitted' in pg.inner_text('#doneFacts'), 'submission time shown in place of a signature')
     pg.screenshot(path=str(OUT / '03-phone-registered.png'))
 
@@ -168,6 +207,7 @@ with sync_playwright() as p:
     pg.fill('#ciKey', 'K7Q2M'); pg.click('#ciSubmit')
     pg.wait_for_selector('#ciResult .result')
     check("You're checked in" in pg.inner_text('#ciResult'), 'check-in with a code works')
+    check(read_qr(pg, '#ciResult img.qr') == 'SANAY:K7Q2M', 'and shows their QR code for next time')
     pg.fill('#ciKey', 'k7q2m'); pg.click('#ciSubmit')
     pg.wait_for_function('document.querySelector("#ciResult").innerText.includes("Already")')
     check(True, 'second check-in the same day says already checked in')
@@ -248,6 +288,114 @@ with sync_playwright() as p:
     check(not errors or all('fonts.g' in e for e in errors), 'no script errors on the phone: %s' % errors[:3])
     ctx.close()
 
+    # ---------------- check-in scanner at the door ----------------
+    ctx, pg, errors = open_page(browser, 390, 844, dsf=2)
+    route_jsqr(pg)
+    pg.click('#openScanner')
+    pg.wait_for_selector('#scMain:not([hidden])')
+    check('Batch 4' in pg.inner_text('#scTitle') and 'Day 2 of 3' in pg.inner_text('#scLead'), 'scanner opens on the training happening today: ' + pg.inner_text('#scLead'))
+    n0 = int(pg.inner_text('#scIn'))
+    first = pg.get_attribute('#scDemoCodes [data-scan] >> nth=1', 'data-scan')
+    pg.click('#scDemoCodes [data-scan] >> nth=1')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")')
+    check(pg.inner_text('#scResult .st').startswith('Checked in') and int(pg.inner_text('#scIn')) == n0 + 1, 'a scan checks the person in, and the count goes up')
+    pg.fill('#scCode', 'sanay:' + first.lower()); pg.press('#scCode', 'Enter')
+    check(pg.inner_text('#scResult .st').startswith('Already checked in'), 'the same person again: already checked in')
+    pg.fill('#scCode', 'ZZZZZ'); pg.press('#scCode', 'Enter')
+    pg.wait_for_function('document.querySelector("#scResult .st").textContent.includes("Not registered")')
+    check(True, 'an unknown code: not registered, send them to the walk-in desk')
+    pg.click('#scSignal')
+    pg.fill('#scCode', 'K7Q2M'); pg.press('#scCode', 'Enter')
+    check('Juan' in pg.inner_text('#scResult .nm') and pg.inner_text('#scResult .st').startswith('Checked in'), 'with no signal, a scan still counts on the device')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("No signal · 1 waiting to send")')
+    check(True, 'and waits on the device')
+    pg.screenshot(path=str(OUT / '13-phone-scanner-no-signal.png'), full_page=True)
+    pg.click('#scSignal')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")', timeout=20000)
+    pg.click('#toggleSheet'); pg.click('#sheetTabs [data-tab="Attendance"]')
+    grid = pg.inner_text('#grid')
+    check('K7Q2M' in grid and 'Typed code' in grid, 'once the signal is back, the waiting scan reaches the Sheet')
+    pg.click('#toggleSheet')
+    pg.click('#scMain .seg [data-mode="list"]')
+    n1 = int(pg.inner_text('#scIn'))
+    pg.click('#scPeople .sc-pick >> nth=0')
+    check('Tap again' in pg.inner_text('#scPeople .sc-pick.sure'), 'checking someone in from the list asks for a second tap')
+    pg.click('#scPeople .sc-pick.sure')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")')
+    check(int(pg.inner_text('#scIn')) == n1 + 1 and pg.is_visible('#scListPane'), 'the second tap checks them in, and the list stays open')
+    pg.fill('#scSearch', 'Rogelio')
+    check(pg.locator('#scPeople li').count() == 1 and 'In ·' in pg.inner_text('#scPeople'), 'search finds a person and shows they are in')
+    pg.click('#scMain .seg [data-mode="walkin"]')
+    check(pg.inner_text('#regBack') == 'Scanner' and 'at the door' in pg.inner_text('#regLead') and pg.locator('#regTraining option').count() == 1, 'Walk-in opens the form for this training, with a way back to the scanner')
+
+    def desk_walkin(first_name, email):
+        pg.fill('#firstName', first_name); pg.fill('#lastName', 'Villanueva'); pg.fill('#agency', 'BFP Malaya'); pg.fill('#email', email)
+        pg.click('label[for="gadNo"]'); pg.click('label[for="photo_consent-Yes"]'); pg.click('label[for="recording_consent-Yes"]'); pg.click('label[for="impact_consent-No"]')
+        pg.click('#regSubmit')
+        pg.wait_for_selector('#regDone:not([hidden])', timeout=15000)
+    desk_walkin('Arnel', 'arnel.desk@example.com')
+    wcode = pg.inner_text('#doneCode')
+    check(pg.inner_text('#doneTitle') == 'Registered and checked in' and read_qr(pg, '#doneQr') == 'SANAY:' + wcode and pg.is_visible('#doneScan') and pg.is_hidden('#doneHome'),
+          'walk-in at the door: registered, checked in and given a QR code; next is back to scanning')
+    pg.screenshot(path=str(OUT / '14-phone-scanner-walkin.png'), full_page=True)
+    pg.click('#doneScan')
+    check('Arnel' in pg.inner_text('#scRecent'), 'the walk-in shows in the latest list')
+    pg.click('#scSignal')
+    pg.click('#scMain .seg [data-mode="walkin"]')
+    desk_walkin('Benjie', 'benjie.desk@example.com')
+    check(pg.inner_text('#doneTitle') == 'Saved on this device' and pg.is_hidden('#doneCard'), 'with no signal, a walk-in is saved on the device')
+    pg.click('#doneScan')
+    pg.click('#scSignal')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")', timeout=20000)
+    pg.click('#scMain .seg [data-mode="list"]')
+    pg.fill('#scSearch', 'Benjie Villanueva')
+    check('In ·' in pg.inner_text('#scPeople'), 'and reaches the Sheet, checked in, when the signal is back')
+    pg.click('#scMain .seg [data-mode="scan"]')
+    pg.click('#scAdd')
+    check(read_qr(pg, '#scAddQr svg') == 'https://script.google.com/macros/s/your-web-app/exec?page=scan&k=preview', 'Add a device shows the scanner link as a QR code')
+    no_overflow(pg, 'scanner (phone)')
+    pg.screenshot(path=str(OUT / '15-phone-scanner.png'), full_page=True)
+
+    # a phone camera pointed at a participant's QR code (Chromium's fake camera, playing a picture of it)
+    y = pg.evaluate('''(code) => {
+        const q = qrcode(0, 'M'); q.addData('SANAY:' + code, 'Alphanumeric'); q.make();
+        const n = q.getModuleCount(), W = 640, H = 480, s = Math.floor(330 / (n + 8)), z = (n + 8) * s, x0 = (W - z) >> 1, y0 = (H - z) >> 1;
+        const Y = new Uint8Array(W * H).fill(150);
+        for (let r = 0; r < z; r++) for (let c = 0; c < z; c++) Y[(y0 + r) * W + x0 + c] = 235;
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c))
+          for (let i = 0; i < s; i++) for (let j = 0; j < s; j++) Y[(y0 + (r + 4) * s + i) * W + x0 + (c + 4) * s + j] = 20;
+        let out = ''; for (let i = 0; i < Y.length; i += 8192) out += String.fromCharCode.apply(null, Y.subarray(i, i + 8192));
+        return btoa(out); }''', 'R4XTP')
+    cam = OUT / 'fake-camera.y4m'
+    frame = base64.b64decode(y) + bytes([128]) * (640 * 480 // 2)
+    cam.write_bytes(b'YUV4MPEG2 W640 H480 F10:1 Ip A1:1 C420jpeg\n' + b''.join(b'FRAME\n' + frame for _ in range(5)))
+    check(not errors or all('fonts.g' in e for e in errors), 'no script errors in the scanner: %s' % errors[:3])
+    ctx.close()
+    cam_browser = p.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-file-for-fake-video-capture=' + str(cam)])
+    ctx, pg, errors = open_page(cam_browser, 390, 844)
+    route_jsqr(pg)
+    pg.click('#openScanner')
+    pg.wait_for_selector('#scMain:not([hidden])')
+    pg.click('#scStart')
+    try:
+        pg.wait_for_function('(document.querySelector("#scResult .nm") || {}).textContent === "Ana L. Reyes"', timeout=20000)
+        seen = pg.inner_text('#scResult .st')
+    except Exception:
+        seen = pg.inner_text('#scCamMsg') if pg.is_visible('#scCamMsg') else pg.inner_text('#scResult')
+    check(seen.startswith('Checked in') or seen.startswith('Already checked in'), 'the camera reads a QR code and checks the person in: ' + seen)
+    check(pg.evaluate('!!window.jsQR') and pg.evaluate('document.querySelector(\'script[src*="jsqr"]\').integrity.startsWith("sha384-")'), 'the QR reader loaded from the CDN, and matched its integrity hash')
+    pg.screenshot(path=str(OUT / '16-phone-scanner-camera.png'))
+    ctx.close()
+    cam_browser.close()
+
+    ctx, pg, errors = open_page(browser, 1360, 900, dsf=1)
+    pg.click('#openScanner')
+    pg.wait_for_selector('#scMain:not([hidden])')
+    pg.click('#scDemoCodes [data-scan] >> nth=0')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")')
+    pg.screenshot(path=str(OUT / '17-desktop-scanner.png'))
+    ctx.close()
+
     # ---------------- desktop: report, sheet panel, dark ----------------
     ctx, pg, errors = open_page(browser, 1360, 900)
     pg.screenshot(path=str(OUT / '04-desktop-home.png'))
@@ -297,6 +445,17 @@ with sync_playwright() as p:
     check(nums == ['Page %d of %d' % (i + 1, len(nums)) for i in range(len(nums))], 'pages numbered straight through: ' + ', '.join(nums))
     check(pg.locator('#paperStack .ev-open').count() >= 1, 'written answers follow on their own pages')
     pg.screenshot(path=str(OUT / '06d-desktop-report-evaluation.png'))
+    pg.click('.seg [data-section="tags"]')
+    pg.wait_for_selector('#paperStack .tag')
+    tags = pg.locator('#paperStack .tag:not(.tag-blank)').count()
+    regs = int(re.search(r'Registered \((\d+)\)', pg.inner_text('#rpList option[value="reg"]')).group(1))
+    check(pg.input_value('#rpList') == 'reg' and tags == regs, 'name tags: one per registered person (%d)' % tags)
+    fit = pg.evaluate('''() => Array.from(document.querySelectorAll('#paperStack .paper')).every(p => {
+        const b = p.getBoundingClientRect(); return Array.from(p.querySelectorAll('.tag')).every(t => t.getBoundingClientRect().bottom <= b.bottom - 8); })''')
+    check(fit and pg.locator('#paperStack .paper').count() == -(-tags // 9), 'nine tags to a page, all inside the page')
+    tcode = pg.inner_text('#paperStack .tag-code >> nth=0')
+    check(read_qr(pg, '#paperStack .tag-qr svg') == 'SANAY:' + tcode, 'a printed name tag\'s QR code reads SANAY:' + tcode)
+    pg.screenshot(path=str(OUT / '06e-desktop-report-name-tags.png'))
     pg.click('.seg [data-section="partners"]')
     pg.wait_for_function('(document.querySelector("#paperStack .p-title") || {}).textContent === "TRAINING PARTNERSHIP REQUESTS"')
     check(pg.is_hidden('#rpTrainingField') and all(papers_fit(pg)) and pg.locator('#paperStack .rq-table tbody tr').count() >= 6, 'partnership requests page lists them and fits')
@@ -334,6 +493,11 @@ with sync_playwright() as p:
     # ---------------- deployed look: real logos and names ----------------
     ctx, pg, errors = open_page(browser, 390, 844, brand=BRAND, dsf=2)
     check(pg.locator('#logos img').count() == 3, 'deployed look: three logos')
+    check(pg.is_visible('#figure svg path'), 'deployed look: the half Oblation at the right edge')
+    pg.click('#creditsBtn')
+    check("Guillermo E. Tolentino's Oblation" in pg.inner_text('#crList') and 'NOAH Center logo' in pg.inner_text('#crList'), 'credits name the Oblation and the logos')
+    pg.screenshot(path=str(OUT / '09b-branded-phone-credits.png'))
+    pg.click('#crClose')
     pg.screenshot(path=str(OUT / '09-branded-phone-home.png'))
     ctx.close()
     ctx, pg, errors = open_page(browser, 1360, 900, brand=BRAND, dsf=2)
@@ -350,7 +514,8 @@ with sync_playwright() as p:
     pg.select_option('#rpTraining', 'ICS-3')
     pg.wait_for_function('document.querySelector("#rpList").value === "any" && document.querySelector("#paperStack .p-av") && document.querySelector("#paperStack .p-av").textContent.includes("Batch 3")')
     for section, name in (('sheet', 'attendance-sheet'), ('certs', 'certificates'), ('profile', 'participant-profile'), ('media', 'photo-recording'),
-                          ('impact', 'impact-interviews'), ('requests', 'training-requests'), ('partners', 'partnership-requests'), ('evals', 'evaluation-results')):
+                          ('impact', 'impact-interviews'), ('requests', 'training-requests'), ('partners', 'partnership-requests'), ('evals', 'evaluation-results'),
+                          ('tags', 'name-tags')):
         pg.click('.seg [data-section="%s"]' % section)
         pg.wait_for_timeout(400)
         pg.emulate_media(media='print')

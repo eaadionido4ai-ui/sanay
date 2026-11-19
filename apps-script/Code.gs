@@ -5,13 +5,15 @@
  * Google Apps Script back end. The Google Sheet is the database.
  *
  * Home screen: Register, Attendance (with walk-ins), Evaluation, Request a training and
- * Training partnership.
- * Organizers: SANAY › Open the report page (attendance sheet, certificates, participant profile,
- * photo and recording, impact interviews, training requests, partnership requests).
+ * Training partnership. Each registration gets a QR code.
+ * Organizers: SANAY › Open the check-in scanner (scans the QR codes at the door, on several devices,
+ * and keeps working through a weak signal), and SANAY › Open the report page (attendance sheet,
+ * certificates, participant profile, evaluation results, QR name tags, photo and recording,
+ * impact interviews, training requests, partnership requests).
  *
  * Files in this Apps Script project:
  *   Code.gs     this file
- *   Logos.gs    the UP, UPRI and NOAH logos (optional; without it the app shows no logos)
+ *   Logos.gs    the UP, UPRI and NOAH logos and the half Oblation (optional; without it the app shows neither)
  *   Index.html  the web page
  *
  * Set-up steps are in README.md of the sanay repository. In short:
@@ -21,7 +23,7 @@
  *   3. Deploy › New deployment › Web app. Execute as: Me. Who has access: Anyone.
  *   4. Share the web app link. Add ?page=register, ?page=attendance or ?page=evaluation
  *      to open a screen directly, and &t=TRAINING_ID to preselect a training.
- *   5. Reports: in the Sheet, choose SANAY › Open the report page.
+ *   5. On the training day: SANAY › Open the check-in scanner. Reports: SANAY › Open the report page.
  *
  * After you change any file: Deploy › Manage deployments › pencil › Version: New version › Deploy.
  */
@@ -83,6 +85,18 @@ const CONFIG = {
   organizationTypes: ['Local government unit', 'National government agency', 'NGO or civil society', 'Academe',
     'Private sector', 'International or development partner', 'Other'],
   partnershipPrivacy: 'We use these details only to discuss this partnership with you and to keep a list of potential training partners, under the Data Privacy Act of 2012 (Republic Act No. 10173).',
+
+  // ---- Credits: the small (i) under the buttons on the home screen. [label, who or what]; empty ones are left out.
+  //      The app adds the Oblation, the logos, the QR code libraries and the fonts itself.
+  credits: [
+    ['Developed by', 'Institution Building Division, UP Resilience Institute'],
+    ['Team', '']   // the people who built and look after the app, e.g. 'Juan dela Cruz, Maria Santos'
+  ],
+
+  // ---- Check-in. Each registration gets a QR code that the scanner at the door reads
+  //      (SANAY › Open the check-in scanner). selfCheckIn: true also lets people check themselves in
+  //      on the Attendance screen with their code or email; false leaves check-in to the scanner only.
+  selfCheckIn: true,
 
   // ---- Certificates: who is eligible. Both rules also need the evaluation.
   //      'all-days': checked in on every training day.  'any-day': checked in on at least one day.
@@ -193,7 +207,11 @@ function brandJson_() {
     email: CONFIG.email,
     bands: CONFIG.bandColors,
     logos: logos.filter(function (l) { return l && l.src; })
-      .map(function (l) { return { src: String(l.src), alt: String(l.alt || '') }; })
+      .map(function (l) { return { src: String(l.src), alt: String(l.alt || '') }; }),
+    credits: (CONFIG.credits || []).filter(function (c) { return c && c[0] && c[1]; })
+      .map(function (c) { return [String(c[0]), String(c[1])]; }),
+    // The half Oblation at the right edge of the pages (from Logos.gs; leave it out there to hide it)
+    figure: typeof FIGURE !== 'undefined' && FIGURE && FIGURE.d ? { viewBox: String(FIGURE.viewBox), d: String(FIGURE.d) } : null
   };
   return JSON.stringify(brand)
     .replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
@@ -215,6 +233,7 @@ function getAppData() {
     partnershipTypes: CONFIG.partnershipTypes,
     organizationTypes: CONFIG.organizationTypes,
     partnershipPrivacy: CONFIG.partnershipPrivacy,
+    selfCheckIn: selfCheckIn_(),
     trainings: listTrainings_(today)
   };
 }
@@ -226,6 +245,32 @@ function getAppData() {
  */
 function register(form) {
   form = form || {};
+  const r = readRegistration_(form);
+  const f = r.f, gad = r.gad;
+  const walkIn = form.walk_in === true;
+
+  return withLock_(function () {
+    const today = today_();
+    const t = listTrainings_(today).filter(function (x) { return x.id === f.training_id; })[0];
+    if (!t) throw new Error('That training is no longer in the list. Reload the page to see the current trainings.');
+    const canWalkIn = walkIn && t.happening;
+    if (!(t.listed && t.state === 'open') && !canWalkIn) throw new Error(STATE_MESSAGES[t.state] || STATE_MESSAGES.closed);
+    const now = new Date();
+    const saved = saveRegistration_(t, f, gad, now, today >= t.start ? 'Walk-in' : 'Pre-registered');
+    const result = {
+      already: saved.already, code: String(saved.reg.reg_code), name: String(saved.reg.full_name), training: t,
+      stamp: stamp_(saved.already ? saved.reg.timestamp : now)
+    };
+    if (canWalkIn) {
+      if (selfCheckIn_()) result.checkIn = recordCheckIn_(t, saved.reg, 'Walk-in', now);
+      else result.atDoor = true;   // the scanner at the door checks them in
+    }
+    return result;
+  });
+}
+
+/** Reads and checks a registration form. Returns { f, gad }; throws with a message to show. */
+function readRegistration_(form) {
   const f = {
     training_id: clean_(form.training_id, 60),
     last_name: clean_(form.last_name, 80),
@@ -273,39 +318,27 @@ function register(form) {
   if (!EMAIL_RE.test(f.email)) throw new Error('Enter a valid email, like name@example.com.');
   const digits = f.contact_no.replace(/\D/g, '');
   if (f.contact_no && (digits.length < 7 || digits.length > 15)) throw new Error('Enter a contact number with 7 to 15 digits.');
-  const walkIn = form.walk_in === true;
+  return { f: f, gad: gad };
+}
 
-  return withLock_(function () {
-    const today = today_();
-    const t = listTrainings_(today).filter(function (x) { return x.id === f.training_id; })[0];
-    if (!t) throw new Error('That training is no longer in the list. Reload the page to see the current trainings.');
-    const canWalkIn = walkIn && t.happening;
-    if (!(t.listed && t.state === 'open') && !canWalkIn) throw new Error(STATE_MESSAGES[t.state] || STATE_MESSAGES.closed);
-
-    const regs = readTable_('Registrations');
-    let reg = regs.filter(function (r) {
-      return String(r.training_id) === t.id && String(r.email).toLowerCase() === f.email;
-    })[0];
-    let result;
-    if (reg) {
-      result = { already: true, code: String(reg.reg_code), name: String(reg.full_name), training: t, stamp: stamp_(reg.timestamp) };
-    } else {
-      const now = new Date();
-      reg = Object.assign({}, f, gad, {
-        timestamp: now,
-        reg_code: newCode_(regs.map(function (r) { return String(r.reg_code); })),
-        training_title: t.title,
-        full_name: fullName_(f),
-        privacy_version: CONFIG.privacyVersion,
-        registered_as: today >= t.start ? 'Walk-in' : 'Pre-registered',
-        evaluated_on: ''
-      });
-      appendRecord_('Registrations', reg);
-      result = { already: false, code: reg.reg_code, name: reg.full_name, training: t, stamp: stamp_(now) };
-    }
-    if (canWalkIn) result.checkIn = checkInLocked_(t, reg, 'Walk-in', today);
-    return result;
+/** Adds a registration, or finds the one with the same email for this training (the caller holds the lock). */
+function saveRegistration_(t, f, gad, when, registeredAs) {
+  const regs = readTable_('Registrations');
+  const dup = regs.filter(function (r) {
+    return String(r.training_id) === t.id && String(r.email).toLowerCase() === f.email;
+  })[0];
+  if (dup) return { reg: dup, already: true };
+  const reg = Object.assign({}, f, gad, {
+    timestamp: when,
+    reg_code: newCode_(regs.map(function (r) { return String(r.reg_code); })),
+    training_title: t.title,
+    full_name: fullName_(f),
+    privacy_version: CONFIG.privacyVersion,
+    registered_as: registeredAs,
+    evaluated_on: ''
   });
+  appendRecord_('Registrations', reg);
+  return { reg: reg, already: false };
 }
 
 /** Records attendance for today. One check-in per person per day. */
@@ -314,6 +347,7 @@ function checkIn(data) {
   const trainingId = clean_(data.training_id, 60);
   const key = clean_(data.key, 120);
   if (!trainingId || !key) throw new Error('Choose your training and enter your registration code or email.');
+  if (!selfCheckIn_()) throw new Error('Check-in is at the door: show your QR code to the organizers.');
 
   return withLock_(function () {
     const today = today_();
@@ -321,7 +355,7 @@ function checkIn(data) {
     if (!t || !t.happening) throw new Error('Check-in is open only on the training days.');
     const reg = findRegistration_(trainingId, key);
     if (!reg) return { status: 'not-found' };
-    return checkInLocked_(t, reg, key.indexOf('@') > -1 ? 'Email' : 'Code', today);
+    return recordCheckIn_(t, reg, key.indexOf('@') > -1 ? 'Email' : 'Code', new Date());
   });
 }
 
@@ -497,13 +531,7 @@ function openReport() {
   const key = Utilities.getUuid().replace(/-/g, '');
   CacheService.getScriptCache().put('report:' + key, '1', hours * 3600);
 
-  let trainingId = '';
-  const sh = SpreadsheetApp.getActiveSheet();
-  const range = sh.getActiveRange();
-  if (sh.getName() === 'Trainings' && range && range.getRow() > 1) {
-    const c = headers_(sh).indexOf('training_id') + 1;
-    if (c > 0) trainingId = String(sh.getRange(range.getRow(), c).getValue() || '').trim();
-  }
+  const trainingId = activeTrainingId_();
   const link = url + (url.indexOf('?') > -1 ? '&' : '?') + 'page=report&key=' + key +
     (trainingId ? '&t=' + encodeURIComponent(trainingId) : '');
   const html = HtmlService.createHtmlOutput(
@@ -526,16 +554,7 @@ function getReport(req) {
       CONFIG.name + ' › Open the report page to get a new one.');
   }
   const today = today_();
-  const all = readTable_('Trainings')
-    .filter(function (r) { return String(r.training_id).trim(); })
-    .map(function (r) {
-      const start = ymd_(r.start_date);
-      return {
-        id: String(r.training_id).trim(), title: String(r.title || '').trim() || String(r.training_id).trim(),
-        start: start, end: ymd_(r.end_date) || start, venue: String(r.venue || '').trim(), mode: String(r.mode || '').trim()
-      };
-    })
-    .sort(function (a, b) { return a.start < b.start ? 1 : a.start > b.start ? -1 : 0; });
+  const all = allTrainings_().sort(function (a, b) { return a.start < b.start ? 1 : a.start > b.start ? -1 : 0; });
 
   let id = clean_(req.training_id, 60);
   if (!all.some(function (t) { return t.id === id; })) id = defaultReportTraining_(all, today);
@@ -602,12 +621,246 @@ function defaultReportTraining_(all, today) {
 }
 
 /* ===================================================================
+ * Check-in scanner, for the door. Several phones or laptops can run it at once. Each keeps
+ * a queue on the device, so scans still count when the signal drops; they reach the Sheet
+ * when it comes back. One row per person per day: if two devices scan the same person,
+ * the Sheet keeps the earlier time.
+ * =================================================================== */
+
+const SCANNER_GONE = 'This scanner link has expired or is not valid. In the Google Sheet, click the training\'s row ' +
+  'in the Trainings tab, then choose ' + CONFIG.name + ' › Open the check-in scanner.';
+
+/**
+ * Sheet menu: SANAY › Open the check-in scanner, for the training whose row is selected in the
+ * Trainings tab (or the one happening today). The link works until the training's last day.
+ */
+function openScanner() {
+  const ui = SpreadsheetApp.getUi();   // first, so this can't run from the web page
+  if (!isSteward_()) {
+    ui.alert('Only the owner of this Sheet and the data stewards listed in Code.gs (dataStewards) can open the check-in scanner.');
+    return;
+  }
+  const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
+  if (!url) {
+    ui.alert('Deploy the web app first: Deploy › New deployment › Web app. Then try again.');
+    return;
+  }
+  const today = today_();
+  const all = allTrainings_();
+  const picked = activeTrainingId_();
+  const t = all.filter(function (x) { return x.id === picked; })[0] ||
+    all.filter(function (x) { return x.start && x.start <= today && today <= x.end; })[0] ||
+    all.filter(function (x) { return x.start > today; }).sort(function (a, b) { return a.start < b.start ? -1 : 1; })[0];
+  if (!t) {
+    ui.alert('Add the training to the Trainings tab first, with its dates. Then click its row and try again.');
+    return;
+  }
+  if (!t.start) {
+    ui.alert('Give ' + t.id + ' a start date in the Trainings tab first.');
+    return;
+  }
+  if (t.end < today) {
+    ui.alert(t.id + ' has ended, so it has no scanner. Click the row of a current or upcoming training and try again.');
+    return;
+  }
+  const link = scannerLink_(url, scannerFor_(t, false).key);
+  const dates = t.start === t.end ? t.start : t.start + ' to ' + t.end;
+  const button = 'display:inline-block;padding:10px 18px;border-radius:10px;background:#014421;color:#FFFFFF;font-weight:bold;text-decoration:none';
+  const html = HtmlService.createHtmlOutput(
+    '<div style="font:14px/1.5 Arial,sans-serif;color:#1A1F1C">' +
+    '<p style="margin:0 0 8px"><b>' + esc_(t.title) + '</b> · ' + esc_(dates) + '</p>' +
+    '<p style="margin:0 0 12px">Open the scanner on the phone or laptop at the door. To add more devices, tap ' +
+    '<b>Add a device</b> on the scanner and scan the QR code it shows. The link works until the end of the last training day.</p>' +
+    '<p style="margin:0 0 14px"><a id="open" href="' + esc_(link) + '" target="_blank" rel="noopener" style="' + button + '">Open the scanner</a></p>' +
+    '<p style="margin:0 0 4px;font-size:12px;color:#59625C">Share the link only with the door staff: it shows the names and offices of this training\'s participants.</p>' +
+    '<input id="link" readonly value="' + esc_(link) + '" style="box-sizing:border-box;width:100%;padding:6px 8px;font:12px monospace" onclick="this.select()">' +
+    '<p style="margin:12px 0 0;font-size:12px;color:#59625C">Shared it with the wrong person? <a href="#" id="renew">Make a new link</a>. ' +
+    'The old one stops working, so open the new one on every device.</p>' +
+    '<script>document.getElementById("renew").onclick = function (e) { e.preventDefault(); var a = this; a.textContent = "Making a new link…";' +
+    'google.script.run.withSuccessHandler(function (l) { document.getElementById("link").value = l; document.getElementById("open").href = l; a.textContent = "Done. Make another"; })' +
+    '.withFailureHandler(function (err) { a.textContent = err.message; }).renewScanner(' + JSON.stringify(t.id).replace(/</g, '\\u003c') + '); };</script>' +
+    '</div>'
+  ).setWidth(500).setHeight(330);
+  ui.showModalDialog(html, CONFIG.name + ' check-in scanner');
+}
+
+/** From the scanner dialog: a new link for the training. The old link stops working. */
+function renewScanner(trainingId) {
+  SpreadsheetApp.getUi();   // only from the Sheet, never from the web page
+  if (!isSteward_()) throw new Error('Only the data stewards can make a new scanner link.');
+  const t = allTrainings_().filter(function (x) { return x.id === clean_(trainingId, 60); })[0];
+  if (!t) throw new Error('That training is no longer in the Trainings tab.');
+  return scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), scannerFor_(t, true).key);
+}
+
+/** The scanner page asks for this when it opens: the training, everyone registered, and who is in today. */
+function getScanner(req) {
+  const t = scannerTraining_((req || {}).key);
+  if (!t) throw new Error(SCANNER_GONE);
+  const state = scannerState_(t, true);
+  state.link = scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), String(req.key).replace(/[^0-9a-f]/gi, ''));
+  return state;
+}
+
+/**
+ * The scanner sends what it has queued: items of { id, code, at, how }. Each id is handled once,
+ * however many times a device resends it. Returns a result per item and who is in today.
+ */
+function scanSync(req) {
+  req = req || {};
+  const t = scannerTraining_(req.key);
+  if (!t) throw new Error(SCANNER_GONE);
+  const items = (Array.isArray(req.items) ? req.items : []).slice(0, 100);
+  const cache = CacheService.getScriptCache();
+  const results = [];
+  if (items.length) {
+    withLock_(function () {
+      const regs = readTable_('Registrations');
+      const att = readTable_('Attendance');
+      items.forEach(function (it) {
+        it = it || {};
+        const id = clean_(it.id, 40).replace(/[^\w-]/g, '');
+        const seen = id ? cache.get('scan:' + id) : null;
+        if (seen) { results.push(JSON.parse(seen)); return; }
+        const res = scanOne_(t, it, regs, att);
+        res.id = id;
+        if (id) cache.put('scan:' + id, JSON.stringify(res), 21600);
+        results.push(res);
+      });
+    });
+  }
+  const state = scannerState_(t, req.roster === true);
+  state.results = results;
+  return state;
+}
+
+/** A walk-in registered at the door (by the scanner's Walk-in form): saved and checked in at the time it was filled in. */
+function scanWalkIn(req) {
+  req = req || {};
+  const t = scannerTraining_(req.key);
+  if (!t) throw new Error(SCANNER_GONE);
+  const id = clean_(req.id, 40).replace(/[^\w-]/g, '');
+  const cache = CacheService.getScriptCache();
+  const seen = id ? cache.get('walkin:' + id) : null;
+  if (seen) return JSON.parse(seen);
+  const form = Object.assign({}, req.form || {}, { training_id: t.id });
+  const r = readRegistration_(form);
+  const when = scanTime_(req.at);
+  const date = ymd_(when);
+  if (date < t.start || date > t.end) throw new Error('Walk-ins can register only on the training days.');
+  const out = withLock_(function () {
+    const saved = saveRegistration_(t, r.f, r.gad, when, 'Walk-in');
+    const ci = recordCheckIn_(t, saved.reg, 'Walk-in', when);
+    return { status: 'ok', already: saved.already, code: String(saved.reg.reg_code), name: String(saved.reg.full_name), checkIn: ci };
+  });
+  if (id) cache.put('walkin:' + id, JSON.stringify(out), 21600);
+  return out;
+}
+
+function scanOne_(t, it, regs, att) {
+  const code = scanCode_(it.code);
+  const when = scanTime_(it.at);
+  const date = ymd_(when);
+  if (!code) return { status: 'not-found', code: '' };
+  if (date < t.start || date > t.end) return { status: 'not-a-training-day', code: code };
+  const reg = regs.filter(function (r) { return String(r.reg_code).toUpperCase() === code; })[0];
+  if (!reg) return { status: 'not-found', code: code };
+  if (String(reg.training_id) !== t.id) {
+    return { status: 'other-training', code: code, name: String(reg.full_name), training: String(reg.training_title || reg.training_id) };
+  }
+  return recordCheckIn_(t, reg, oneOf_(it.how, ['QR', 'Name search', 'Typed code']) || 'QR', when, att);
+}
+
+/** "SANAY:K7Q2M", "k7q2m" → "K7Q2M" */
+function scanCode_(v) {
+  return String(v || '').toUpperCase().replace(/^[A-Z]+:/, '').replace(/[^A-Z0-9]/g, '').slice(0, 12);
+}
+
+/** When a device says it scanned (its clock corrected by the page). Never in the future. */
+function scanTime_(at) {
+  const now = Date.now();
+  const n = Number(at);
+  return new Date(isFinite(n) && n > 0 && n <= now + 5 * 60 * 1000 ? Math.min(n, now) : now);
+}
+
+function scannerState_(t, withRoster) {
+  const today = today_();
+  const regs = readTable_('Registrations').filter(function (r) { return String(r.training_id) === t.id && String(r.reg_code).trim(); });
+  const first = {};
+  readTable_('Attendance').forEach(function (a) {
+    if (String(a.training_id) !== t.id || ymd_(a.date) !== today || !(a.timestamp instanceof Date)) return;
+    const c = String(a.reg_code);
+    if (!first[c] || a.timestamp < first[c]) first[c] = a.timestamp;
+  });
+  const state = {
+    training: { id: t.id, title: t.title, start: t.start, end: t.end, venue: t.venue },
+    today: today, now: Date.now(), trainingDay: !!t.start && t.start <= today && today <= t.end,
+    day: t.start ? dayNumber_(t.start, today) : 0, days: t.start ? dayNumber_(t.start, t.end) : 0,
+    registered: regs.length,
+    checkedIn: Object.keys(first).map(function (c) { return { code: c, time: timeOf_(first[c]), at: first[c].getTime() }; })
+  };
+  if (withRoster) {
+    state.roster = regs.map(function (r) {
+      return { code: String(r.reg_code).toUpperCase(), name: String(r.full_name), agency: String(r.agency || ''), walkIn: String(r.registered_as) === 'Walk-in' };
+    });
+  }
+  return state;
+}
+
+/** The training's scanner key, kept in the script properties. A new key replaces the old one. */
+function scannerFor_(t, renew) {
+  const props = PropertiesService.getScriptProperties();
+  const today = today_();
+  const all = props.getProperties();
+  Object.keys(all).forEach(function (name) {   // tidy up keys of trainings that have ended
+    if (name.indexOf('scanner:') !== 0) return;
+    try { if (JSON.parse(all[name]).until < today) props.deleteProperty(name); } catch (e) { props.deleteProperty(name); }
+  });
+  let s = null;
+  try { s = JSON.parse(props.getProperty('scanner:' + t.id) || 'null'); } catch (e) { s = null; }
+  if (!s || !s.key || renew) s = { key: Utilities.getUuid().replace(/-/g, '') };
+  s.until = t.end;
+  props.setProperty('scanner:' + t.id, JSON.stringify(s));
+  return s;
+}
+
+/** The training a scanner key belongs to, while the training hasn't ended; otherwise null. */
+function scannerTraining_(key) {
+  key = String(key || '').replace(/[^0-9a-f]/gi, '').slice(0, 64);
+  if (key.length < 24) return null;
+  const all = PropertiesService.getScriptProperties().getProperties();
+  const today = today_();
+  let id = '';
+  Object.keys(all).forEach(function (name) {
+    if (name.indexOf('scanner:') !== 0) return;
+    try { if (JSON.parse(all[name]).key === key) id = name.slice(8); } catch (e) { /* skip */ }
+  });
+  if (!id) return null;
+  const t = allTrainings_().filter(function (x) { return x.id === id; })[0];
+  return t && t.start && today <= t.end ? t : null;
+}
+
+function scannerLink_(url, key) {
+  return url + (url.indexOf('?') > -1 ? '&' : '?') + 'page=scan&k=' + key;
+}
+
+/** The training_id of the selected row, when the Trainings tab is open; otherwise ''. */
+function activeTrainingId_() {
+  const sh = SpreadsheetApp.getActiveSheet();
+  const range = sh && sh.getActiveRange();
+  if (!sh || sh.getName() !== 'Trainings' || !range || range.getRow() < 2) return '';
+  const c = headers_(sh).indexOf('training_id') + 1;
+  return c > 0 ? String(sh.getRange(range.getRow(), c).getValue() || '').trim() : '';
+}
+
+/* ===================================================================
  * Sheet set-up
  * =================================================================== */
 
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu(CONFIG.name)
+    .addItem('Open the check-in scanner', 'openScanner')
     .addItem('Open the report page', 'openReport')
     .addItem('Check who can see the data', 'checkAccess')
     .addSeparator()
@@ -792,22 +1045,50 @@ function listTrainings_(today) {
     .filter(function (t) { return t.listed || t.evalOpen; });
 }
 
-/** Checks a registration in for today (the caller holds the lock). */
-function checkInLocked_(t, reg, method, today) {
+/**
+ * Checks a registration in at a given time (the caller holds the lock). One row per person per day:
+ * if there is one already, it keeps the earlier of the two times. att: the Attendance rows, if already read.
+ */
+function recordCheckIn_(t, reg, method, when, att) {
+  att = att || readTable_('Attendance');
   const code = String(reg.reg_code);
-  const name = String(reg.full_name);
-  const day = dayNumber_(t.start, today);
-  const days = dayNumber_(t.start, t.end);
-  const prev = readTable_('Attendance').filter(function (a) {
-    return String(a.training_id) === t.id && String(a.reg_code) === code && ymd_(a.date) === today;
+  const date = ymd_(when);
+  const out = { name: String(reg.full_name), code: code, day: dayNumber_(t.start, date), days: dayNumber_(t.start, t.end) };
+  const prev = att.filter(function (a) {
+    return String(a.training_id) === t.id && String(a.reg_code) === code && ymd_(a.date) === date;
   })[0];
-  if (prev) return { status: 'already', name: name, time: timeOf_(prev.timestamp), day: day, days: days };
-  const now = new Date();
-  appendRecord_('Attendance', {
-    timestamp: now, date: today, training_id: t.id, reg_code: code, full_name: name,
+  if (prev) {
+    if (prev.timestamp instanceof Date && when < prev.timestamp && prev.__row) {   // an earlier scan arriving late
+      setValue_('Attendance', prev.__row, 'timestamp', when);
+      prev.timestamp = when;
+    }
+    return Object.assign(out, { status: 'already', time: timeOf_(prev.timestamp) });
+  }
+  const rec = {
+    timestamp: when, date: date, training_id: t.id, reg_code: code, full_name: out.name,
     sex: reg.sex, agency: reg.agency, method: method
-  });
-  return { status: 'ok', name: name, time: timeOf_(now), day: day, days: days };
+  };
+  appendRecord_('Attendance', rec);
+  rec.__row = sheet_('Attendance').getLastRow();
+  att.push(rec);
+  return Object.assign(out, { status: 'ok', time: timeOf_(when) });
+}
+
+/** Every training in the Trainings tab with an id, listed or not. */
+function allTrainings_() {
+  return readTable_('Trainings')
+    .filter(function (r) { return String(r.training_id).trim(); })
+    .map(function (r) {
+      const start = ymd_(r.start_date);
+      return {
+        id: String(r.training_id).trim(), title: String(r.title || '').trim() || String(r.training_id).trim(),
+        start: start, end: ymd_(r.end_date) || start, venue: String(r.venue || '').trim(), mode: String(r.mode || '').trim()
+      };
+    });
+}
+
+function selfCheckIn_() {
+  return CONFIG.selfCheckIn !== false;
 }
 
 function findRegistration_(trainingId, key) {

@@ -73,6 +73,7 @@ const ss = {
 let activeUser = 'owner@up.example.edu';
 const builder = { requireDate() { return this; }, requireValueInList() { return this; }, requireCheckbox() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } };
 const cache = {};
+const props = {};
 const dialogs = [];
 let uiAvailable = true;
 const ui = {
@@ -92,6 +93,8 @@ Object.assign(ctx, {
   Utilities: { formatDate: fmtDate, getUuid: () => crypto.randomUUID() },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
   CacheService: { getScriptCache: () => ({ put: (k, v, s) => { assert.ok(s <= 21600, 'cache time within 6 hours'); cache[k] = v; }, get: k => (k in cache ? cache[k] : null) }) },
+  PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); },
+    deleteProperty: k => { delete props[k]; }, getProperties: () => Object.assign({}, props) }) },
   ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }) },
   HtmlService: {
     XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
@@ -146,6 +149,7 @@ let d = ctx.getAppData();
 const byId = id => d.trainings.find(t => t.id === id);
 ok(d.trainings.length === 3, 'three trainings listed');
 ok(byId('SAMPLE-1').state === 'open' && byId('SAMPLE-1').happening, 'SAMPLE-1 open and happening');
+ok(d.selfCheckIn === true, 'people can check themselves in unless selfCheckIn is turned off');
 ok(byId('SAMPLE-2').state === 'open' && !byId('SAMPLE-2').happening && byId('SAMPLE-2').closes, 'SAMPLE-2 upcoming with a closing date');
 ok(byId('SAMPLE-3').state === 'completed' && byId('SAMPLE-3').listed && byId('SAMPLE-3').evalOpen, 'SAMPLE-3 completed, listed, evaluation open');
 ok(d.privacyStatement.startsWith('This data collection is conducted in accordance with the provisions of Republic Act No. 9710') && d.mediaStatement.length > 40, 'privacy statement (template wording) and media statement sent');
@@ -195,6 +199,7 @@ ok(reg3.registered_as === 'Pre-registered' && reg3.tribe === '', 'registering ah
 // 4. check in
 let c1 = ctx.checkIn({ training_id: 'SAMPLE-1', key: r1.code.toLowerCase() });
 ok(c1.status === 'ok' && c1.day === 1 && c1.days === 2 && /\d{1,2}:\d{2} (AM|PM)/.test(c1.time), 'check-in by code works: ' + JSON.stringify(c1));
+ok(c1.code === r1.code, 'check-in returns the registration code, for the QR code on the page');
 let c2 = ctx.checkIn({ training_id: 'SAMPLE-1', key: 'JUAN@example.com' });
 ok(c2.status === 'already', 'second check-in the same day is recognized');
 ok(table('Attendance').length === 1 && table('Attendance')[0].method === 'Code' && table('Attendance')[0].sex === 'Male' && table('Attendance')[0].full_name.startsWith('Juan'), 'one attendance row, with name and sex');
@@ -328,9 +333,69 @@ const out = ctx.doGet();
 const brand = JSON.parse(out.tpl.brand.replace(/\\u003c/g, '<'));
 ok(template.name === 'Index' && brand.name === 'SANAY' && brand.logos.length === 3 && brand.logos.every(l => l.src.startsWith('data:image/webp;base64,')), 'page gets the name and three logos');
 ok(!out.tpl.brand.includes('<'), 'brand JSON has no raw "<" that could close the script tag');
+ok(brand.credits.length === 1 && brand.credits[0][0] === 'Developed by' && brand.figure && /^M/.test(brand.figure.d), 'credits (empty lines left out) and the half Oblation reach the page');
 ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
 ok(brand.expansion === 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY' && brand.project === 'TaTaK Resilience Project' &&
   brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
+
+// 8b. check-in scanner at the door
+const keyOf = html => (/page=scan&amp;k=([0-9a-f]+)/.exec(html || '') || [])[1];
+active = T('Trainings');
+active.activeRow = 1;                                    // header row: no training picked
+ctx.openScanner();
+const scDlg = dialogs.pop();
+const k1 = keyOf(scDlg.html);
+ok(k1 && k1.length === 32 && /SAMPLE · Training happening today/.test(scDlg.html) && /Add a device/.test(scDlg.html), 'scanner dialog: a link for the training happening today');
+ctx.openScanner();
+ok(keyOf(dialogs.pop().html) === k1, 'opening it again gives the same link, so devices already set up keep working');
+active.activeRow = 4;                                    // SAMPLE-3 has ended
+ctx.openScanner();
+ok(/has ended/.test((dialogs.pop() || {}).alert || ''), 'no scanner for a training that has ended');
+active.activeRow = 2;
+uiAvailable = false;
+throws(() => ctx.openScanner(), /getUi/, 'the scanner menu cannot run from the web page');
+throws(() => ctx.renewScanner('SAMPLE-1'), /getUi/, 'nor can a new link be made from the web page');
+uiAvailable = true;
+throws(() => ctx.getScanner({ key: 'abc' }), /scanner link has expired/, 'a made-up key is refused');
+let sc = ctx.getScanner({ key: k1 });
+ok(sc.training.id === 'SAMPLE-1' && sc.trainingDay && sc.day === 1 && sc.days === 2 && sc.link.endsWith('page=scan&k=' + k1), 'scanner gets the training, the day and its own link');
+ok(sc.roster.length === table('Registrations').filter(r => r.training_id === 'SAMPLE-1').length &&
+  sc.roster.every(p => Object.keys(p).sort().join() === 'agency,code,name,walkIn'), 'the device gets only codes, names and offices: no emails or numbers');
+ok(sc.checkedIn.some(c => c.code === r1.code && /AM|PM/.test(c.time)), 'and who is already in today');
+const r9 = ctx.register(person({ email: 'rosa.scan@example.com', first_name: 'Rosa' }));
+const attRows = () => table('Attendance').filter(a => a.reg_code === r9.code);
+const t0 = Date.now();
+let s1 = ctx.scanSync({ key: k1, items: [{ id: 'dev1-1', code: 'sanay:' + r9.code.toLowerCase(), at: t0 - 60000, how: 'QR' }] });
+ok(s1.results.length === 1 && s1.results[0].status === 'ok' && s1.results[0].id === 'dev1-1' && attRows().length === 1 && attRows()[0].method === 'QR', 'a QR scan checks the person in, method QR');
+ok(s1.checkedIn.some(c => c.code === r9.code), 'the reply tells every device who is in');
+ok(ctx.scanSync({ key: k1, items: [{ id: 'dev1-1', code: r9.code, at: t0 }] }).results[0].status === 'ok' && attRows().length === 1, 'a resent scan (same id) is not counted twice');
+let s2 = ctx.scanSync({ key: k1, items: [{ id: 'dev2-1', code: r9.code, at: t0 }] });
+ok(s2.results[0].status === 'already' && attRows().length === 1, 'the same person from another device: already checked in, still one row');
+const firstAt = attRows()[0].timestamp.getTime();
+ctx.scanSync({ key: k1, items: [{ id: 'dev3-1', code: r9.code, at: t0 - 5 * 60000, how: 'QR' }] });
+ok(attRows().length === 1 && attRows()[0].timestamp.getTime() === t0 - 5 * 60000 && firstAt === t0 - 60000, 'an earlier scan arriving late (a phone that was offline) keeps the earlier time');
+let s3 = ctx.scanSync({ key: k1, items: [{ id: 'x1', code: 'ZZZZZ', at: t0 }, { id: 'x2', code: r3.code, at: t0 }, { id: 'x3', code: r2.code, at: t0 - 2 * 864e5 }, { id: 'x4', code: r2.code, at: t0 + 864e5, how: 'Typed code' }] });
+ok(s3.results.map(r => r.status).join() === 'not-found,other-training,not-a-training-day,already', 'unknown code, another training\'s code, a day outside the training, and a future time (taken as now): ' + s3.results.map(r => r.status).join());
+ok(table('Attendance').every(a => !(a.timestamp instanceof CtxDate) || a.timestamp.getTime() <= Date.now() + 1000), 'nothing is ever recorded in the future');
+ok(ctx.scanSync({ key: k1, items: [], roster: true }).roster.length > 0 && !ctx.scanSync({ key: k1, items: [] }).roster, 'the full list comes only when asked for');
+let wk = ctx.scanWalkIn({ key: k1, id: 'desk-1', at: t0 - 120000, form: person({ email: 'desk.walkin@example.com', first_name: 'Dino', training_id: 'SAMPLE-2' }) });
+const wreg = table('Registrations').find(r => r.email === 'desk.walkin@example.com');
+ok(wk.status === 'ok' && !wk.already && wk.checkIn.status === 'ok' && wreg.training_id === 'SAMPLE-1' && wreg.registered_as === 'Walk-in' &&
+  table('Attendance').find(a => a.reg_code === wk.code).method === 'Walk-in', 'walk-in at the door: registered for the scanner\'s training and checked in');
+ok(wreg.timestamp.getTime() === t0 - 120000, 'its time is when the form was filled in, even if it was sent later');
+ok(ctx.scanWalkIn({ key: k1, id: 'desk-1', at: t0, form: person({ email: 'desk.walkin@example.com' }) }).code === wk.code &&
+  table('Registrations').filter(r => r.email === 'desk.walkin@example.com').length === 1, 'a resent walk-in is saved once');
+throws(() => ctx.scanWalkIn({ key: k1, id: 'desk-2', at: t0, form: person({ email: 'bad' }) }), /valid email/, 'walk-in forms are checked like any registration');
+const k2 = ctx.renewScanner('SAMPLE-1');
+ok(keyOf(k2.replace('&', '&amp;')) && keyOf(k2.replace('&', '&amp;')) !== k1, 'Make a new link gives a different key');
+throws(() => ctx.scanSync({ key: k1, items: [] }), /scanner link has expired/, 'and the old link stops working');
+ok(ctx.getScanner({ key: keyOf(k2.replace('&', '&amp;')) }).training.id === 'SAMPLE-1', 'the new one works');
+vm.runInContext('CONFIG.selfCheckIn = false', ctx);
+throws(() => ctx.checkIn({ training_id: 'SAMPLE-1', key: r9.code }), /at the door/, 'with selfCheckIn off, people cannot check themselves in');
+const w9 = ctx.register(person({ email: 'door.only@example.com', walk_in: true }));
+ok(w9.atDoor && !w9.checkIn && !table('Attendance').some(a => a.reg_code === w9.code), 'a walk-in who registers on their phone then checks in at the door');
+ok(ctx.getAppData().selfCheckIn === false, 'and the page knows it');
+vm.runInContext('CONFIG.selfCheckIn = true', ctx);
 
 // 9. full and hidden
 const trS = T('Trainings'), H = trS.getRange(1, 1, 1, trS.getLastColumn()).getValues()[0];
