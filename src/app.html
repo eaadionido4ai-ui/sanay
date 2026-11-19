@@ -64,6 +64,11 @@
   --female: #2A78D6;
   --male: #EB6834;
   --nodata: #C2C8C3;
+  --lk-1: #C23B3A;
+  --lk-2: #EF9A98;
+  --lk-3: #D9D8D4;
+  --lk-4: #86B6EF;
+  --lk-5: #256ABF;
   --display: "EB Garamond", Garamond, "Iowan Old Style", "Times New Roman", serif;
   --font: "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --mono: "Source Code Pro", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -139,6 +144,7 @@ button { cursor: pointer; }
 .shell { max-width: 480px; margin: 0 auto; display: grid; gap: 28px; align-items: start; }
 .app { min-width: 0; container: app / inline-size; }
 body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
+body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .is-sheet .shell { max-width: 1240px; }
 @media (min-width: 1080px) { .is-sheet .shell { grid-template-columns: minmax(0, 460px) minmax(0, 1fr); } }
 @media (max-width: 1079px) { .is-sheet .app { width: 100%; max-width: 480px; justify-self: center; } }
@@ -306,7 +312,55 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .subgroup + .subgroup { padding-top: 18px; border-top: 1px dashed var(--line); }
 .empty { padding: 18px; border-radius: 16px; background: var(--sunken); color: var(--muted); }
 .demo-note { padding: 10px 12px; border-radius: 12px; background: var(--warn-soft); font-size: 14px; }
-.rating .pick span { min-width: 50px; }
+/* Likert statements: stacked on phones, a grid with column headings on wider screens */
+.lk { display: grid; gap: 22px; }
+.lk-section { display: grid; }
+.lk-head { display: grid; gap: 4px; padding-bottom: 6px; }
+.lk-title { font-family: var(--display); font-size: 21px; font-weight: 600; }
+.lk-cols { display: none; }
+.lk-item { display: grid; gap: 8px; padding-block: 12px; border-top: 1px dashed var(--line); }
+.lk-q { font-size: 15.5px; }
+.lk-n { display: inline-block; min-width: 1.6em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lk-scale { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.lk-section.has-na .lk-scale { grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 0.9fr); }
+.lk-opt { position: relative; display: grid; justify-items: center; align-content: start; gap: 4px; cursor: pointer; }
+.lk-opt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.lk-dot { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--surface); font-weight: 700; font-variant-numeric: tabular-nums; transition: background-color 0.12s, border-color 0.12s, color 0.12s; }
+.lk-na .lk-dot { font-size: 12px; }
+.lk-lab { font-size: 11px; line-height: 1.15; text-align: center; color: var(--muted); }
+.lk-opt:hover .lk-dot { border-color: var(--ink); }
+.lk-opt input:checked + .lk-dot { background: var(--green-fill); border-color: var(--green-fill); color: var(--on-fill); }
+.lk-opt input:focus-visible + .lk-dot { outline: 3px solid var(--ring); outline-offset: 2px; }
+.lk-item.missing .lk-q { color: var(--bad); font-weight: 600; }
+.lk-item.missing .lk-dot { border-color: var(--bad); }
+.lk-progress { font-size: 14px; color: var(--muted); }
+@container app (min-width: 640px) {
+  .lk-head { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+  .lk-cols { display: grid; grid-template-columns: repeat(5, 62px); font-size: 11.5px; line-height: 1.15; text-align: center; color: var(--muted); }
+  .lk.with-na .lk-cols { grid-template-columns: repeat(5, 62px) 52px; }
+  .lk-item { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 12px; }
+  .lk-scale { grid-template-columns: repeat(5, 62px); gap: 0; }
+  .lk.with-na .lk-scale { grid-template-columns: repeat(5, 62px) 52px; }
+  .lk-lab { display: none; }
+}
+/* Evaluation results on paper: a diverging scale, disagree in red, agree in blue (colorblind-safe) */
+.ev-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8.2pt; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.ev-table th, .ev-table td { padding: 0.025in 0.06in; border-bottom: 0.5pt solid var(--paper-soft); vertical-align: middle; }
+.ev-table thead th { border-bottom: 1pt solid var(--paper-line); font-size: 7.6pt; text-align: center; }
+.ev-table thead th:first-child { text-align: left; }
+.ev-table thead th.num { text-align: right; }
+.ev-table td.num { text-align: right; }
+.ev-table tr.sec td { padding-top: 0.07in; border-bottom: 0; font-size: 7.4pt; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--paper-muted); }
+.ev-table tr.sec td.num { letter-spacing: 0; text-transform: none; }
+.ev-bar { display: flex; gap: 2px; height: 0.15in; }
+.ev-bar span { display: block; height: 100%; }
+.ev-bar span:first-child { border-radius: 2pt 0 0 2pt; }
+.ev-bar span:last-child { border-radius: 0 2pt 2pt 0; }
+.ev-legend { display: inline-flex; flex-wrap: wrap; gap: 0.05in 0.16in; padding-left: 0.3in; border-left: 0.5pt solid var(--paper-soft); font-size: 7.8pt; }
+.ev-key { display: inline-block; width: 0.11in; height: 0.11in; margin-right: 0.04in; border-radius: 1.5pt; vertical-align: -0.01in; }
+.ev-open { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8.4pt; }
+.ev-open th, .ev-open td { padding: 0.05in 0.08in; border: 0.75pt solid var(--paper-line); vertical-align: top; overflow-wrap: anywhere; }
+.ev-open th { font-size: 8pt; text-align: center; }
 .scale-ends { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--muted); }
 .q.rating legend { padding-bottom: 10px; font-weight: 600; }
 
@@ -688,12 +742,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
               <div class="field"><label for="evTraining">Training</label><div class="select"><select id="evTraining"></select></div></div>
               <div class="field"><label for="evKey">Registration code or email</label><input type="text" id="evKey" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
             </div>
-            <div class="group" id="evRatings"></div>
             <div class="group">
-              <div class="field"><label for="evApply">What will you apply from this training? <span class="opt">optional</span></label><textarea id="evApply" maxlength="1000"></textarea></div>
-              <div class="field"><label for="evComments">Comments and suggestions <span class="opt">optional</span></label><textarea id="evComments" maxlength="1000"></textarea></div>
+              <p class="hint">Tell us how much you agree with each statement, from 1 (strongly disagree) to 5 (strongly agree).</p>
+              <div class="lk" id="evLikert"></div>
+            </div>
+            <div class="group">
+              <div class="field"><label for="evApply">What will you use from this training in your work? <span class="opt">optional</span></label><textarea id="evApply" maxlength="1000"></textarea></div>
+              <div class="field"><label for="evComments">What should we improve? <span class="opt">optional</span></label><textarea id="evComments" maxlength="1000"></textarea></div>
             </div>
             <div class="submit-row">
+              <p class="lk-progress" id="evProgress" aria-live="polite"></p>
               <div id="evResult" aria-live="polite"></div>
               <p class="err-box" id="evError" role="alert" hidden></p>
               <button type="submit" class="btn-primary" id="evSubmit">Submit evaluation</button>
@@ -842,13 +900,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
           <header class="view-head">
             <h2 class="title" id="rpTitle" tabindex="-1">Training report</h2>
-            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, consents, training requests and partnership requests.</p>
+            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, evaluation results, consents, training requests and partnership requests.</p>
           </header>
           <div id="rpMain">
             <div class="seg" role="group" aria-label="Report part">
               <button type="button" data-section="sheet" aria-pressed="true">Attendance sheet</button>
               <button type="button" data-section="certs" aria-pressed="false">Certificates</button>
               <button type="button" data-section="profile" aria-pressed="false">Participant profile</button>
+              <button type="button" data-section="evals" aria-pressed="false">Evaluation results</button>
               <button type="button" data-section="media" aria-pressed="false">Photo and recording</button>
               <button type="button" data-section="impact" aria-pressed="false">Impact interviews</button>
               <button type="button" data-section="requests" aria-pressed="false">Training requests</button>
@@ -911,12 +970,34 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   var AGE_RANGES = ['0-9', '10-19', '15-24', '25-59', '60+'];
   var SEXES = ['Male', 'Female'];
   var SUFFIXES = ['Jr.', 'Sr.', 'II', 'III', 'IV'];
-  var RATINGS = [
-    { key: 'overall', q: 'Overall, how satisfied are you with this training?', lo: '1 Very dissatisfied', hi: '5 Very satisfied' },
-    { key: 'objectives_met', q: 'The training met its objectives.', lo: '1 Strongly disagree', hi: '5 Strongly agree' },
-    { key: 'resource_persons', q: 'How would you rate the resource persons?', lo: '1 Poor', hi: '5 Excellent' },
-    { key: 'venue_logistics', q: 'How would you rate the venue and logistics?', lo: '1 Poor', hi: '5 Excellent' }
+  var EVAL_SCALE = ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'];
+  var EVAL_ITEMS = [
+    { section: 'Objectives and content', items: [
+      { key: 'obj_clear', text: 'The objectives of the training were clearly explained.' },
+      { key: 'obj_met', text: 'The training met its objectives.' },
+      { key: 'content_relevant', text: 'The topics are relevant to my work.' },
+      { key: 'content_organized', text: 'The topics were well organized and easy to follow.' }] },
+    { section: 'Resource persons', items: [
+      { key: 'rp_knowledge', text: 'The resource persons knew their topics well.' },
+      { key: 'rp_clear', text: 'The resource persons explained the topics clearly.' },
+      { key: 'rp_engaging', text: 'The resource persons encouraged questions and participation.' }] },
+    { section: 'Methods and materials', items: [
+      { key: 'methods_effective', text: 'The activities and exercises helped me learn.' },
+      { key: 'materials_useful', text: 'The handouts and materials were useful.' },
+      { key: 'time_enough', text: 'There was enough time for each topic.' }] },
+    { section: 'Venue and arrangements', na: true, items: [
+      { key: 'venue_ok', text: 'The venue or online platform suited the training.' },
+      { key: 'logistics_ok', text: 'Registration, meals and other arrangements went well.' }] },
+    { section: 'Learning and use', items: [
+      { key: 'learned_new', text: 'I gained new knowledge and skills.' },
+      { key: 'confident_apply', text: 'I am confident I can use what I learned in my work.' },
+      { key: 'recommend', text: 'I would recommend this training to others.' }] },
+    { section: 'Overall', items: [
+      { key: 'overall', text: 'Overall, I am satisfied with this training.' }] }
   ];
+  function evalSections() { return S.data && S.data.evaluationItems && S.data.evaluationItems.length ? S.data.evaluationItems : EVAL_ITEMS; }
+  function evalScale() { return S.data && S.data.evaluationScale && S.data.evaluationScale.length === 5 ? S.data.evaluationScale : EVAL_SCALE; }
+  function evalKeys(sections) { var k = []; (sections || evalSections()).forEach(function (sec) { sec.items.forEach(function (it) { k.push(it.key); }); }); return k; }
   var STATE_MESSAGES = { full: 'This training is full.', closed: 'Registration for this training is closed.', completed: 'This training has ended.' };
   var TEMPLATE_NOTE = 'Please fill or check the appropriate box for the following fields if you provide us your consent pursuant to our Data Privacy Statement. Otherwise, proceed in affixing your signature in the rightmost field of the attendance sheet. Ensure that the filled-out information is correct.';
   var PRIVACY_TEXT = 'This data collection is conducted in accordance with the provisions of Republic Act No. 9710 and the guidelines issued by the Philippine Commission on Women, which require the generation of sex-disaggregated data to support Gender and Development (GAD) planning and monitoring. All information gathered will be processed in compliance with the Republic Act No. 10173 to ensure the protection, confidentiality, and responsible handling of personal data. The data collected may be used for research and academic purposes, institutional Gender and Development (GAD) planning and reporting, and submissions to the Performance Budget Monitoring System (PBMS). Any results derived from the data will be presented only in aggregated or anonymized form. Any other use of the information not stated above shall be properly coordinated with the participant and undertaken in accordance with applicable data privacy and ethical standards.';
@@ -1208,8 +1289,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         var came = db.attendance.some(function (x) { return x.reg_code === r.reg_code && x.date === lastDay; });
         if (!came || !chance(p)) return;
         r.evaluated_on = addDays(lastDay, i % days);
-        db.evaluations.push({ _id: 'e' + db.evaluations.length, date: r.evaluated_on, training_id: r.training_id, overall: 3 + Math.floor(rand() * 3), objectives_met: 3 + Math.floor(rand() * 3),
-          resource_persons: 4 + Math.floor(rand() * 2), venue_logistics: 2 + Math.floor(rand() * 4), will_apply: pick(APPLY), comments: pick(COMMENTS) });
+        var row = { _id: 'e' + db.evaluations.length, date: r.evaluated_on, training_id: r.training_id, will_apply: pick(APPLY), comments: pick(COMMENTS) };
+        EVAL_ITEMS.forEach(function (sec) {
+          sec.items.forEach(function (it) {
+            var x = rand(), lean = it.key === 'time_enough' ? 0.18 : 0;   // a weaker spot to show up in the report
+            row[it.key] = sec.na && rand() < 0.06 ? 'N/A' : x < 0.42 - lean ? 5 : x < 0.8 - lean / 2 ? 4 : x < 0.93 ? 3 : x < 0.985 ? 2 : 1;
+          });
+        });
+        db.evaluations.push(row);
       });
     }
     evaluate(ics3, D(-12), 0.88, 3);
@@ -1291,7 +1378,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       getAppData: function () {
         return { today: today, evaluationDaysAfter: 14, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
           requestPrivacy: REQUEST_PRIVACY_TEXT, requestTopics: DEFAULT_TOPICS, partnershipTypes: PARTNER_TYPES, organizationTypes: ORG_TYPES,
-          partnershipPrivacy: PARTNER_PRIVACY_TEXT, trainings: list() };
+          partnershipPrivacy: PARTNER_PRIVACY_TEXT, evaluationScale: EVAL_SCALE, evaluationItems: EVAL_ITEMS, trainings: list() };
       },
       submitPartnership: function (f) {
         var types = (f.types || []).filter(function (t) { return PARTNER_TYPES.indexOf(t) > -1; });
@@ -1360,8 +1447,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         if (r.evaluated_on) return { status: 'already' };
         r.evaluated_on = today;
         var a = d.answers, id = 'e' + Date.now();
-        db.evaluations.splice(Math.floor(Math.random() * (db.evaluations.length + 1)), 0, { _id: id, date: today, training_id: t.id, overall: a.overall,
-          objectives_met: a.objectives_met, resource_persons: a.resource_persons, venue_logistics: a.venue_logistics, will_apply: a.will_apply, comments: a.comments });
+        var row = { _id: id, date: today, training_id: t.id, will_apply: a.will_apply, comments: a.comments };
+        EVAL_ITEMS.forEach(function (sec) {
+          sec.items.forEach(function (it) {
+            var v = String(a[it.key] || '');
+            if (sec.na && v === 'NA') row[it.key] = 'N/A';
+            else if (/^[1-5]$/.test(v)) row[it.key] = Number(v);
+            else throw new Error('Please answer every statement.');
+          });
+        });
+        db.evaluations.splice(Math.floor(Math.random() * (db.evaluations.length + 1)), 0, row);
         S.flash = { tab: 'Evaluations', id: id };
         return { status: 'ok' };
       },
@@ -1374,6 +1469,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         return {
           now: manilaStamp(), today: today, privacyStatement: PRIVACY_TEXT, trainings: all, training: t,
           requests: db.requests.slice(), partnerships: db.partnerships.slice(), certificateRule: 'all-days',
+          evaluations: t ? db.evaluations.filter(function (e) { return e.training_id === t.id; }) : [], evaluationScale: EVAL_SCALE, evaluationItems: EVAL_ITEMS,
           registrations: t ? db.registrations.filter(function (r) { return r.training_id === t.id; }) : [],
           attendance: t ? db.attendance.filter(function (a) { return a.training_id === t.id; }).map(function (a) { return { timestamp: a.timestamp, date: a.date, reg_code: a.reg_code }; }) : []
         };
@@ -1445,10 +1541,37 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#impactPicks').innerHTML = pills('impact_consent', ['Yes', 'No']);
     $('#rqModes').innerHTML = pills('rq_mode', REQUEST_MODES);
     $('#suffix').innerHTML = '<option value="">None</option>' + SUFFIXES.map(function (s) { return '<option>' + esc(s) + '</option>'; }).join('');
-    $('#evRatings').innerHTML = RATINGS.map(function (r, i) {
-      return '<fieldset class="q rating"><legend>' + (i + 1) + '. ' + esc(r.q) + '</legend><div class="picks">' + pills('rate-' + r.key, [1, 2, 3, 4, 5]) +
-        '</div><div class="scale-ends" aria-hidden="true"><span>' + esc(r.lo) + '</span><span>' + esc(r.hi) + '</span></div></fieldset>';
+  }
+  function buildLikert() {
+    var sections = evalSections(), scale = evalScale(), box = $('#evLikert');
+    var key = JSON.stringify(sections) + scale.join('|');
+    if (box.getAttribute('data-key') === key) return;
+    var n = 0;
+    box.innerHTML = sections.map(function (sec) {
+      var cols = scale.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + (sec.na ? '<span>N/A</span>' : '');
+      return '<div class="lk-section' + (sec.na ? ' has-na' : '') + '"><div class="lk-head"><p class="lk-title">' + esc(sec.section) + '</p>' +
+        '<div class="lk-cols" aria-hidden="true">' + cols + '</div></div>' +
+        sec.items.map(function (it) {
+          n++;
+          var name = 'lk-' + it.key;
+          var opts = [1, 2, 3, 4, 5].map(function (v) {
+            return '<label class="lk-opt" for="' + name + '-' + v + '"><input type="radio" name="' + name + '" id="' + name + '-' + v + '" value="' + v + '" aria-label="' + v + ', ' + esc(scale[v - 1]) + '">' +
+              '<span class="lk-dot">' + v + '</span><span class="lk-lab" aria-hidden="true">' + esc(scale[v - 1]) + '</span></label>';
+          }).join('') + (sec.na ? '<label class="lk-opt lk-na" for="' + name + '-na"><input type="radio" name="' + name + '" id="' + name + '-na" value="NA" aria-label="Not applicable"><span class="lk-dot">N/A</span><span class="lk-lab" aria-hidden="true">Not applicable</span></label>' : '');
+          return '<div class="lk-item" role="radiogroup" aria-labelledby="lkq-' + esc(it.key) + '" data-key="' + esc(it.key) + '"><p class="lk-q" id="lkq-' + esc(it.key) + '"><span class="lk-n">' + n + '.</span>' + esc(it.text) + '</p>' +
+            '<div class="lk-scale">' + opts + '</div></div>';
+        }).join('') + '</div>';
     }).join('');
+    box.setAttribute('data-key', key);
+    box.classList.toggle('with-na', sections.some(function (sec) { return sec.na; }));
+    updateLikertProgress();
+  }
+  function stillToAnswer(missing) {
+    return 'Please answer every statement. Still to answer: ' + (missing.length > 6 ? missing.slice(0, 6).join(', ') + ' and ' + (missing.length - 6) + ' more' : missing.join(', ')) + '.';
+  }
+  function updateLikertProgress() {
+    var items = $$('#evLikert .lk-item'), done = items.filter(function (el) { return el.querySelector('input:checked'); }).length;
+    $('#evProgress').textContent = items.length ? done + ' of ' + items.length + ' statements answered' : '';
   }
 
   /* ---------------- rendering ---------------- */
@@ -1461,6 +1584,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#ptPrivacy').textContent = d.partnershipPrivacy || PARTNER_PRIVACY_TEXT;
     fillRequest();
     fillPartner();
+    buildLikert();
     fillRegister();
     fillAttendance();
     fillEvaluation();
@@ -1976,17 +2100,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var tid = $('#evTraining').value, key = $('#evKey').value.trim(), errBox = $('#evError');
     errBox.hidden = true;
     $('#evResult').innerHTML = '';
-    var answers = { will_apply: $('#evApply').value.trim(), comments: $('#evComments').value.trim() }, missing = null;
-    RATINGS.forEach(function (r) {
-      var v = radio('rate-' + r.key);
-      answers[r.key] = v ? Number(v) : 0;
-      if (!v && !missing) missing = r;
+    var answers = { will_apply: $('#evApply').value.trim(), comments: $('#evComments').value.trim() }, missing = [];
+    $$('#evLikert .lk-item').forEach(function (el, i) {
+      var k = el.getAttribute('data-key'), v = radio('lk-' + k);
+      answers[k] = v;
+      el.classList.toggle('missing', !v);
+      if (!v) missing.push(i + 1);
     });
-    var msg = !tid ? 'Choose the training.' : !key ? 'Enter your registration code or email.' : missing ? 'Answer question ' + (RATINGS.indexOf(missing) + 1) + ': ' + missing.q : '';
+    var msg = !tid ? 'Choose the training.' : !key ? 'Enter your registration code or email.'
+      : missing.length ? stillToAnswer(missing) : '';
     if (msg) {
       errBox.textContent = msg;
+      errBox.setAttribute('data-kind', tid && key ? 'likert' : '');
       errBox.hidden = false;
-      (!tid ? $('#evTraining') : !key ? $('#evKey') : $('#rate-' + missing.key + '-1')).focus();
+      var target = !tid ? $('#evTraining') : !key ? $('#evKey') : $('#evLikert .lk-item.missing input');
+      if (target) target.focus();
       return;
     }
     var btn = $('#evSubmit');
@@ -1994,6 +2122,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     call('submitEvaluation', { training_id: tid, key: key, answers: answers }).then(function (r) {
       if (r.status === 'ok') {
         $('#evForm').reset();
+        $$('#evLikert .lk-item').forEach(function (el) { el.classList.remove('missing'); });
+        updateLikertProgress();
         $('#evFormWrap').hidden = true;
         $('#evDemoNote').hidden = LIVE;
         $('#evDone').hidden = false;
@@ -2080,7 +2210,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   function syncReportControls() {
     var sec = S.rpSection;
     $('#rpTrainingField').hidden = sec === 'requests' || sec === 'partners';
-    $('#rpListField').hidden = sec === 'certs' || sec === 'requests' || sec === 'partners';
+    $('#rpListField').hidden = sec === 'certs' || sec === 'requests' || sec === 'partners' || sec === 'evals';
     $('#rpShowField').hidden = sec !== 'certs';
     $('#rpCopy').hidden = sec !== 'certs';
     $('#rpCopyNote').textContent = '';
@@ -2118,6 +2248,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         out = requestsPages(rp);
         n = (rp.requests || []).length;
         unit = n === 1 ? 'request' : 'requests';
+      } else if (sec === 'evals' && rp.training) {
+        out = evalPages(rp);
+        n = (rp.evaluations || []).length;
+        unit = n === 1 ? 'evaluation' : 'evaluations';
       } else if (sec === 'partners') {
         out = partnerPages(rp);
         n = (rp.partnerships || []).length;
@@ -2140,7 +2274,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       }
       $('#paperStack').innerHTML = out.html;
       var what = { sheet: 'Attendance sheet', certs: 'Certificates', profile: 'Participant profile', media: 'Photo and recording', impact: 'Impact interviews',
-        requests: 'Training requests', partners: 'Partnership requests' }[sec];
+        requests: 'Training requests', partners: 'Partnership requests', evals: 'Evaluation results' }[sec];
       $('#rpSummary').textContent = !rp.training && sec !== 'requests' && sec !== 'partners' ? 'No trainings in the Sheet yet.'
         : what + ' · ' + n + ' ' + unit + extra + ' · ' + out.pages + (out.pages === 1 ? ' page' : ' pages');
       fitPapers();
@@ -2171,9 +2305,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   function listDate(rp, list) { return list.kind === 'day' ? fmtFull(list.date) : fmtFullRange(rp.training.start, rp.training.end); }
   function listWords(list) { return list.kind === 'reg' ? 'Registered participants' : list.kind === 'any' ? 'Attended on any day' : 'Attended on ' + fmtFull(list.date); }
 
-  /* Packs rows into pages by measuring them at print size. */
-  function paginate(buildPage, rowsHtml, blankRow, offset) {
-    offset = offset || 0;
+  /* Packs rows into pages by measuring them at print size. A row for which keepWithNext(rowHtml)
+     is true (a section heading) moves to the next page rather than end one. */
+  function packRows(buildPage, rowsHtml, blankRow, keepWithNext) {
     var m = $('#measure');
     m.innerHTML = buildPage(rowsHtml.join(''), 1, 1);
     var paper = m.querySelector('.paper'), tbody = paper.querySelector('tbody'), foot = paper.querySelector('.p-foot');
@@ -2182,21 +2316,33 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     if (blankRow) { tbody.innerHTML = blankRow(1); blankH = tbody.rows[0].getBoundingClientRect().height; }
     tbody.innerHTML = '';
     var avail = foot.getBoundingClientRect().top - paper.querySelector('table').getBoundingClientRect().bottom - 3;
-    var pages = [], cur = [], used = 0;
+    m.innerHTML = '';
+    var groups = [], cur = [], curH = [], used = 0;
     rowsHtml.forEach(function (h, i) {
-      if (cur.length && used + heights[i] > avail) { pages.push(cur); cur = []; used = 0; }
+      if (cur.length && used + heights[i] > avail) {
+        var carry = [], carryH = [];
+        while (keepWithNext && cur.length > 1 && keepWithNext(cur[cur.length - 1])) { carry.unshift(cur.pop()); carryH.unshift(curH.pop()); }
+        groups.push(cur);
+        cur = carry;
+        curH = carryH;
+        used = carryH.reduce(function (s2, x) { return s2 + x; }, 0);
+      }
       cur.push(h);
+      curH.push(heights[i]);
       used += heights[i];
     });
-    pages.push(cur);
-    var blanks = blankRow && blankH > 0 ? Math.max(0, Math.floor((avail - used) / blankH)) : 0;
-    var html = pages.map(function (p, i) {
-      var body = p.join('');
-      if (i === pages.length - 1) for (var b = 0; b < blanks; b++) body += blankRow(rowsHtml.length + b + 1);
-      return buildPage(body, i + 1 + offset, pages.length + offset);
+    groups.push(cur);
+    return { groups: groups, blanks: blankRow && blankH > 0 ? Math.max(0, Math.floor((avail - used) / blankH)) : 0 };
+  }
+  function paginate(buildPage, rowsHtml, blankRow, offset, keepWithNext) {
+    offset = offset || 0;
+    var p = packRows(buildPage, rowsHtml, blankRow, keepWithNext), last = p.groups.length - 1;
+    var html = p.groups.map(function (g, i) {
+      var body = g.join('');
+      if (i === last) for (var b = 0; b < p.blanks; b++) body += blankRow(rowsHtml.length + b + 1);
+      return buildPage(body, i + 1 + offset, p.groups.length + offset);
     }).join('');
-    m.innerHTML = '';
-    return { html: html, pages: pages.length };
+    return { html: html, pages: p.groups.length };
   }
 
   function sheetHead() {
@@ -2462,6 +2608,65 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     return { html: summary + list.html, pages: list.pages + 1 };
   }
 
+  /* Evaluation results: each Likert statement as a diverging bar, with mean and share who agree; then the written answers */
+  function evalPages(rp) {
+    var t = rp.training, rows = rp.evaluations || [], meta = reportMeta(rp);
+    var sections = rp.evaluationItems && rp.evaluationItems.length ? rp.evaluationItems : evalSections();
+    var scale = rp.evaluationScale && rp.evaluationScale.length === 5 ? rp.evaluationScale : evalScale();
+    var attended = {};
+    rp.attendance.forEach(function (a) { attended[a.reg_code] = 1; });
+    var nAtt = Object.keys(attended).length;
+    function stats(keys) {
+      var c = [0, 0, 0, 0, 0], na = 0;
+      rows.forEach(function (r) { keys.forEach(function (k) { var v = Number(r[k]); if (v >= 1 && v <= 5) c[v - 1]++; else if (String(r[k]) === 'N/A') na++; }); });
+      var n = c.reduce(function (s2, x) { return s2 + x; }, 0), sum = c.reduce(function (s2, x, i) { return s2 + x * (i + 1); }, 0);
+      return { c: c, n: n, na: na, mean: n ? sum / n : 0, agree: n ? (c[3] + c[4]) / n : 0 };
+    }
+    function bar(st) {
+      if (!st.n) return '<div class="ev-bar"></div>';
+      return '<div class="ev-bar" role="img" aria-label="' + st.c.map(function (x, i) { return x + ' ' + scale[i]; }).join(', ') + '">' +
+        st.c.map(function (x, i) { return x ? '<span style="flex:' + x + ' 1 0;background:var(--lk-' + (i + 1) + ')"></span>' : ''; }).join('') + '</div>';
+    }
+    var all = stats(evalKeys(sections));
+    var top = '<p class="p-title">EVALUATION RESULTS</p><p class="p-sub">' + esc([t.title, fmtFullRange(t.start, t.end), t.venue].filter(Boolean).join(' · ')) + '</p>' +
+      '<div class="md-summary"><span>Evaluations: <b>' + rows.length + '</b>' + (nAtt ? ' of ' + nAtt + ' who attended (' + Math.round(rows.length / nAtt * 100) + '%)' : '') + '</span>' +
+      (all.n ? '<span>Average: <b>' + all.mean.toFixed(2) + '</b> of 5</span><span>Agree or strongly agree: <b>' + Math.round(all.agree * 100) + '%</b></span>' +
+        '<span class="ev-legend">' + scale.map(function (l, i) { return '<span><span class="ev-key" style="background:var(--lk-' + (i + 1) + ')"></span>' + (i + 1) + ' ' + esc(l) + '</span>'; }).join('') + '</span>' : '') + '</div>';
+    if (!rows.length) return { html: '<article class="paper">' + paperHead() + top + '<p class="p-empty">No evaluations for this training yet.</p>' + paperFoot(meta, 1, 1) + '</article>', pages: 1 };
+    var head = '<colgroup><col style="width:4.75in"><col style="width:4.25in"><col style="width:0.8in"><col style="width:1.55in"><col style="width:1.2in"></colgroup>' +
+      '<thead><tr><th>Statement</th><th>How people answered</th><th class="num">Average</th><th class="num">Agree or strongly agree</th><th class="num">Answers (N/A)</th></tr></thead>';
+    var lines = [], no = 0;
+    sections.forEach(function (sec) {
+      var ss2 = stats(sec.items.map(function (it) { return it.key; }));
+      lines.push('<tr class="sec"><td>' + esc(sec.section) + '</td><td></td><td class="num">' + (ss2.n ? ss2.mean.toFixed(2) : '–') + '</td><td class="num">' + (ss2.n ? Math.round(ss2.agree * 100) + '%' : '–') + '</td><td></td></tr>');
+      sec.items.forEach(function (it) {
+        no++;
+        var st = stats([it.key]);
+        lines.push('<tr><td>' + no + '. ' + esc(it.text) + '</td><td>' + bar(st) + '</td><td class="num">' + (st.n ? st.mean.toFixed(2) : '–') + '</td><td class="num">' +
+          (st.n ? Math.round(st.agree * 100) + '%' : '–') + '</td><td class="num">' + st.n + (st.na ? ' (' + st.na + ')' : '') + '</td></tr>');
+      });
+    });
+    var openRows = rows.filter(function (r) { return String(r.will_apply || '').trim() || String(r.comments || '').trim(); });
+    var openHead = '<colgroup><col style="width:0.45in"><col style="width:6in"><col style="width:6.1in"></colgroup><thead><tr><th>No.</th><th>What they will use in their work</th><th>What we should improve</th></tr></thead>';
+    function summaryPage(body, n, of) {
+      return '<article class="paper">' + paperHead() + top + '<table class="ev-table">' + head + '<tbody>' + body + '</tbody></table>' + paperFoot(meta, n, of) + '</article>';
+    }
+    function openPage(body, n, of) {
+      return '<article class="paper">' + paperHead() + '<p class="p-title">EVALUATION RESULTS: WRITTEN ANSWERS</p><p class="p-sub">' + esc(t.title) + ' · without names, in no particular order</p>' +
+        '<table class="ev-open">' + openHead + '<tbody>' + body + '</tbody></table>' + paperFoot(meta, n, of) + '</article>';
+    }
+    var sum = packRows(summaryPage, lines, null, function (h) { return h.indexOf('<tr class="sec">') === 0; });
+    var opn = openRows.length ? packRows(openPage, openRows.map(function (r, i) {
+      return '<tr><td style="text-align:center">' + (i + 1) + '</td><td>' + esc(r.will_apply) + '</td><td>' + esc(r.comments) + '</td></tr>';
+    }), null) : { groups: [] };
+    var total = sum.groups.length + opn.groups.length;
+    return {
+      html: sum.groups.map(function (g, i) { return summaryPage(g.join(''), i + 1, total); }).join('') +
+        opn.groups.map(function (g, i) { return openPage(g.join(''), sum.groups.length + i + 1, total); }).join(''),
+      pages: total
+    };
+  }
+
   /* Partnership requests: counts by kind and type of organization, then the list */
   function partnerPages(rp) {
     var list = (rp.partnerships || []).slice().sort(function (a, b) { return byStamp(b, a); }), meta = reportMeta(rp);
@@ -2508,7 +2713,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     'proposal', 'preferred_start', 'first_name', 'last_name', 'full_name', 'position', 'email', 'contact_no', 'status', 'notes'];
   var PT_SHOWN = ['timestamp', 'request_code', 'organization', 'org_type', 'partnership_types', 'topics', 'preferred_start', 'full_name', 'email', 'status'];
   var ATT_HEAD = ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'];
-  var EVAL_HEAD = ['date', 'training_id', 'overall', 'objectives_met', 'resource_persons', 'venue_logistics', 'will_apply', 'comments'];
+  var EVAL_HEAD = ['date', 'training_id'].concat(evalKeys(EVAL_ITEMS), ['will_apply', 'comments']);
+  var EVAL_SHOWN = ['date', 'training_id', 'obj_clear', 'obj_met', 'rp_knowledge', 'time_enough', 'venue_ok', 'overall', 'will_apply', 'comments'];
   var SHOW_LAST = 14;
   var CAPTIONS = {
     Trainings: '<strong>Organizers add one row per training.</strong> The app reads this tab to build the dropdowns. Try it: untick a show_in_list box, or move an end date into the past, and watch the Register dropdown change.',
@@ -2581,8 +2787,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       html = gridRows(tab, REQ_HEAD, REQ_SHOWN, db.requests, flashId, function (r) { return r.request_code; });
       fx = db.requests.length + ' requests. The status column is for organizers.';
     } else {
-      html = gridRows(tab, EVAL_HEAD, EVAL_HEAD, db.evaluations, flashId, function (r) { return r._id; });
-      fx = 'Ratings are 1 to 5. No code, no name, date only.';
+      html = gridRows(tab, EVAL_HEAD, EVAL_SHOWN, db.evaluations, flashId, function (r) { return r._id; });
+      fx = 'Likert answers, 1 (strongly disagree) to 5 (strongly agree). Showing 10 of ' + EVAL_HEAD.length + ' columns. No code, no name, date only.';
     }
     $('#grid').innerHTML = html;
     $('#sheetFx').textContent = fx;
@@ -2716,6 +2922,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#ciForm').addEventListener('submit', onCheckIn);
     $('#ciRegister').addEventListener('click', function () { startWalkIn($('#ciTraining').value); });
     $('#evForm').addEventListener('submit', onEvaluate);
+    $('#evLikert').addEventListener('change', function (e) {
+      var item = e.target.closest('.lk-item');
+      if (item) item.classList.remove('missing');
+      updateLikertProgress();
+      var errBox = $('#evError');
+      if (errBox.hidden || errBox.getAttribute('data-kind') !== 'likert') return;
+      var left = [];
+      $$('#evLikert .lk-item').forEach(function (el, i) { if (el.classList.contains('missing')) left.push(i + 1); });
+      if (left.length) errBox.textContent = stillToAnswer(left);
+      else errBox.hidden = true;
+    });
     $('#rqForm').addEventListener('submit', onRequest);
     $('#rqForm').addEventListener('input', clearRequestError);
     $('#rqForm').addEventListener('change', clearRequestError);
