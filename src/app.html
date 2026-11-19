@@ -41,6 +41,7 @@
   --paper-bad: #7B1113;
   --paper-bar: #014421;
   --wordmark: #7B1113;
+  --wordmark-g: #014421;
   --ring: rgba(123, 17, 19, 0.32);
   --band-green: #014421;
   --band-maroon: #7B1113;
@@ -71,7 +72,7 @@
   :root:not([data-theme="light"]) {
     --ground: #0E1210; --surface: #161B18; --sunken: #1C221E; --ink: #E9EDEA; --muted: #A2ACA5; --line: #2A312D; --line-strong: #3E4842;
     --maroon: #A8343A; --maroon-hover: #8E2A30; --maroon-text: #F0A3A6; --maroon-soft: #3A1A1C;
-    --green-fill: #2C7A4E; --green-text: #8FD1A8; --green-soft: #17301F; --on-fill: #FFFFFF; --wordmark: #C9575D;
+    --green-fill: #2C7A4E; --green-text: #8FD1A8; --green-soft: #17301F; --on-fill: #FFFFFF; --wordmark: #C9575D; --wordmark-g: #7CC69A;
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
     --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
@@ -83,7 +84,7 @@
 :root[data-theme="dark"] {
   --ground: #0E1210; --surface: #161B18; --sunken: #1C221E; --ink: #E9EDEA; --muted: #A2ACA5; --line: #2A312D; --line-strong: #3E4842;
   --maroon: #A8343A; --maroon-hover: #8E2A30; --maroon-text: #F0A3A6; --maroon-soft: #3A1A1C;
-  --green-fill: #2C7A4E; --green-text: #8FD1A8; --green-soft: #17301F; --on-fill: #FFFFFF; --wordmark: #C9575D;
+  --green-fill: #2C7A4E; --green-text: #8FD1A8; --green-soft: #17301F; --on-fill: #FFFFFF; --wordmark: #C9575D; --wordmark-g: #7CC69A;
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
   --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
@@ -155,16 +156,19 @@ body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
 .inst { display: grid; gap: 1px; }
 .inst-1 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
 .inst-2 { font-size: 14px; color: var(--muted); }
-.project { display: grid; justify-items: center; gap: 2px; padding-top: 2px; }
-.project-name { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-size: 21px; font-weight: 600; line-height: 1.2; color: var(--green-text); }
-.project-name::before, .project-name::after { content: ""; width: 32px; height: 1px; background: currentColor; opacity: 0.5; }
-.project-exp { max-width: 32ch; font-family: var(--display); font-size: 18px; font-style: italic; line-height: 1.35; color: var(--muted); }
-.project-exp b { font-weight: 700; color: var(--green-text); }
-.brand { display: grid; justify-items: center; gap: 10px; }
-.wordmark { font-family: var(--display); font-weight: 600; font-size: clamp(54px, 16vw, 78px); line-height: 0.95; letter-spacing: 0.16em; margin-right: -0.16em; color: var(--wordmark); }
-.wordmark:focus { outline: none; }
-.expansion { max-width: 34ch; font-size: 15px; color: var(--muted); }
-.expansion b { color: var(--maroon-text); font-weight: 700; }
+/* The lockup, stacked at the center: TaTaK's meaning, then "TaTaK Resilience Project" in green,
+   then SANAY in maroon, then SANAY's meaning. Green over maroon, like the bands above. */
+.lockup { display: grid; justify-items: center; gap: 12px; padding-top: 4px; }
+.lockup-top { max-width: 30ch; font-family: var(--display); font-size: 18.5px; font-style: italic; line-height: 1.3; color: var(--muted); text-wrap: balance; }
+.lockup-top b { font-weight: 700; color: var(--green-text); }
+.lockup-names { display: grid; justify-items: center; gap: 4px; margin: 0; font-family: var(--display); font-weight: 600; line-height: 1; }
+.lockup-names:focus { outline: none; }
+.lockup-project { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 0.26em; row-gap: 2px; font-size: clamp(27px, 7.6vw, 40px); color: var(--wordmark-g); }
+.wm-tatak { font-weight: 700; letter-spacing: 0.01em; }
+.wm-project { font-weight: 500; }
+.wm-sanay { margin-right: -0.16em; font-size: clamp(56px, 17vw, 86px); letter-spacing: 0.16em; color: var(--wordmark); }
+.lockup-bottom { max-width: 40ch; font-size: 15px; color: var(--muted); text-wrap: balance; }
+.lockup-bottom b { font-weight: 700; color: var(--maroon-text); }
 .actions { width: 100%; display: grid; gap: 12px; padding-top: 4px; text-align: left; }
 .flow { display: grid; gap: 12px; }
 .action { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 16px; row-gap: 2px; width: 100%; min-height: 86px; padding: 14px 16px 14px 14px; border: 0; border-radius: 18px; background: var(--nav); color: var(--on-fill); text-align: left; box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--nav-glow); transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s; }
@@ -176,6 +180,7 @@ body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
 .action-hint { grid-column: 2; grid-row: 2; font-size: 14.5px; color: var(--on-fill-muted); }
 .action-arrow { grid-column: 3; grid-row: 1 / span 2; display: grid; place-items: center; color: var(--on-fill-muted); transition: transform 0.15s; }
 .action:hover .action-arrow { transform: translateX(3px); }
+.asks { display: grid; gap: 12px; }
 .action-request { background: var(--maroon); box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--req-glow); }
 .action-request:hover { background: var(--maroon-hover); box-shadow: 0 2px 4px var(--shadow), 0 14px 24px -12px var(--req-glow); }
 @container app (min-width: 700px) {
@@ -185,6 +190,7 @@ body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
   .flow .action-label { grid-column: 1 / -1; grid-row: 2; }
   .flow .action-hint { grid-column: 1 / -1; grid-row: 3; }
   .flow .action-arrow { grid-column: 2; grid-row: 1; }
+  .asks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ---------- inner screens ---------- */
@@ -193,7 +199,9 @@ body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 2px; }
 .back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-left: -8px; padding: 8px 12px 8px 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); font-weight: 600; }
 .back:hover { background: var(--sunken); }
-.mini-mark { font-family: var(--display); font-size: 18px; font-weight: 600; letter-spacing: 0.16em; color: var(--wordmark); }
+.mini-mark { display: inline-flex; align-items: baseline; gap: 8px; font-family: var(--display); font-size: 18px; font-weight: 600; }
+.mm-t { color: var(--wordmark-g); }
+.mm-s { color: var(--wordmark); letter-spacing: 0.14em; }
 .view-head { display: grid; gap: 6px; padding-block: 10px 22px; }
 .title { font-family: var(--display); font-size: 38px; font-weight: 600; line-height: 1.05; }
 .title:focus { outline: none; }
@@ -496,13 +504,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <div class="logos" id="logos"></div>
           <p class="inst" id="inst"></p>
         </div>
-        <div class="project">
-          <p class="project-name" id="projectName">TaTaK Resilience Project</p>
-          <p class="project-exp" id="projectExp"></p>
-        </div>
-        <div class="brand">
-          <h1 class="wordmark" id="brandName" tabindex="-1">SANAY</h1>
-          <p class="expansion" id="brandExpansion"></p>
+        <div class="lockup">
+          <p class="lockup-top" id="projectExp"></p>
+          <h1 class="lockup-names" id="brandName" tabindex="-1">
+            <span class="lockup-project" id="projectLine"><span class="wm-tatak" id="projectMark">TaTaK</span> <span class="wm-project" id="projectRest">Resilience Project</span></span>
+            <span class="wm-sanay" id="sanayMark">SANAY</span>
+          </h1>
+          <p class="lockup-bottom" id="brandExpansion"></p>
         </div>
         <nav class="actions" aria-label="Choose what to do">
           <div class="flow">
@@ -525,12 +533,20 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
               <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
             </button>
           </div>
-          <button type="button" class="action action-request" data-go="request" id="go-request">
-            <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18h5"></path><path d="M10.2 21h3.6"></path><path d="M12 3a6 6 0 0 0-3.7 10.7c.7.6 1.2 1.4 1.2 2.3h5c0-.9.5-1.7 1.2-2.3A6 6 0 0 0 12 3z"></path></svg></span>
-            <span class="action-label">Request a training</span>
-            <span class="action-hint">Tell us the skills your office needs, and when</span>
-            <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
-          </button>
+          <div class="asks">
+            <button type="button" class="action action-request" data-go="request" id="go-request">
+              <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18h5"></path><path d="M10.2 21h3.6"></path><path d="M12 3a6 6 0 0 0-3.7 10.7c.7.6 1.2 1.4 1.2 2.3h5c0-.9.5-1.7 1.2-2.3A6 6 0 0 0 12 3z"></path></svg></span>
+              <span class="action-label">Request a training</span>
+              <span class="action-hint">Tell us the skills your office needs, and when</span>
+              <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+            </button>
+            <button type="button" class="action action-request" data-go="partner" id="go-partner">
+              <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8.5" cy="8" r="3.2"></circle><path d="M2.8 19.5c0-3.2 2.6-5.4 5.7-5.4s5.7 2.2 5.7 5.4"></path><circle cx="16.8" cy="9" r="2.6"></circle><path d="M15.6 14.4c3-.4 5.6 1.5 5.6 4.6"></path></svg></span>
+              <span class="action-label">Training partnership</span>
+              <span class="action-hint">Co-organize, send trainers, host or support a training</span>
+              <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+            </button>
+          </div>
         </nav>
       </section>
 
@@ -758,13 +774,74 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         </div>
       </section>
 
+      <!-- ===================== TRAINING PARTNERSHIP ===================== -->
+      <section class="view view-card" id="view-partner" aria-labelledby="ptTitle" hidden>
+        <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
+        <div id="ptFormWrap">
+          <header class="view-head">
+            <h2 class="title" id="ptTitle" tabindex="-1">Training partnership</h2>
+            <p class="lead">Partner with us on training: co-organize one, send trainers, host it or support it. Tell us about your organization and your idea.</p>
+          </header>
+          <form class="form" id="ptForm" novalidate>
+            <div class="group">
+              <p class="group-title">Your organization</p>
+              <div class="field"><label for="ptOrg">Organization name</label><input type="text" id="ptOrg" autocomplete="organization" maxlength="200" aria-describedby="err-pt-org"><p class="err" id="err-pt-org" hidden></p></div>
+              <div class="q" role="radiogroup" aria-labelledby="lbl-orgtype"><span class="q-label" id="lbl-orgtype">Type of organization</span><div class="picks" id="ptOrgTypes"></div><p class="err" id="err-pt-orgtype" hidden></p></div>
+              <div class="row-2">
+                <div class="field"><label for="ptPlace">City or province <span class="opt">optional</span></label><input type="text" id="ptPlace" maxlength="120"></div>
+                <div class="field"><label for="ptSite">Website or page <span class="opt">optional</span></label><input type="text" id="ptSite" maxlength="200" inputmode="url" spellcheck="false"></div>
+              </div>
+            </div>
+            <div class="group">
+              <p class="group-title">The partnership</p>
+              <div class="q" role="group" aria-labelledby="lbl-pttypes"><span class="q-label" id="lbl-pttypes">What would you like to do with us?<small>Choose all that apply.</small></span><div class="picks" id="ptTypes"></div><p class="err" id="err-pt-types" hidden></p></div>
+              <div class="field"><label for="ptTypeOther">Something else <span class="opt">optional</span></label><input type="text" id="ptTypeOther" maxlength="200"></div>
+              <div class="q" role="group" aria-labelledby="lbl-pttopics"><span class="q-label" id="lbl-pttopics">Training topics <span class="opt">optional</span><small>Choose all that apply.</small></span><div class="picks" id="ptTopics"></div></div>
+              <div class="field"><label for="ptOtherTopics">Other topics <span class="opt">optional</span></label><input type="text" id="ptOtherTopics" maxlength="300"></div>
+              <div class="field"><label for="ptProposal">Tell us about your idea</label><textarea id="ptProposal" maxlength="2000" aria-describedby="err-pt-proposal"></textarea><p class="err" id="err-pt-proposal" hidden></p></div>
+              <div class="field"><label for="ptStart">When would you like to start? <span class="opt">optional</span></label><input type="date" id="ptStart" aria-describedby="err-pt-start"><p class="err" id="err-pt-start" hidden></p></div>
+            </div>
+            <div class="group">
+              <p class="group-title">Contact person</p>
+              <div class="row-2">
+                <div class="field"><label for="ptFirst">First name</label><input type="text" id="ptFirst" autocomplete="given-name" aria-describedby="err-pt-first"><p class="err" id="err-pt-first" hidden></p></div>
+                <div class="field"><label for="ptLast">Last name</label><input type="text" id="ptLast" autocomplete="family-name" aria-describedby="err-pt-last"><p class="err" id="err-pt-last" hidden></p></div>
+              </div>
+              <div class="field"><label for="ptPosition">Designation / Position <span class="opt">optional</span></label><input type="text" id="ptPosition" autocomplete="organization-title"></div>
+              <div class="field"><label for="ptEmail">Email</label><input type="email" id="ptEmail" autocomplete="email" inputmode="email" spellcheck="false" aria-describedby="err-pt-email"><p class="err" id="err-pt-email" hidden></p></div>
+              <div class="field"><label for="ptContact">Contact No. <span class="opt">optional</span></label><input type="tel" id="ptContact" autocomplete="tel" inputmode="tel" aria-describedby="err-pt-contact"><p class="err" id="err-pt-contact" hidden></p></div>
+            </div>
+            <div class="group">
+              <p class="hint" id="ptPrivacy"></p>
+              <label class="check" for="ptConsent"><input type="checkbox" id="ptConsent"><span>I agree that you may use these details to discuss this partnership with us and to keep us on your list of training partners.</span></label>
+              <p class="err" id="err-pt-consent" hidden></p>
+            </div>
+            <div class="submit-row">
+              <p class="err-box" id="ptError" role="alert" hidden></p>
+              <button type="submit" class="btn-primary" id="ptSubmit">Send partnership request</button>
+            </div>
+          </form>
+        </div>
+        <div class="done" id="ptDone" tabindex="-1" hidden>
+          <div class="done-mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"></path></svg></div>
+          <div class="view-head" style="padding:0"><h2 class="title">Partnership request received</h2><p class="lead" id="ptDoneLead"></p></div>
+          <div class="code-card"><p class="code-label">Request number</p><p class="code" id="ptCode"></p></div>
+          <dl class="facts" id="ptFacts"></dl>
+          <p class="demo-note" id="ptDemoNote" hidden>Preview: a row was added to the Partnerships tab. <button type="button" class="link-btn" data-see="Partnerships">See it</button></p>
+          <div class="done-actions">
+            <button type="button" class="btn-quiet" id="ptAnother">Send another</button>
+            <button type="button" class="btn-quiet" data-home>Back to home</button>
+          </div>
+        </div>
+      </section>
+
       <!-- ===================== ORGANIZER REPORT ===================== -->
       <section class="view view-report" id="view-report" aria-labelledby="rpTitle" hidden>
         <div class="report-chrome view-card">
           <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
           <header class="view-head">
             <h2 class="title" id="rpTitle" tabindex="-1">Training report</h2>
-            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, consents, and training requests.</p>
+            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, consents, training requests and partnership requests.</p>
           </header>
           <div id="rpMain">
             <div class="seg" role="group" aria-label="Report part">
@@ -774,6 +851,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
               <button type="button" data-section="media" aria-pressed="false">Photo and recording</button>
               <button type="button" data-section="impact" aria-pressed="false">Impact interviews</button>
               <button type="button" data-section="requests" aria-pressed="false">Training requests</button>
+              <button type="button" data-section="partners" aria-pressed="false">Partnerships</button>
             </div>
             <div class="rp-controls">
               <div class="field" id="rpTrainingField"><label for="rpTraining">Training</label><div class="select"><select id="rpTraining"></select></div></div>
@@ -813,6 +891,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <button type="button" role="tab" data-tab="Attendance" aria-selected="false">Attendance</button>
           <button type="button" role="tab" data-tab="Evaluations" aria-selected="false">Evaluations</button>
           <button type="button" role="tab" data-tab="Requests" aria-selected="false">Requests</button>
+          <button type="button" role="tab" data-tab="Partnerships" aria-selected="false">Partnerships</button>
         </div>
       </div>
       <div class="sheet-legend" id="sheetLegend"></div>
@@ -847,6 +926,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     'Business Continuity Planning', 'Contingency Planning', 'Early Warning Systems', 'Hazard and risk mapping', 'Community-based DRRM',
     'Emergency Operations Center (EOC)', 'Basic Life Support and First Aid'];
   var REQUEST_MODES = ['Face-to-face', 'Online', 'Blended', 'No preference'];
+  var PARTNER_TYPES = ['Co-organize a training', 'Provide trainers or resource persons', 'Host the venue', 'Fund or sponsor a training', 'Send participants', 'Develop training materials'];
+  var ORG_TYPES = ['Local government unit', 'National government agency', 'NGO or civil society', 'Academe', 'Private sector', 'International or development partner', 'Other'];
+  var PARTNER_PRIVACY_TEXT = 'We use these details only to discuss this partnership with you and to keep a list of potential training partners, under the Data Privacy Act of 2012 (Republic Act No. 10173).';
 
   /* Name, acronym, logos and the attendance-sheet header. The Apps Script version fills these in from Code.gs and Logos.gs. */
   var BRAND = (function () {
@@ -1149,6 +1231,25 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         status: pick(['New', 'New', 'New', 'Contacted', 'Scheduled']), notes: '' });
     }
     db.requests.sort(byStamp);
+
+    // Training partnership requests
+    var ORGS = [['Bayanihan Foundation', 'NGO or civil society'], ['Kalinaw State College', 'Academe'], ['Malaya Water Corporation', 'Private sector'],
+      ['Province of Kalinaw', 'Local government unit'], ['Liwayway Red Cross Chapter', 'NGO or civil society'], ['Pacific Resilience Fund', 'International or development partner']];
+    db.partnerships = ORGS.map(function (o, k) {
+      var pf = pick(rand() < 0.5 ? FIRST_F : FIRST_M), pl = pick(LASTS), nt = 1 + Math.floor(rand() * 2), types = [], tps = [];
+      while (types.length < nt) { var ty = pick(PARTNER_TYPES); if (types.indexOf(ty) < 0) types.push(ty); }
+      while (tps.length < 2) { var tq = pick(DEFAULT_TOPICS); if (tps.indexOf(tq) < 0) tps.push(tq); }
+      return { timestamp: D(-(2 + k * 7 + Math.floor(rand() * 5))) + ' ' + hm(9 * 60, 17 * 60), request_code: newCode(), organization: o[0], org_type: o[1],
+        location: pick(['Malaya City', 'Kalinaw', 'Dalisay', 'Quezon City']), website: chance(0.5) ? o[0].toLowerCase().replace(/[^a-z]/g, '') + '.example.org' : '',
+        partnership_types: types.join('; '), other_partnership: '', topics: tps.join('; '), other_topics: '',
+        proposal: pick(['We can host a two-day ICS course for our partner barangays and cover meals.', 'Our faculty can serve as resource persons on hazard mapping.',
+          'We would like to send our response team to your next RDANA batch.', 'We can co-fund a series of contingency planning workshops.']),
+        preferred_start: chance(0.7) ? D(30 + Math.floor(rand() * 120)) : '', first_name: pf, last_name: pl, full_name: pf + ' ' + pl,
+        position: pick(['Program Manager', 'Executive Director', 'Dean', 'Provincial DRRM Officer', 'Partnerships Officer']),
+        email: (pf + '.' + pl).toLowerCase() + '@example.org', contact_no: chance(0.6) ? '09' + digits(2) + ' ' + digits(3) + ' ' + digits(4) : '',
+        status: pick(['New', 'New', 'Contacted', 'In talks']), notes: '' };
+    });
+    db.partnerships.sort(byStamp);
     db.registrations.sort(byStamp);
     db.attendance.sort(byStamp);
 
@@ -1187,7 +1288,22 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       db: db, today: today, counts: counts, list: list,
       getAppData: function () {
         return { today: today, evaluationDaysAfter: 14, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
-          requestPrivacy: REQUEST_PRIVACY_TEXT, requestTopics: DEFAULT_TOPICS, trainings: list() };
+          requestPrivacy: REQUEST_PRIVACY_TEXT, requestTopics: DEFAULT_TOPICS, partnershipTypes: PARTNER_TYPES, organizationTypes: ORG_TYPES,
+          partnershipPrivacy: PARTNER_PRIVACY_TEXT, trainings: list() };
+      },
+      submitPartnership: function (f) {
+        var types = (f.types || []).filter(function (t) { return PARTNER_TYPES.indexOf(t) > -1; });
+        var topics = (f.topics || []).filter(function (t) { return DEFAULT_TOPICS.indexOf(t) > -1; });
+        if (!f.organization || ORG_TYPES.indexOf(f.org_type) < 0 || (!types.length && !f.other_type) || !f.proposal || !f.consent) throw new Error('Please answer every question.');
+        if (f.preferred_start && f.preferred_start < today) throw new Error('Choose a date from today onward.');
+        var code = newCode(), stamp = manilaStamp();
+        db.partnerships.push({ timestamp: stamp, request_code: code, organization: f.organization, org_type: f.org_type, location: f.location, website: f.website,
+          partnership_types: types.join('; '), other_partnership: f.other_type, topics: topics.join('; '), other_topics: f.other_topics, proposal: f.proposal,
+          preferred_start: f.preferred_start, first_name: f.first_name, last_name: f.last_name, full_name: f.first_name + ' ' + f.last_name, position: f.position,
+          email: String(f.email).toLowerCase(), contact_no: f.contact_no, status: 'New', notes: '' });
+        S.flash = { tab: 'Partnerships', id: code };
+        return { code: code, stamp: stamp, organization: f.organization, partnership: types.concat(f.other_type ? [f.other_type] : []).join('; '),
+          topics: topics.concat(f.other_topics ? [f.other_topics] : []).join('; '), preferred_start: f.preferred_start };
       },
       submitRequest: function (f) {
         var topics = (f.topics || []).filter(function (t) { return DEFAULT_TOPICS.indexOf(t) > -1; });
@@ -1255,7 +1371,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         var t = all.filter(function (x) { return x.id === id; })[0] || null;
         return {
           now: manilaStamp(), today: today, privacyStatement: PRIVACY_TEXT, trainings: all, training: t,
-          requests: db.requests.slice(), certificateRule: 'all-days',
+          requests: db.requests.slice(), partnerships: db.partnerships.slice(), certificateRule: 'all-days',
           registrations: t ? db.registrations.filter(function (r) { return r.training_id === t.id; }) : [],
           attendance: t ? db.attendance.filter(function (a) { return a.training_id === t.id; }).map(function (a) { return { timestamp: a.timestamp, date: a.date, reg_code: a.reg_code }; }) : []
         };
@@ -1290,12 +1406,19 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       : '<span class="logo-slot">Logo</span><span class="logo-slot">Logo</span><span class="logo-slot wide">Logo</span>';
     $('#inst').innerHTML = (BRAND.institution[0] ? '<span class="inst-1">' + esc(BRAND.institution[0]) + '</span>' : '') +
       (BRAND.institution[1] ? '<span class="inst-2">' + esc(BRAND.institution[1]) + '</span>' : '');
-    $('#brandName').textContent = BRAND.name;
-    $$('[data-brand-name]').forEach(function (el) { el.textContent = BRAND.name; });
+    var mark = BRAND.project ? (BRAND.projectMark || '') : '';
+    $('#sanayMark').textContent = BRAND.name;
+    $('#projectMark').textContent = mark;
+    $$('[data-brand-name]').forEach(function (el) {
+      el.innerHTML = (mark ? '<span class="mm-t">' + esc(mark) + '</span>' : '') + '<span class="mm-s">' + esc(BRAND.name) + '</span>';
+    });
     $('#brandExpansion').innerHTML = acronymHTML(BRAND.expansion, BRAND.name);
-    $('#projectName').textContent = BRAND.project || '';
-    $('#projectExp').innerHTML = acronymHTML(BRAND.projectExpansion, BRAND.projectMark);
-    $('#projectName').parentNode.hidden = !BRAND.project;
+    // "TaTaK Resilience Project": the mark in bold, the rest in regular weight
+    var project = String(BRAND.project || '');
+    $('#projectRest').textContent = mark && project.indexOf(mark) === 0 ? project.slice(mark.length).trim() : (mark ? '' : project);
+    $('#projectLine').hidden = !project;
+    $('#projectExp').hidden = !project || !BRAND.projectExpansion;
+    $('#projectExp').innerHTML = acronymHTML(BRAND.projectExpansion, mark);
     document.title = BRAND.name + ' Training Registration';
   }
 
@@ -1330,7 +1453,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#mediaText').textContent = d.mediaStatement || MEDIA_TEXT;
     $('#impactText').textContent = d.impactStatement || IMPACT_TEXT;
     $('#rqPrivacy').textContent = d.requestPrivacy || REQUEST_PRIVACY_TEXT;
+    $('#ptPrivacy').textContent = d.partnershipPrivacy || PARTNER_PRIVACY_TEXT;
     fillRequest();
+    fillPartner();
     fillRegister();
     fillAttendance();
     fillEvaluation();
@@ -1407,7 +1532,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   }
 
   /* ---------------- views ---------------- */
-  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'report'];
+  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'partner', 'report'];
   function show(view, opts) {
     opts = opts || {};
     if (VIEWS.indexOf(view) === -1) view = 'home';
@@ -1684,6 +1809,119 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#rqFormWrap').hidden = false;
   }
 
+  /* ---------------- training partnership ---------------- */
+  var PT_FIELDS = [
+    ['organization', '#ptOrg', 'Enter your organization\'s name.', 'err-pt-org'],
+    ['org_type', '#ptOrgTypes input', 'Choose one.', 'err-pt-orgtype'],
+    ['types', '#ptTypes input', 'Choose at least one, or describe it under Something else.', 'err-pt-types'],
+    ['proposal', '#ptProposal', 'Tell us a little about your idea.', 'err-pt-proposal'],
+    ['preferred_start', '#ptStart', '', 'err-pt-start'],
+    ['first_name', '#ptFirst', 'Enter your first name.', 'err-pt-first'],
+    ['last_name', '#ptLast', 'Enter your last name.', 'err-pt-last'],
+    ['email', '#ptEmail', 'Enter your email.', 'err-pt-email'],
+    ['contact_no', '#ptContact', '', 'err-pt-contact'],
+    ['consent', '#ptConsent', 'Tick the box so we can contact you about this partnership.', 'err-pt-consent']
+  ];
+  var PT_BY_ID = { ptOrg: 'organization', ptTypeOther: 'types', ptProposal: 'proposal', ptStart: 'preferred_start', ptFirst: 'first_name', ptLast: 'last_name',
+    ptEmail: 'email', ptContact: 'contact_no', ptConsent: 'consent' };
+  function checkPills(boxSel, name, prefix, values) {
+    var box = $(boxSel), key = values.join('|');
+    if (box.getAttribute('data-key') === key) return;
+    var checked = $$(boxSel + ' input:checked').map(function (el) { return el.value; });
+    box.innerHTML = values.map(function (v, i) {
+      var id = prefix + i;
+      return '<label class="pick" for="' + id + '"><input type="checkbox" name="' + name + '" id="' + id + '" value="' + esc(v) + '"' + (checked.indexOf(v) > -1 ? ' checked' : '') + '><span>' + esc(v) + '</span></label>';
+    }).join('');
+    box.setAttribute('data-key', key);
+  }
+  function fillPartner() {
+    var d = S.data || {};
+    var orgs = d.organizationTypes && d.organizationTypes.length ? d.organizationTypes : ORG_TYPES;
+    if ($('#ptOrgTypes').getAttribute('data-key') !== orgs.join('|')) {
+      var keep = radio('pt_org_type');
+      $('#ptOrgTypes').innerHTML = pills('pt_org_type', orgs);
+      $('#ptOrgTypes').setAttribute('data-key', orgs.join('|'));
+      if (keep) $$('#ptOrgTypes input').forEach(function (el) { if (el.value === keep) el.checked = true; });
+    }
+    checkPills('#ptTypes', 'pt_type', 'pt-type-', d.partnershipTypes && d.partnershipTypes.length ? d.partnershipTypes : PARTNER_TYPES);
+    checkPills('#ptTopics', 'pt_topic', 'pt-topic-', d.requestTopics && d.requestTopics.length ? d.requestTopics : DEFAULT_TOPICS);
+    $('#ptStart').min = S.today || manilaToday();
+  }
+  function readPartner() {
+    return {
+      organization: val('#ptOrg'), org_type: radio('pt_org_type'), location: val('#ptPlace'), website: val('#ptSite'),
+      types: $$('#ptTypes input:checked').map(function (el) { return el.value; }), other_type: val('#ptTypeOther'),
+      topics: $$('#ptTopics input:checked').map(function (el) { return el.value; }), other_topics: val('#ptOtherTopics'),
+      proposal: $('#ptProposal').value.trim(), preferred_start: $('#ptStart').value,
+      first_name: val('#ptFirst'), last_name: val('#ptLast'), position: val('#ptPosition'), email: val('#ptEmail'), contact_no: val('#ptContact'),
+      consent: $('#ptConsent').checked
+    };
+  }
+  function validatePartner(f) {
+    var e = {}, today = S.today || manilaToday(), digits = f.contact_no.replace(/\D/g, '');
+    ['organization', 'org_type', 'proposal', 'first_name', 'last_name', 'email', 'consent'].forEach(function (k) {
+      if (!f[k]) e[k] = PT_FIELDS.filter(function (r) { return r[0] === k; })[0][2];
+    });
+    if (!f.types.length && !f.other_type) e.types = PT_FIELDS[2][2];
+    if (f.proposal && f.proposal.length < 10) e.proposal = 'Tell us a little more, in a sentence or two.';
+    if (f.preferred_start && f.preferred_start < today) e.preferred_start = 'Choose a date from today onward.';
+    if (f.email && !EMAIL_RE.test(f.email)) e.email = 'Enter a valid email, like name@example.com.';
+    if (f.contact_no && (digits.length < 7 || digits.length > 15)) e.contact_no = 'Enter a number with 7 to 15 digits, like 0917 123 4567.';
+    return e;
+  }
+  function showPartnerErrors(errs) {
+    var first = null;
+    PT_FIELDS.forEach(function (r) {
+      var box = $('#' + r[3]), msg = errs[r[0]];
+      if (box) { box.textContent = msg || ''; box.hidden = !msg; }
+      $$(r[1]).forEach(function (el) { if (msg) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid'); });
+      if (msg && !first) first = $(r[1]);
+    });
+    return first;
+  }
+  function clearPartnerError(e) {
+    var key = PT_BY_ID[e.target.id] || (e.target.name === 'pt_type' ? 'types' : e.target.name === 'pt_org_type' ? 'org_type' : '');
+    var r = PT_FIELDS.filter(function (x) { return x[0] === key; })[0], box = r && $('#' + r[3]);
+    if (!box || box.hidden) return;
+    box.hidden = true;
+    box.textContent = '';
+    $$(r[1]).forEach(function (el) { el.removeAttribute('aria-invalid'); });
+  }
+  function onPartner(e) {
+    e.preventDefault();
+    var f = readPartner(), first = showPartnerErrors(validatePartner(f));
+    $('#ptError').hidden = true;
+    if (first) { first.focus(); return; }
+    var btn = $('#ptSubmit');
+    busy(btn, true, 'Sending…');
+    call('submitPartnership', f).then(function (res) {
+      $('#ptCode').textContent = res.code;
+      $('#ptDoneLead').textContent = 'Thank you, ' + f.first_name + '. We will contact you at ' + f.email + ' to talk about working together.';
+      $('#ptFacts').innerHTML = '<div><dt>Organization</dt><dd>' + esc(res.organization) + '</dd></div>' +
+        '<div><dt>Partnership</dt><dd>' + esc(res.partnership) + '</dd></div>' +
+        (res.topics ? '<div><dt>Topics</dt><dd>' + esc(res.topics) + '</dd></div>' : '') +
+        (res.preferred_start ? '<div><dt>Start</dt><dd>' + esc(fmtFull(res.preferred_start)) + '</dd></div>' : '') +
+        '<div><dt>Sent</dt><dd>' + esc(fmtStamp(res.stamp)) + '</dd></div>';
+      $('#ptDemoNote').hidden = LIVE;
+      $('#ptFormWrap').hidden = true;
+      $('#ptDone').hidden = false;
+      try { window.scrollTo(0, 0); } catch (e2) { /* ignore */ }
+      $('#ptDone').focus();
+      if (!LIVE && S.sheetOpen) { S.sheetTab = 'Partnerships'; renderSheet(); }
+      if (!LIVE && S.report) S.report = Demo.getReport({ training_id: S.rpTraining });
+    }).catch(function (err) {
+      $('#ptError').textContent = err.message || 'Something went wrong. Please try again.';
+      $('#ptError').hidden = false;
+    }).then(function () { busy(btn, false); });
+  }
+  function resetPartner() {
+    $('#ptForm').reset();
+    showPartnerErrors({});
+    $('#ptError').hidden = true;
+    $('#ptDone').hidden = true;
+    $('#ptFormWrap').hidden = false;
+  }
+
   /* ---------------- attendance ---------------- */
   var ICONS = {
     ok: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"></path></svg>',
@@ -1836,8 +2074,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   /* Which controls each part of the report uses */
   function syncReportControls() {
     var sec = S.rpSection;
-    $('#rpTrainingField').hidden = sec === 'requests';
-    $('#rpListField').hidden = sec === 'certs' || sec === 'requests';
+    $('#rpTrainingField').hidden = sec === 'requests' || sec === 'partners';
+    $('#rpListField').hidden = sec === 'certs' || sec === 'requests' || sec === 'partners';
     $('#rpShowField').hidden = sec !== 'certs';
     $('#rpCopy').hidden = sec !== 'certs';
     $('#rpCopyNote').textContent = '';
@@ -1875,6 +2113,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         out = requestsPages(rp);
         n = (rp.requests || []).length;
         unit = n === 1 ? 'request' : 'requests';
+      } else if (sec === 'partners') {
+        out = partnerPages(rp);
+        n = (rp.partnerships || []).length;
+        unit = n === 1 ? 'request' : 'requests';
       } else if (!rp.training) {
         out = { html: '', pages: 0 };
       } else if (sec === 'certs') {
@@ -1892,8 +2134,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         out = sheetPages(rp, list, rows);
       }
       $('#paperStack').innerHTML = out.html;
-      var what = { sheet: 'Attendance sheet', certs: 'Certificates', profile: 'Participant profile', media: 'Photo and recording', impact: 'Impact interviews', requests: 'Training requests' }[sec];
-      $('#rpSummary').textContent = !rp.training && sec !== 'requests' ? 'No trainings in the Sheet yet.'
+      var what = { sheet: 'Attendance sheet', certs: 'Certificates', profile: 'Participant profile', media: 'Photo and recording', impact: 'Impact interviews',
+        requests: 'Training requests', partners: 'Partnership requests' }[sec];
+      $('#rpSummary').textContent = !rp.training && sec !== 'requests' && sec !== 'partners' ? 'No trainings in the Sheet yet.'
         : what + ' · ' + n + ' ' + unit + extra + ' · ' + out.pages + (out.pages === 1 ? ' page' : ' pages');
       fitPapers();
     });
@@ -2214,6 +2457,36 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     return { html: summary + list.html, pages: list.pages + 1 };
   }
 
+  /* Partnership requests: counts by kind and type of organization, then the list */
+  function partnerPages(rp) {
+    var list = (rp.partnerships || []).slice().sort(function (a, b) { return byStamp(b, a); }), meta = reportMeta(rp);
+    var title = '<p class="p-title">TRAINING PARTNERSHIP REQUESTS</p>';
+    if (!list.length) return { html: '<article class="paper">' + paperHead() + title + '<p class="p-empty">No partnership requests yet.</p>' + paperFoot(meta, 1, 1) + '</article>', pages: 1 };
+    var kinds = {}, orgs = {};
+    list.forEach(function (q) {
+      String(q.partnership_types || '').split(';').map(function (x) { return x.trim(); }).filter(Boolean).forEach(function (x) { kinds[x] = (kinds[x] || 0) + 1; });
+      orgs[q.org_type || 'Not given'] = (orgs[q.org_type || 'Not given'] || 0) + 1;
+    });
+    function chips(o) { return Object.keys(o).sort(function (a, b) { return o[b] - o[a] || (a < b ? -1 : 1); }).map(function (k) { return '<span>' + esc(k) + ': <b>' + o[k] + '</b></span>'; }).join(''); }
+    var top = title + '<p class="p-sub">' + list.length + (list.length === 1 ? ' request' : ' requests') + ', newest first</p>' +
+      '<div class="md-summary">' + chips(kinds) + '</div><div class="md-summary">' + chips(orgs) + '</div>';
+    var head = '<colgroup><col style="width:0.4in"><col style="width:0.75in"><col style="width:1.6in"><col style="width:1.3in"><col style="width:1.6in"><col style="width:1.4in"><col style="width:2.5in"><col style="width:0.75in"><col style="width:1.45in"><col style="width:0.6in"></colgroup>' +
+      '<thead><tr><th>No.</th><th>Received</th><th>Organization</th><th>Contact person</th><th>Partnership</th><th>Topics</th><th>Their idea</th><th>Start</th><th>Contact</th><th>Status</th></tr></thead>';
+    return paginate(function (body, n, of) {
+      return '<article class="paper">' + paperHead() + top + '<table class="rq-table">' + head + '<tbody>' + body + '</tbody></table>' + paperFoot(meta, n, of) + '</article>';
+    }, list.map(function (q, i) {
+      var idea = String(q.proposal || '').trim();
+      return '<tr><td class="ctr">' + (i + 1) + '</td><td>' + esc(fmtDay(String(q.timestamp).slice(0, 10), true)) + '</td>' +
+        '<td>' + esc(q.organization) + '<span class="rq-sub">' + esc([q.org_type, q.location].filter(Boolean).join(' · ')) + '</span>' + (q.website ? '<span class="rq-sub">' + esc(q.website) + '</span>' : '') + '</td>' +
+        '<td>' + esc(q.full_name) + (q.position ? '<span class="rq-sub">' + esc(q.position) + '</span>' : '') + '</td>' +
+        '<td>' + esc([q.partnership_types, q.other_partnership].filter(Boolean).join('; ')) + '</td>' +
+        '<td>' + esc([q.topics, q.other_topics].filter(Boolean).join('; ')) + '</td>' +
+        '<td>' + esc(idea.length > 220 ? idea.slice(0, 219) + '…' : idea) + '</td>' +
+        '<td>' + esc(q.preferred_start ? fmtDay(q.preferred_start, true) : '') + '</td>' +
+        '<td>' + esc(q.email) + (q.contact_no ? '<span class="rq-sub">' + esc(q.contact_no) + '</span>' : '') + '</td><td class="ctr">' + esc(q.status || 'New') + '</td></tr>';
+    }), null);
+  }
+
   /* ------------------------------------------------------------------
    * Preview only: the Google Sheet the app writes to
    * ------------------------------------------------------------------ */
@@ -2226,6 +2499,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   var REQ_HEAD = ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email', 'contact_no', 'topics', 'other_topics', 'need',
     'participants', 'participant_types', 'preferred_date', 'alternative_date', 'mode', 'location', 'status', 'notes'];
   var REQ_SHOWN = ['timestamp', 'request_code', 'full_name', 'agency', 'topics', 'participants', 'preferred_date', 'alternative_date', 'mode', 'status'];
+  var PT_HEAD = ['timestamp', 'request_code', 'organization', 'org_type', 'location', 'website', 'partnership_types', 'other_partnership', 'topics', 'other_topics',
+    'proposal', 'preferred_start', 'first_name', 'last_name', 'full_name', 'position', 'email', 'contact_no', 'status', 'notes'];
+  var PT_SHOWN = ['timestamp', 'request_code', 'organization', 'org_type', 'partnership_types', 'topics', 'preferred_start', 'full_name', 'email', 'status'];
   var ATT_HEAD = ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'];
   var EVAL_HEAD = ['date', 'training_id', 'overall', 'objectives_met', 'resource_persons', 'venue_logistics', 'will_apply', 'comments'];
   var SHOW_LAST = 14;
@@ -2234,6 +2510,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     Registrations: '<strong>One row per registration.</strong> The timestamp stands in for the signature. GAD columns stay blank when the person did not consent. Showing 17 of 26 columns.',
     Attendance: '<strong>One row per person per training day</strong>, added at check-in. The organizer report turns these into the attendance sheet.',
     Evaluations: '<strong>No names here on purpose.</strong> Each new row goes in at a random position, so the order doesn’t show who answered when.',
+    Partnerships: '<strong>One row per partnership request.</strong> Organizers update the status column. Over time this tab doubles as your directory of potential training partners.',
     Requests: '<strong>One row per training request.</strong> Organizers update the status column: New, Contacted, Scheduled, Done or Declined. The report page tallies the topics and preferred months.'
   };
   function appShows(r, t) {
@@ -2292,6 +2569,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     } else if (tab === 'Attendance') {
       html = gridRows(tab, ATT_HEAD, ATT_HEAD, db.attendance, flashId, function (r) { return r.reg_code + r.date; });
       fx = 'One check-in per person per day. Repeat check-ins on the same day are ignored.';
+    } else if (tab === 'Partnerships') {
+      html = gridRows(tab, PT_HEAD, PT_SHOWN, db.partnerships, flashId, function (r) { return r.request_code; });
+      fx = db.partnerships.length + ' partnership requests. The status column is for organizers.';
     } else if (tab === 'Requests') {
       html = gridRows(tab, REQ_HEAD, REQ_SHOWN, db.requests, flashId, function (r) { return r.request_code; });
       fx = db.requests.length + ' requests. The status column is for organizers.';
@@ -2380,6 +2660,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         if (go === 'evaluation' && !$('#evDone').hidden) { $('#evDone').hidden = true; $('#evFormWrap').hidden = false; }
         if (go === 'attendance') $('#ciResult').innerHTML = '';
         if (go === 'request' && !$('#rqDone').hidden) resetRequest();
+        if (go === 'partner' && !$('#ptDone').hidden) resetPartner();
         show(go);
       });
     });
@@ -2438,6 +2719,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
       var firstTopic = $('#rqTopics input');
       if (firstTopic) firstTopic.focus();
+    });
+    $('#ptForm').addEventListener('submit', onPartner);
+    $('#ptForm').addEventListener('input', clearPartnerError);
+    $('#ptForm').addEventListener('change', clearPartnerError);
+    $('#ptAnother').addEventListener('click', function () {
+      resetPartner();
+      try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+      $('#ptOrg').focus();
     });
     $('#rpShow').addEventListener('change', function () { S.rpShow = this.value; renderReport(); });
     $('#rpCopy').addEventListener('click', copyEligible);
@@ -2505,7 +2794,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     readParams().then(function (p) {
       S.params = p || {};
       var page = String(S.params.page || '').toLowerCase();
-      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request' }[page] || page;
+      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request', partnership: 'partner', partners: 'partner' }[page] || page;
       var hashView = LIVE ? '' : location.hash.replace('#', '');
       show(VIEWS.indexOf(page) > -1 ? page : VIEWS.indexOf(hashView) > -1 ? hashView : 'home', { focus: false });
       return load();

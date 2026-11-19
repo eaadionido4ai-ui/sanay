@@ -2,9 +2,10 @@
  * SANAY — training registration, attendance and evaluation
  * Google Apps Script back end. The Google Sheet is the database.
  *
- * Home screen: Register, Attendance (with walk-ins), Evaluation, and Request a training.
+ * Home screen: Register, Attendance (with walk-ins), Evaluation, Request a training and
+ * Training partnership.
  * Organizers: SANAY › Open the report page (attendance sheet, certificates, participant profile,
- * photo and recording, impact interviews, training requests).
+ * photo and recording, impact interviews, training requests, partnership requests).
  *
  * Files in this Apps Script project:
  *   Code.gs     this file
@@ -67,6 +68,19 @@ const CONFIG = {
   ],
   requestPrivacy: 'We use these details only to plan the training you are requesting and to contact you about it, under the Data Privacy Act of 2012 (Republic Act No. 10173).',
 
+  // ---- Training partnership: what partners can offer, the kinds of organization, and the consent note
+  partnershipTypes: [
+    'Co-organize a training',
+    'Provide trainers or resource persons',
+    'Host the venue',
+    'Fund or sponsor a training',
+    'Send participants',
+    'Develop training materials'
+  ],
+  organizationTypes: ['Local government unit', 'National government agency', 'NGO or civil society', 'Academe',
+    'Private sector', 'International or development partner', 'Other'],
+  partnershipPrivacy: 'We use these details only to discuss this partnership with you and to keep a list of potential training partners, under the Data Privacy Act of 2012 (Republic Act No. 10173).',
+
   // ---- Certificates: who is eligible. Both rules also need the evaluation.
   //      'all-days': checked in on every training day.  'any-day': checked in on at least one day.
   certificateRule: 'all-days',
@@ -93,13 +107,17 @@ const TABS = {
     'will_apply', 'comments'],
   Requests: ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email',
     'contact_no', 'topics', 'other_topics', 'need', 'participants', 'participant_types', 'preferred_date',
-    'alternative_date', 'mode', 'location', 'status', 'notes']
+    'alternative_date', 'mode', 'location', 'status', 'notes'],
+  Partnerships: ['timestamp', 'request_code', 'organization', 'org_type', 'location', 'website', 'partnership_types',
+    'other_partnership', 'topics', 'other_topics', 'proposal', 'preferred_start', 'first_name', 'last_name',
+    'full_name', 'position', 'email', 'contact_no', 'status', 'notes']
 };
 
 const AGE_RANGES = ['0-9', '10-19', '15-24', '25-59', '60+'];   // as printed in the GAD template
 const YES_NO = ['Yes', 'No'];
 const REQUEST_MODES = ['Face-to-face', 'Online', 'Blended', 'No preference'];
 const REQUEST_STATUSES = ['New', 'Contacted', 'Scheduled', 'Done', 'Declined'];
+const PARTNER_STATUSES = ['New', 'Contacted', 'In talks', 'Partner', 'Declined'];
 const STATE_MESSAGES = {
   full: 'This training is full.',
   closed: 'Registration for this training is closed.',
@@ -155,6 +173,9 @@ function getAppData() {
     impactStatement: CONFIG.impactStatement,
     requestTopics: CONFIG.requestTopics,
     requestPrivacy: CONFIG.requestPrivacy,
+    partnershipTypes: CONFIG.partnershipTypes,
+    organizationTypes: CONFIG.organizationTypes,
+    partnershipPrivacy: CONFIG.partnershipPrivacy,
     trainings: listTrainings_(today)
   };
 }
@@ -352,6 +373,62 @@ function submitRequest(form) {
   });
 }
 
+/** Saves a training partnership request from an organization. */
+function submitPartnership(form) {
+  form = form || {};
+  const pick = function (list, allowed) {
+    return (Array.isArray(list) ? list : []).map(function (t) { return clean_(t, 120); })
+      .filter(function (t, i, all) { return allowed.indexOf(t) > -1 && all.indexOf(t) === i; });
+  };
+  const types = pick(form.types, CONFIG.partnershipTypes);
+  const topics = pick(form.topics, CONFIG.requestTopics);
+  const f = {
+    organization: clean_(form.organization, 200),
+    org_type: oneOf_(form.org_type, CONFIG.organizationTypes),
+    location: clean_(form.location, 120),
+    website: clean_(form.website, 200),
+    partnership_types: types.join('; '),
+    other_partnership: clean_(form.other_type, 200),
+    topics: topics.join('; '),
+    other_topics: clean_(form.other_topics, 300),
+    proposal: String(form.proposal || '').trim().slice(0, 2000),
+    preferred_start: isoDate_(form.preferred_start),
+    first_name: clean_(form.first_name, 80),
+    last_name: clean_(form.last_name, 80),
+    position: clean_(form.position, 120),
+    email: clean_(form.email, 120).toLowerCase(),
+    contact_no: clean_(form.contact_no, 30)
+  };
+  const missing = [];
+  if (!f.organization) missing.push('your organization\'s name');
+  if (!f.org_type) missing.push('the type of organization');
+  if (!types.length && !f.other_partnership) missing.push('the kind of partnership');
+  if (f.proposal.length < 10) missing.push('a short description of your idea');
+  if (!f.first_name) missing.push('your first name');
+  if (!f.last_name) missing.push('your last name');
+  if (!f.email) missing.push('your email');
+  if (missing.length) throw new Error('Please fill in ' + missing.join(', ') + '.');
+  if (form.preferred_start && !f.preferred_start) throw new Error('Choose a real date for the start.');
+  if (f.preferred_start && f.preferred_start < today_()) throw new Error('Choose a start date from today onward.');
+  if (!EMAIL_RE.test(f.email)) throw new Error('Enter a valid email, like name@example.com.');
+  const digits = f.contact_no.replace(/\D/g, '');
+  if (f.contact_no && (digits.length < 7 || digits.length > 15)) throw new Error('Enter a contact number with 7 to 15 digits.');
+  if (form.consent !== true) throw new Error('Tick the box so we can contact you about this partnership.');
+
+  return withLock_(function () {
+    const now = new Date();
+    const code = newCode_(readTable_('Partnerships').map(function (r) { return String(r.request_code); }));
+    appendRecord_('Partnerships', Object.assign({}, f, {
+      timestamp: now, request_code: code, full_name: [f.first_name, f.last_name].join(' '), status: 'New', notes: ''
+    }));
+    return {
+      code: code, stamp: stamp_(now), organization: f.organization,
+      partnership: types.concat(f.other_partnership ? [f.other_partnership] : []).join('; '),
+      topics: topics.concat(f.other_topics ? [f.other_topics] : []).join('; '), preferred_start: f.preferred_start
+    };
+  });
+}
+
 /* ===================================================================
  * Organizer report (attendance sheet, certificates, profile, consents, requests)
  * =================================================================== */
@@ -440,10 +517,19 @@ function getReport(req) {
     return o;
   });
 
+  const ptFields = ['request_code', 'organization', 'org_type', 'location', 'website', 'partnership_types', 'other_partnership',
+    'topics', 'other_topics', 'proposal', 'first_name', 'last_name', 'full_name', 'position', 'email', 'contact_no', 'status', 'notes'];
+  const partnerships = readTable_('Partnerships').filter(function (r) { return String(r.request_code).trim(); }).map(function (r) {
+    const o = { timestamp: stamp_(r.timestamp), preferred_start: ymd_(r.preferred_start) };
+    ptFields.forEach(function (k) { o[k] = r[k] === undefined || r[k] === null ? '' : String(r[k]); });
+    return o;
+  });
+
   return {
     now: stamp_(new Date()), today: today, privacyStatement: CONFIG.privacyStatement,
     certificateRule: CONFIG.certificateRule === 'any-day' ? 'any-day' : 'all-days',
-    trainings: all, training: t, registrations: registrations, attendance: attendance, requests: requests
+    trainings: all, training: t, registrations: registrations, attendance: attendance, requests: requests,
+    partnerships: partnerships
   };
 }
 
@@ -541,6 +627,12 @@ function setup() {
   rq.getRange(2, RQ.indexOf('status') + 1, 999, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(REQUEST_STATUSES, true).build());
   rq.getRange(1, RQ.indexOf('status') + 1).setNote('For organizers: New, Contacted, Scheduled, Done or Declined.');
+  const pt = ss.getSheetByName('Partnerships');
+  const PT = headers_(pt);
+  pt.getRange(2, PT.indexOf('timestamp') + 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
+  pt.getRange(2, PT.indexOf('status') + 1, 999, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(PARTNER_STATUSES, true).build());
+  pt.getRange(1, PT.indexOf('status') + 1).setNote('For organizers: New, Contacted, In talks, Partner or Declined. This tab is also your list of potential training partners.');
 
   const blank = ss.getSheetByName('Sheet1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);

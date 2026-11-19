@@ -101,6 +101,12 @@ const request = o => Object.assign({
   first_name: 'Rhea', last_name: 'Domingo', position: 'LDRRM Officer', agency: 'MDRRMO Dalisay', email: 'Rhea@Example.com',
   contact_no: '0917 555 0100', consent: true
 }, o);
+const partner = o => Object.assign({
+  organization: 'Bayanihan Foundation', org_type: 'NGO or civil society', location: 'Malaya City', website: 'bayanihan.example.org',
+  types: ['Co-organize a training', 'Host the venue', 'Throw a party'], other_type: '', topics: ['Early Warning Systems'], other_topics: 'Flood drills',
+  proposal: 'We can host a two-day course for our partner barangays.', preferred_start: ctx.addDays_(ctx.today_(), 60),
+  first_name: 'Carlo', last_name: 'Pascual', position: 'Program Manager', email: 'Carlo@Bayanihan.example.org', contact_no: '', consent: true
+}, o);
 const isPlain = o => JSON.stringify(o) === JSON.stringify(JSON.parse(JSON.stringify(o))) && !JSON.stringify(o).includes('"__row"');
 let pass = 0;
 const ok = (cond, msg) => { assert.ok(cond, msg); pass++; };
@@ -109,7 +115,7 @@ const throws = (fn, re, msg) => { assert.throws(fn, re, msg); pass++; };
 // 1. setup
 ctx.setup();
 ok(!ss.getSheetByName('Sheet1'), 'empty Sheet1 removed');
-ok(['Trainings', 'Registrations', 'Attendance', 'Evaluations', 'Requests'].every(n => T(n)), 'all five tabs exist, Requests included');
+ok(['Trainings', 'Registrations', 'Attendance', 'Evaluations', 'Requests', 'Partnerships'].every(n => T(n)), 'all six tabs exist, Requests and Partnerships included');
 const th = T('Trainings').getRange(1, 1, 1, T('Trainings').getLastColumn()).getValues()[0];
 ok(th.join(',') === 'training_id,title,start_date,end_date,venue,mode,show_in_list,max_participants,registration_closes,notes,registered,female,male', 'trainings headers: ' + th.join(','));
 const rh = T('Registrations').getRange(1, 1, 1, T('Registrations').getLastColumn()).getValues()[0];
@@ -130,6 +136,7 @@ ok(byId('SAMPLE-3').state === 'completed' && byId('SAMPLE-3').listed && byId('SA
 ok(d.privacyStatement.startsWith('This data collection is conducted in accordance with the provisions of Republic Act No. 9710') && d.mediaStatement.length > 40, 'privacy statement (template wording) and media statement sent');
 ok(isPlain(d), 'app data is plain JSON (no Date objects)');
 ok(d.requestTopics.length === 10 && d.impactStatement.includes('impact monitoring') && d.requestPrivacy.includes('10173'), 'request topics, impact and request privacy wording sent');
+ok(d.partnershipTypes.length === 6 && d.organizationTypes.includes('Academe') && d.partnershipPrivacy.includes('training partners'), 'partnership choices and privacy note sent');
 
 // 3. register, with consent
 let r1 = ctx.register(person({ last_name: '=HYPERLINK("http://x")' }));
@@ -220,6 +227,23 @@ throws(() => ctx.submitRequest(request({ mode: 'By carrier pigeon' })), /the mod
 throws(() => ctx.submitRequest(request({ consent: false })), /Tick the box/, 'request needs consent to be contacted');
 ok(table('Requests').length === 1, 'refused requests leave no rows');
 
+// 6c. training partnership requests
+let pq = ctx.submitPartnership(partner());
+let ptRow = table('Partnerships')[0];
+ok(/^[A-HJKMNP-Z2-9]{5}$/.test(pq.code) && ptRow.request_code === pq.code && ptRow.status === 'New', 'partnership request saved with a number and status New');
+ok(ptRow.partnership_types === 'Co-organize a training; Host the venue' && ptRow.topics === 'Early Warning Systems' && ptRow.other_topics === 'Flood drills', 'only listed choices kept; other topics in their own column');
+ok(ptRow.email === 'carlo@bayanihan.example.org' && ptRow.full_name === 'Carlo Pascual' && ptRow.org_type === 'NGO or civil society', 'partner contact and organization type saved');
+ok(pq.partnership === 'Co-organize a training; Host the venue' && pq.topics.includes('Flood drills'), 'reply summarizes the partnership');
+throws(() => ctx.submitPartnership(partner({ organization: '' })), /organization's name/, 'organization name required');
+throws(() => ctx.submitPartnership(partner({ org_type: 'Secret society' })), /type of organization/, 'organization type must be one of the choices');
+throws(() => ctx.submitPartnership(partner({ types: [], other_type: '' })), /kind of partnership/, 'partnership kind required');
+ok(ctx.submitPartnership(partner({ types: [], other_type: 'Lend rescue boats', email: 'x@example.org' })).partnership === 'Lend rescue boats', 'a partnership described in words is enough');
+throws(() => ctx.submitPartnership(partner({ proposal: 'Hi' })), /description of your idea/, 'a short description of the idea is required');
+throws(() => ctx.submitPartnership(partner({ preferred_start: '2020-05-01' })), /from today onward/, 'past start dates refused');
+throws(() => ctx.submitPartnership(partner({ preferred_start: 'soon' })), /real date/, 'a start that is not a date is refused');
+throws(() => ctx.submitPartnership(partner({ consent: false })), /Tick the box/, 'partnership needs consent');
+ok(table('Partnerships').length === 2, 'refused partnership requests leave no rows');
+
 // 7. report link and report data
 throws(() => ctx.getReport({}), /expired or is not valid/, 'report refused without a key');
 throws(() => ctx.getReport({ key: 'abc123' }), /expired or is not valid/, 'report refused with a made-up key');
@@ -243,6 +267,7 @@ ok(rp.privacyStatement === ctx.getAppData().privacyStatement, 'report carries th
 const juanRp = rp.registrations.find(r => r.reg_code === r1.code);
 ok(juanRp.impact_consent === 'Yes' && /^\d{4}-\d{2}-\d{2}$/.test(juanRp.evaluated_on), 'report has the follow-up answer and the evaluation date (for certificates)');
 ok(rp.certificateRule === 'all-days', 'report says how certificates are decided');
+ok(rp.partnerships.length === 2 && rp.partnerships[0].organization === 'Bayanihan Foundation' && rp.partnerships[0].preferred_start === partner().preferred_start, 'report includes the partnership requests');
 ok(rp.requests.length === 1 && rp.requests[0].request_code === q1.code && rp.requests[0].participants === 35 && rp.requests[0].preferred_date === request().preferred_date, 'report includes the training requests');
 let rpDefault = ctx.getReport({ key, training_id: 'NOPE' });
 ok(rpDefault.training.id === 'SAMPLE-1', 'unknown training falls back to the one happening today');

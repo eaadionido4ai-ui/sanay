@@ -99,13 +99,15 @@ with sync_playwright() as p:
 
     # ---------------- phone, preview look ----------------
     ctx, pg, errors = open_page(browser, 390, 844, dsf=2)
-    check(pg.locator('.flow .action').count() == 3 and pg.locator('.action-request').count() == 1, 'home: three training buttons and a request button')
-    check(pg.inner_text('#projectName') == 'TaTaK Resilience Project', 'TaTaK Resilience Project shown')
+    check(pg.locator('.flow .action').count() == 3 and pg.locator('.asks .action-request').count() == 2, 'home: three training buttons, then Request a training and Training partnership')
+    check(pg.text_content('#projectMark') == 'TaTaK' and pg.text_content('#projectRest') == 'Resilience Project' and pg.text_content('#sanayMark') == 'SANAY', 'TaTaK Resilience Project and SANAY in the center lockup')
+    top = pg.evaluate("() => ['#projectExp', '#projectLine', '#sanayMark', '#brandExpansion'].map(s => document.querySelector(s).getBoundingClientRect().top)")
+    check(top[0] < top[1] < top[2] < top[3], 'stacked: TaTaK meaning, TaTaK Resilience Project, SANAY, SANAY meaning')
     check(''.join(pg.eval_on_selector_all('#projectExp b', 'bs => bs.map(b => b.textContent)')) == 'TaTaK', 'Ta-Ta-K highlighted in the Filipino expansion')
     check(pg.locator('.logo-slot').count() == 3, 'preview shows three logo slots')
     check(pg.inner_text('#brandExpansion').startswith('Skills And Needs'), 'acronym expansion shown')
     check(''.join(pg.eval_on_selector_all('#brandExpansion b', 'bs => bs.map(b => b.textContent)')) == 'SANAY', 'only S-A-N-A-Y highlighted (the C of CapacitY is not)')
-    check(pg.locator('.action .action-icon').count() == 4, 'each button has an icon')
+    check(pg.locator('.action .action-icon').count() == 5, 'each button has an icon')
     no_overflow(pg, 'home (phone)')
     pg.screenshot(path=str(OUT / '01-phone-home.png'))
 
@@ -210,10 +212,26 @@ with sync_playwright() as p:
     pg.click('#rqSubmit')
     pg.wait_for_selector('#rqDone:not([hidden])')
     check(len(pg.inner_text('#rqCode')) == 5 and 'Evacuation center management' in pg.inner_text('#rqFacts'), 'request received with a request number')
+
+    pg.click('#rqDone [data-home]')
+    go(pg, 'partner')
+    pg.click('#ptSubmit')
+    check(pg.is_visible('#err-pt-org') and pg.is_visible('#err-pt-orgtype') and pg.is_visible('#err-pt-types') and pg.is_visible('#err-pt-consent'), 'empty partnership request shows its errors')
+    pg.fill('#ptOrg', 'Bayanihan Foundation'); pg.click('label[for="pt_org_type-NGOorcivilsociety"]')
+    pg.click('label[for="pt-type-0"]'); pg.click('label[for="pt-type-2"]')
+    check(not pg.is_visible('#err-pt-types'), 'partnership-kind error clears once one is ticked')
+    pg.click('label[for="pt-topic-5"]')
+    pg.fill('#ptProposal', 'We can host a two-day course for our partner barangays and cover the meals.')
+    pg.fill('#ptFirst', 'Carlo'); pg.fill('#ptLast', 'Pascual'); pg.fill('#ptEmail', 'carlo@bayanihan.example.org')
+    pg.check('#ptConsent')
+    pg.screenshot(path=str(OUT / '03c-phone-partnership-full.png'), full_page=True)
+    pg.click('#ptSubmit')
+    pg.wait_for_selector('#ptDone:not([hidden])')
+    check(len(pg.inner_text('#ptCode')) == 5 and 'Host the venue' in pg.inner_text('#ptFacts'), 'partnership request received with a request number')
     for view in ('register', 'attendance', 'evaluation'):
         pg.click('#view-%s [data-home] >> nth=0' % view) if pg.is_visible('#view-%s' % view) else None
     pg.click('[data-home]:visible') if pg.locator('[data-home]:visible').count() else None
-    for view in ('register', 'attendance', 'evaluation', 'request'):
+    for view in ('register', 'attendance', 'evaluation', 'request', 'partner'):
         go(pg, view)
         no_overflow(pg, view + ' (phone)')
         pg.click('#view-%s [data-home] >> nth=0' % view)
@@ -229,6 +247,8 @@ with sync_playwright() as p:
     check(pg.locator('#grid thead th').count() == 18, 'Registrations tab shows 17 columns')
     pg.click('#sheetTabs [data-tab="Requests"]')
     check(pg.locator('#grid tbody tr').count() >= 12, 'Requests tab lists the sample requests')
+    pg.click('#sheetTabs [data-tab="Partnerships"]')
+    check(pg.locator('#grid tbody tr').count() >= 6, 'Partnerships tab lists the sample partnership requests')
     pg.click('#toggleSheet')
     pg.click('#openReport')
     pg.wait_for_selector('#paperStack .paper')
@@ -257,6 +277,9 @@ with sync_playwright() as p:
     check(pg.is_hidden('#rpTrainingField') and pg.is_hidden('#rpListField'), 'requests ignore the training and list choices')
     check(pg.locator('#paperStack .paper').count() >= 2 and all(papers_fit(pg)), 'requests: summary page plus a list that fits')
     pg.screenshot(path=str(OUT / '06b-desktop-report-requests.png'))
+    pg.click('.seg [data-section="partners"]')
+    pg.wait_for_function('(document.querySelector("#paperStack .p-title") || {}).textContent === "TRAINING PARTNERSHIP REQUESTS"')
+    check(pg.is_hidden('#rpTrainingField') and all(papers_fit(pg)) and pg.locator('#paperStack .rq-table tbody tr').count() >= 6, 'partnership requests page lists them and fits')
     pg.click('.seg [data-section="certs"]')
     check(pg.is_visible('#rpShowField') and pg.is_visible('#rpCopy') and pg.is_hidden('#rpListField'), 'certificates show their own controls')
     pg.select_option('#rpTraining', 'ICS-3')
@@ -307,7 +330,7 @@ with sync_playwright() as p:
     pg.select_option('#rpTraining', 'ICS-3')
     pg.wait_for_function('document.querySelector("#rpList").value === "any" && document.querySelector("#paperStack .p-av") && document.querySelector("#paperStack .p-av").textContent.includes("Batch 3")')
     for section, name in (('sheet', 'attendance-sheet'), ('certs', 'certificates'), ('profile', 'participant-profile'), ('media', 'photo-recording'),
-                          ('impact', 'impact-interviews'), ('requests', 'training-requests')):
+                          ('impact', 'impact-interviews'), ('requests', 'training-requests'), ('partners', 'partnership-requests')):
         pg.click('.seg [data-section="%s"]' % section)
         pg.wait_for_timeout(400)
         pg.emulate_media(media='print')
