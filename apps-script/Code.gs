@@ -1,3 +1,5 @@
+/** @OnlyCurrentDoc  Limits this script to this one Google Sheet: it can't open your other files. */
+
 /**
  * SANAY — training registration, attendance and evaluation
  * Google Apps Script back end. The Google Sheet is the database.
@@ -91,7 +93,41 @@ const CONFIG = {
   completedShown: 'this-year',   // completed trainings in the Register dropdown: 'this-year' or 'all'
   evaluationDaysAfter: 14,       // evaluation stays open this many days after the last training day
   reportLinkHours: 6,            // how long a report link from the Sheet menu works (6 at most)
-  webAppUrl: ''                  // optional: paste the web app link here if the report menu can't find it
+  webAppUrl: '',                 // optional: paste the web app link here if the report menu can't find it
+
+  // ---- Data privacy: besides the Sheet's owner, the accounts allowed to open the report page,
+  //      run setup and edit the data tabs. Example: ['juan.delacruz@up.edu.ph', 'second.steward@up.edu.ph']
+  //      Empty: anyone who can edit the Sheet can open the report; only the owner can edit the data tabs.
+  dataStewards: [],
+
+  // ---- Evaluation: Likert statements, each rated from 1 (Strongly disagree) to 5 (Strongly agree).
+  //      key is the column name in the Evaluations tab: don't change a key once people have answered.
+  //      na: true adds "Not applicable" to every statement in that section.
+  evaluationScale: ['Strongly disagree', 'Disagree', 'Neutral', 'Agree', 'Strongly agree'],
+  evaluationItems: [
+    { section: 'Objectives and content', items: [
+      { key: 'obj_clear', text: 'The objectives of the training were clearly explained.' },
+      { key: 'obj_met', text: 'The training met its objectives.' },
+      { key: 'content_relevant', text: 'The topics are relevant to my work.' },
+      { key: 'content_organized', text: 'The topics were well organized and easy to follow.' }] },
+    { section: 'Resource persons', items: [
+      { key: 'rp_knowledge', text: 'The resource persons knew their topics well.' },
+      { key: 'rp_clear', text: 'The resource persons explained the topics clearly.' },
+      { key: 'rp_engaging', text: 'The resource persons encouraged questions and participation.' }] },
+    { section: 'Methods and materials', items: [
+      { key: 'methods_effective', text: 'The activities and exercises helped me learn.' },
+      { key: 'materials_useful', text: 'The handouts and materials were useful.' },
+      { key: 'time_enough', text: 'There was enough time for each topic.' }] },
+    { section: 'Venue and arrangements', na: true, items: [
+      { key: 'venue_ok', text: 'The venue or online platform suited the training.' },
+      { key: 'logistics_ok', text: 'Registration, meals and other arrangements went well.' }] },
+    { section: 'Learning and use', items: [
+      { key: 'learned_new', text: 'I gained new knowledge and skills.' },
+      { key: 'confident_apply', text: 'I am confident I can use what I learned in my work.' },
+      { key: 'recommend', text: 'I would recommend this training to others.' }] },
+    { section: 'Overall', items: [
+      { key: 'overall', text: 'Overall, I am satisfied with this training.' }] }
+  ]
 };
 
 // Column headers of each tab. The script finds columns by these names,
@@ -104,8 +140,7 @@ const TABS = {
     'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent',
     'recording_consent', 'impact_consent', 'privacy_version', 'registered_as', 'evaluated_on'],
   Attendance: ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'],
-  Evaluations: ['date', 'training_id', 'overall', 'objectives_met', 'resource_persons', 'venue_logistics',
-    'will_apply', 'comments'],
+  Evaluations: ['date', 'training_id'].concat(evalKeys_(), ['will_apply', 'comments']),
   Requests: ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email',
     'contact_no', 'topics', 'other_topics', 'need', 'participants', 'participant_types', 'preferred_date',
     'alternative_date', 'mode', 'location', 'status', 'notes'],
@@ -124,7 +159,7 @@ const STATE_MESSAGES = {
   closed: 'Registration for this training is closed.',
   completed: 'This training has ended.'
 };
-const RATING_KEYS = ['overall', 'objectives_met', 'resource_persons', 'venue_logistics'];
+const DATA_TABS = ['Registrations', 'Attendance', 'Evaluations', 'Requests', 'Partnerships'];
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';  // no 0/O, 1/I/L
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -170,6 +205,8 @@ function getAppData() {
   return {
     today: today,
     evaluationDaysAfter: CONFIG.evaluationDaysAfter,
+    evaluationScale: CONFIG.evaluationScale,
+    evaluationItems: evalSections_(),
     privacyStatement: CONFIG.privacyStatement,
     mediaStatement: CONFIG.mediaStatement,
     impactStatement: CONFIG.impactStatement,
@@ -288,16 +325,22 @@ function checkIn(data) {
   });
 }
 
-/** Saves an evaluation without the person's name. */
+/** Saves a Likert evaluation without the person's name. */
 function submitEvaluation(data) {
   data = data || {};
   const trainingId = clean_(data.training_id, 60);
   const key = clean_(data.key, 120);
   const a = data.answers || {};
   if (!trainingId || !key) throw new Error('Choose the training and enter your registration code or email.');
-  RATING_KEYS.forEach(function (k) {
-    const n = Number(a[k]);
-    if (!(n >= 1 && n <= 5 && Math.round(n) === n)) throw new Error('Please answer every rating question.');
+  const ratings = {};
+  evalSections_().forEach(function (sec) {
+    sec.items.forEach(function (it) {
+      const v = String(a[it.key] === undefined || a[it.key] === null ? '' : a[it.key]).trim();
+      if (sec.na && v === 'NA') { ratings[it.key] = 'N/A'; return; }
+      const n = Number(v);
+      if (!v || !(n >= 1 && n <= 5 && Math.round(n) === n)) throw new Error('Please answer every statement.');
+      ratings[it.key] = n;
+    });
   });
 
   return withLock_(function () {
@@ -312,12 +355,10 @@ function submitEvaluation(data) {
     // 1) Note that this person has evaluated (so they can't send twice)…
     setValue_('Registrations', reg.__row, 'evaluated_on', today);
     // 2) …and keep the answers in a separate tab with no name or code.
-    insertAnonymous_('Evaluations', {
+    insertAnonymous_('Evaluations', Object.assign({
       date: today, training_id: trainingId,
-      overall: Number(a.overall), objectives_met: Number(a.objectives_met),
-      resource_persons: Number(a.resource_persons), venue_logistics: Number(a.venue_logistics),
       will_apply: clean_(a.will_apply, 1000), comments: clean_(a.comments, 1000)
-    });
+    }, ratings));
     return { status: 'ok' };
   });
 }
@@ -442,6 +483,11 @@ function submitPartnership(form) {
  */
 function openReport() {
   const ui = SpreadsheetApp.getUi();   // first, so this can't run from the web page
+  if (!isSteward_()) {
+    ui.alert('Only the owner of this Sheet and the data stewards listed in Code.gs (dataStewards) can open the report page. You are signed in as ' +
+      (Session.getActiveUser().getEmail() || 'an account the script cannot see') + '.');
+    return;
+  }
   const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
   if (!url) {
     ui.alert('Deploy the web app first: Deploy › New deployment › Web app. Then try again.');
@@ -506,6 +552,17 @@ function getReport(req) {
       o.evaluated_on = ymd_(r.evaluated_on);
       return o;
     });
+  const evalCols = ['date'].concat(evalKeys_(), ['will_apply', 'comments']);
+  const evaluations = !t ? [] : readTable_('Evaluations')
+    .filter(function (r) { return String(r.training_id) === t.id; })
+    .map(function (r) {
+      const o = {};
+      evalCols.forEach(function (k) {
+        const v = r[k];
+        o[k] = k === 'date' ? ymd_(v) : typeof v === 'number' ? v : v === undefined || v === null ? '' : String(v);
+      });
+      return o;
+    });
   const attendance = !t ? [] : readTable_('Attendance')
     .filter(function (r) { return String(r.training_id) === t.id; })
     .map(function (r) { return { timestamp: stamp_(r.timestamp), date: ymd_(r.date), reg_code: String(r.reg_code) }; });
@@ -531,7 +588,8 @@ function getReport(req) {
     now: stamp_(new Date()), today: today, privacyStatement: CONFIG.privacyStatement,
     certificateRule: CONFIG.certificateRule === 'any-day' ? 'any-day' : 'all-days',
     trainings: all, training: t, registrations: registrations, attendance: attendance, requests: requests,
-    partnerships: partnerships
+    partnerships: partnerships, evaluations: evaluations,
+    evaluationScale: CONFIG.evaluationScale, evaluationItems: evalSections_()
   };
 }
 
@@ -551,13 +609,48 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu(CONFIG.name)
     .addItem('Open the report page', 'openReport')
+    .addItem('Check who can see the data', 'checkAccess')
     .addSeparator()
     .addItem('Set up or repair tabs', 'setup')
     .addToUi();
 }
 
+/**
+ * Sheet menu: SANAY › Check who can see the data.
+ * Lists everyone with access to this Sheet, flags anyone who isn't a data steward,
+ * and reminds you of the sharing settings to check.
+ */
+function checkAccess() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const stewards = stewards_();
+  const owner = ss.getOwner() ? ss.getOwner().getEmail() : '';
+  const emails = function (users) { return users.map(function (u) { return u.getEmail(); }).filter(String); };
+  const editors = emails(ss.getEditors()).filter(function (e) { return e !== owner; });
+  const viewers = emails(ss.getViewers()).filter(function (e) { return e !== owner && editors.indexOf(e) < 0; });
+  const flag = function (e) {
+    return stewards.length && e !== owner && stewards.indexOf(e.toLowerCase()) < 0 ? ' <b style="color:#B3261E">· not a data steward</b>' : '';
+  };
+  const list = function (title, items) {
+    return '<p style="margin:12px 0 4px"><b>' + title + '</b></p>' + (items.length
+      ? '<ul style="margin:0;padding-left:18px">' + items.map(function (e) { return '<li>' + esc_(e) + flag(e) + '</li>'; }).join('') + '</ul>'
+      : '<p style="margin:0;color:#59625C">No one</p>');
+  };
+  const html = '<div style="font:14px/1.5 Arial,sans-serif;color:#1A1F1C">' +
+    '<p style="margin:0">Participants never see this Sheet. The web app writes to it as the account that deployed it. Only the people below can open the Sheet, and editors can also change this script, so make only data stewards editors.</p>' +
+    list('Owner', owner ? [owner] : []) + list('Editors', editors) + list('Viewers and commenters', viewers) +
+    '<p style="margin:14px 0 4px"><b>Also check, in Share:</b></p><ol style="margin:0;padding-left:18px">' +
+    '<li>General access is <b>Restricted</b>, not "Anyone with the link".</li>' +
+    '<li>In the gear: untick <b>Editors can change permissions and share</b>.</li>' +
+    '<li>In the gear: untick <b>Viewers and commenters can see the option to download, print, and copy</b>.</li></ol>' +
+    (stewards.length ? '' : '<p style="margin:12px 0 0;color:#8A5300">Tip: list your data stewards in Code.gs (dataStewards) so only they can open the report page and edit the data tabs.</p>') +
+    '</div>';
+  ui.showModalDialog(HtmlService.createHtmlOutput(html).setWidth(480).setHeight(460), 'Who can see the data');
+}
+
 /** Creates the tabs and headers. Safe to run again: it never deletes data. */
 function setup() {
+  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (dataStewards in Code.gs) can run setup.');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ss.setSpreadsheetTimeZone(CONFIG.timeZone);
 
@@ -635,6 +728,19 @@ function setup() {
   pt.getRange(2, PT.indexOf('status') + 1, 999, 1).setDataValidation(
     SpreadsheetApp.newDataValidation().requireValueInList(PARTNER_STATUSES, true).build());
   pt.getRange(1, PT.indexOf('status') + 1).setNote('For organizers: New, Contacted, In talks, Partner or Declined. This tab is also your list of potential training partners.');
+
+  // Data tabs: only the owner and the data stewards can edit them (the web app writes as the owner).
+  const me = Session.getEffectiveUser();
+  DATA_TABS.forEach(function (name) {
+    const sh = ss.getSheetByName(name);
+    const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)[0] || sh.protect();
+    p.setDescription(CONFIG.name + ' data: only the owner and the data stewards can edit this tab');
+    p.addEditor(me);
+    const keep = stewards_().concat([String(me.getEmail()).toLowerCase()]);
+    p.removeEditors(p.getEditors().filter(function (u) { return keep.indexOf(String(u.getEmail()).toLowerCase()) < 0; }));
+    stewards_().forEach(function (e) { try { p.addEditor(e); } catch (err) { /* not a Google account yet */ } });
+    if (p.canDomainEdit()) p.setDomainEdit(false);
+  });
 
   const blank = ss.getSheetByName('Sheet1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
@@ -836,6 +942,46 @@ function newCode_(existing) {
 function clean_(v, max) {
   if (v === null || v === undefined) return '';
   return String(v).replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+/** The Likert sections from CONFIG, cleaned up. */
+function evalSections_() {
+  return (CONFIG.evaluationItems || []).map(function (sec) {
+    return {
+      section: String(sec.section || ''), na: sec.na === true,
+      items: (sec.items || []).filter(function (it) { return it && it.key; })
+        .map(function (it) { return { key: String(it.key), text: String(it.text || it.key) }; })
+    };
+  }).filter(function (sec) { return sec.items.length; });
+}
+
+/** The Evaluations columns for the Likert statements, in order. */
+function evalKeys_() {
+  const keys = [];
+  evalSections_().forEach(function (sec) { sec.items.forEach(function (it) { keys.push(it.key); }); });
+  return keys;
+}
+
+function stewards_() {
+  return (CONFIG.dataStewards || []).map(function (e) { return String(e).trim().toLowerCase(); }).filter(String);
+}
+
+/** True when no stewards are listed, or when the person running this owns the Sheet or is listed. */
+function isSteward_() {
+  const list = stewards_();
+  if (!list.length) return true;
+  const me = String(Session.getActiveUser().getEmail() || '').toLowerCase();
+  return !!me && (list.indexOf(me) > -1 || me === ownerEmail_());
+}
+
+/** The Sheet owner's email, lowercase; '' in a shared drive, where files have no single owner. */
+function ownerEmail_() {
+  try {
+    const o = SpreadsheetApp.getActiveSpreadsheet().getOwner();
+    return o ? String(o.getEmail() || '').toLowerCase() : '';
+  } catch (e) {
+    return '';
+  }
 }
 
 /** 'yyyy-MM-dd' if the text is a real date in that form, otherwise ''. */

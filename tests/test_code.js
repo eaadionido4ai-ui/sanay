@@ -48,6 +48,15 @@ class Sheet {
   appendRow(row) { const r = this.getLastRow() + 1; row.forEach((v, j) => this.set(r, j + 1, parse(v))); }
   insertRowBefore(pos) { this.data.splice(pos - 1, 0, []); }
   setFrozenRows() {} getName() { return this.name; }
+  getProtections() { return this.protection ? [this.protection] : []; }
+  protect() {
+    const p = { editors: ['someone@example.org'], desc: '', domain: true,
+      setDescription(d) { this.desc = d; return this; }, addEditor(e) { const m = typeof e === 'string' ? e : e.getEmail(); if (!this.editors.includes(m)) this.editors.push(m); return this; },
+      removeEditors(list) { const out = list.map(u => u.getEmail()); this.editors = this.editors.filter(e => !out.includes(e)); return this; },
+      getEditors() { return this.editors.map(e => ({ getEmail: () => e })); }, canDomainEdit() { return this.domain; }, setDomainEdit(v) { this.domain = v; return this; } };
+    this.protection = p;
+    return p;
+  }
 }
 const sheets = [new Sheet('Sheet1')];
 let active = null;
@@ -56,8 +65,12 @@ const ss = {
   insertSheet: n => { const s = new Sheet(n); sheets.push(s); return s; },
   getSheets: () => sheets.slice(),
   deleteSheet: s => sheets.splice(sheets.indexOf(s), 1),
-  setSpreadsheetTimeZone() {}, toast() {}
+  setSpreadsheetTimeZone() {}, toast() {},
+  getOwner: () => ({ getEmail: () => 'owner@up.example.edu' }),
+  getEditors: () => ['owner@up.example.edu', 'steward@up.example.edu', 'intern@gmail.example.com'].map(e => ({ getEmail: () => e })),
+  getViewers: () => ['owner@up.example.edu', 'steward@up.example.edu', 'intern@gmail.example.com', 'viewer@up.example.edu'].map(e => ({ getEmail: () => e }))
 };
+let activeUser = 'owner@up.example.edu';
 const builder = { requireDate() { return this; }, requireValueInList() { return this; }, requireCheckbox() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } };
 const cache = {};
 const dialogs = [];
@@ -69,7 +82,9 @@ const ui = {
 };
 let template = null;
 Object.assign(ctx, {
+  Session: { getActiveUser: () => ({ getEmail: () => activeUser }), getEffectiveUser: () => ({ getEmail: () => 'owner@up.example.edu' }) },
   SpreadsheetApp: {
+    ProtectionType: { SHEET: 'SHEET', RANGE: 'RANGE' },
     getActiveSpreadsheet: () => ss, newDataValidation: () => builder,
     getUi: () => { if (!uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.'); return ui; },
     getActiveSheet: () => active
@@ -196,13 +211,18 @@ let w3 = ctx.register(person({ email: 'early@example.com', training_id: 'SAMPLE-
 ok(!w3.checkIn, 'walk-in flag before the training does not check in');
 
 // 6. evaluate
-const answers = { overall: 5, objectives_met: 4, resource_persons: 5, venue_logistics: 3, will_apply: 'Use ICS forms', comments: '' };
+const evalKeys = vm.runInContext('evalKeys_()', ctx);
+const answers = Object.assign(Object.fromEntries(evalKeys.map((k, i) => [k, String((i % 5) + 1)])), { overall: '5', venue_ok: 'NA', will_apply: 'Use ICS forms', comments: '' });
 ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers }).status === 'ok', 'evaluation saved');
 ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: 'juan@example.com', answers }).status === 'already', 'second evaluation refused');
 let ev = table('Evaluations');
 ok(ev.length === 1 && !('reg_code' in ev[0]) && !JSON.stringify(ev[0]).includes('Juan') && ev[0].overall === 5, 'evaluation row has no name or code');
+ok(evalKeys.length === 16 && T('Evaluations').getLastColumn() === 20, 'Evaluations tab has a column for each of the 16 Likert statements');
+ok(ev[0].venue_ok === 'N/A' && ev[0].obj_clear === 1 && ev[0].logistics_ok === (evalKeys.indexOf('logistics_ok') % 5) + 1, 'Likert answers saved as numbers, N/A as text');
 ok(typeof table('Registrations')[0].evaluated_on === 'string' && table('Registrations')[0].evaluated_on.length === 10, 'registration marked as evaluated');
-throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers: { overall: 5 } }), /every rating/, 'missing ratings refused');
+throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers: { overall: 5 } }), /every statement/, 'missing statements refused');
+throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers: Object.assign({}, answers, { obj_clear: 'NA' }) }), /every statement/, 'N/A refused where the section does not allow it');
+throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers: Object.assign({}, answers, { recommend: '6' }) }), /every statement/, 'answers outside 1 to 5 refused');
 throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-2', key: r3.code, answers }), /closed/, 'evaluation before the training refused');
 for (let i = 0; i < 6; i++) {
   const r = ctx.register(person({ email: `p${i}@example.com`, first_name: 'P' + i }));
@@ -267,10 +287,40 @@ ok(rp.privacyStatement === ctx.getAppData().privacyStatement, 'report carries th
 const juanRp = rp.registrations.find(r => r.reg_code === r1.code);
 ok(juanRp.impact_consent === 'Yes' && /^\d{4}-\d{2}-\d{2}$/.test(juanRp.evaluated_on), 'report has the follow-up answer and the evaluation date (for certificates)');
 ok(rp.certificateRule === 'all-days', 'report says how certificates are decided');
+ok(rp.evaluations.length === 7 && rp.evaluations.every(e => !('reg_code' in e) && /^\d{4}-\d{2}-\d{2}$/.test(e.date)) && rp.evaluationItems.length === 6, 'report has the Likert answers (no names) and the statements');
 ok(rp.partnerships.length === 2 && rp.partnerships[0].organization === 'Bayanihan Foundation' && rp.partnerships[0].preferred_start === partner().preferred_start, 'report includes the partnership requests');
 ok(rp.requests.length === 1 && rp.requests[0].request_code === q1.code && rp.requests[0].participants === 35 && rp.requests[0].preferred_date === request().preferred_date, 'report includes the training requests');
 let rpDefault = ctx.getReport({ key, training_id: 'NOPE' });
 ok(rpDefault.training.id === 'SAMPLE-1', 'unknown training falls back to the one happening today');
+
+// 7b. data privacy: stewards, access check, protected tabs
+ok(DATA_TABS_OK(), 'setup protects the five data tabs: only the owner can edit them');
+function DATA_TABS_OK() {
+  return ['Registrations', 'Attendance', 'Evaluations', 'Requests', 'Partnerships'].every(n => {
+    const p = T(n).protection;
+    return p && p.editors.join() === 'owner@up.example.edu' && p.domain === false && /only the owner and the data stewards/.test(p.desc);
+  }) && !T('Trainings').protection;
+}
+vm.runInContext("CONFIG.dataStewards = ['Steward@up.example.edu']", ctx);
+ctx.setup();
+ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,steward@up.example.edu', 'listed data stewards can edit the data tabs too');
+activeUser = 'intern@gmail.example.com';
+const before = Object.keys(cache).length;
+ctx.openReport();
+ok(/Only the owner of this Sheet and the data stewards/.test((dialogs.pop() || {}).alert || '') && Object.keys(cache).length === before, 'someone not on the steward list gets no report link');
+throws(() => ctx.setup(), /Only the owner of this Sheet or a data steward/, 'someone not on the steward list cannot run setup');
+activeUser = 'owner@up.example.edu';
+ctx.openReport();
+ok(/page=report&amp;key=/.test((dialogs.pop() || {}).html || ''), 'the Sheet owner gets a report link without being listed');
+activeUser = 'steward@up.example.edu';
+ctx.openReport();
+ok(/page=report&amp;key=/.test((dialogs.pop() || {}).html || ''), 'a data steward gets a report link');
+ctx.checkAccess();
+const acc = dialogs.pop();
+ok(acc.title === 'Who can see the data' && /intern@gmail\.example\.com <b[^>]*>· not a data steward/.test(acc.html) && /viewer@up\.example\.edu <b/.test(acc.html) && !/steward@up\.example\.edu <b/.test(acc.html) && !/owner@up\.example\.edu <b/.test(acc.html), 'access check lists everyone and flags people who are not data stewards (not the owner)');
+ok(/@OnlyCurrentDoc/.test(src), 'the script is limited to this one Sheet');
+vm.runInContext('CONFIG.dataStewards = []', ctx);
+activeUser = 'owner@up.example.edu';
 
 // 8. page and logos
 vm.runInContext(logosSrc, ctx, { filename: 'Logos.gs' });
