@@ -86,12 +86,23 @@ const CONFIG = {
     'Private sector', 'International or development partner', 'Other'],
   partnershipPrivacy: 'We use these details only to discuss this partnership with you and to keep a list of potential training partners, under the Data Privacy Act of 2012 (Republic Act No. 10173).',
 
-  // ---- Credits: the small (i) under the buttons on the home screen. [label, who or what]; empty ones are left out.
-  //      The app adds the Oblation, the logos, the QR code libraries and the fonts itself.
-  credits: [
-    ['Developed by', 'Institution Building Division, UP Resilience Institute'],
-    ['Team', '']   // the people who built and look after the app, e.g. 'Juan dela Cruz, Maria Santos'
-  ],
+  // ---- Credits: the small (i) under the buttons on the home screen. The heading, then each person: the
+  //      name, the lines under it, and an additional affiliation that opens from a small cap icon beside
+  //      the name (leave it [] for no icon). Then the date. Empty lines are left out. Below these the app
+  //      adds the notes for the Oblation, the logos, the QR code libraries and the fonts itself.
+  credits: {
+    heading: 'Conceptualized and Developed with AI Assistance by:',
+    people: [
+      {
+        name: 'Edward Andrew A. Dionido',
+        lines: ['Science Research Specialist II', 'Institution Building Division',
+          'University of the Philippines Resilience Institute'],
+        additionalAffiliation: ['Graduate Student (Ongoing)', 'College of Professional and Graduate Studies',
+          'De La Salle University Dasmariñas']
+      }
+    ],
+    dateDeveloped: 'November 2026'
+  },
 
   // ---- Check-in. Each registration gets a QR code that only the organizers' scanner reads
   //      (SANAY › Open the check-in scanner, which also asks for a PIN). Can people check themselves in
@@ -211,13 +222,25 @@ function brandJson_() {
     bands: CONFIG.bandColors,
     logos: logos.filter(function (l) { return l && l.src; })
       .map(function (l) { return { src: String(l.src), alt: String(l.alt || '') }; }),
-    credits: (CONFIG.credits || []).filter(function (c) { return c && c[0] && c[1]; })
-      .map(function (c) { return [String(c[0]), String(c[1])]; }),
+    credits: credits_(),
     // The half Oblation at the right edge of the pages (from Logos.gs; leave it out there to hide it)
     figure: typeof FIGURE !== 'undefined' && FIGURE && FIGURE.d ? { viewBox: String(FIGURE.viewBox), d: String(FIGURE.d) } : null
   };
   return JSON.stringify(brand)
     .replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+/** CONFIG.credits as plain text for the credits box (the page writes it as text, never as HTML). */
+function credits_() {
+  const c = CONFIG.credits || {};
+  const text = function (v) { return String(v == null ? '' : v).trim(); };
+  const lines = function (a) { return (Array.isArray(a) ? a : [a]).map(text).filter(Boolean); };
+  return {
+    heading: text(c.heading),
+    people: (Array.isArray(c.people) ? c.people : []).filter(function (p) { return p && text(p.name); })
+      .map(function (p) { return { name: text(p.name), lines: lines(p.lines), additionalAffiliation: lines(p.additionalAffiliation) }; }),
+    dateDeveloped: text(c.dateDeveloped)
+  };
 }
 
 /** Everything the participant screens need when they open. */

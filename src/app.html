@@ -278,13 +278,31 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .credits { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28); }
 .credits::backdrop { background: rgba(10, 14, 12, 0.5); }
 .credits.fallback { position: fixed; inset: 0; z-index: 30; margin: auto; height: fit-content; }
-.credits-in { display: grid; gap: 16px; padding: 22px 22px 18px; }
+.credits-in { display: grid; gap: 14px; padding: 20px 20px 16px; }
 .cr-kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green-text); }
 .cr-title { font-family: var(--display); font-size: 28px; font-weight: 600; line-height: 1.1; }
-.cr-list { display: grid; gap: 12px; }
-.cr-list dt { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.cr-list dd { margin-top: 1px; font-size: 15px; overflow-wrap: anywhere; }
-.credits-in .btn-quiet { justify-self: end; }
+.cr-by { display: grid; gap: 14px; }
+.cr-lead { font-size: 14.5px; color: var(--muted); text-wrap: balance; }
+.cr-person { display: grid; gap: 2px; }
+.cr-name { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 4px 10px; margin-bottom: 2px; font-family: var(--display); font-size: 22px; font-weight: 600; line-height: 1.2; }
+.cr-name span { min-width: 0; overflow-wrap: anywhere; }
+.cr-line { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+/* the small cap beside a name: opens that person's additional affiliation */
+.cr-aff-btn { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; }
+.cr-aff-btn:hover { border-color: var(--line-strong); color: var(--ink); }
+.cr-aff-btn[aria-expanded="true"] { border-color: var(--green-text); background: var(--green-soft); color: var(--green-text); }
+.cr-aff { display: grid; gap: 2px; margin-top: 10px; padding: 10px 14px 12px; border-radius: 14px; background: var(--green-soft); }
+.cr-label { font-weight: 700; }
+.cr-aff .cr-label { font-size: 13.5px; color: var(--green-text); }
+.cr-date { font-size: 14.5px; color: var(--muted); }
+.cr-date .cr-label { color: var(--ink); }
+.cr-list { display: grid; gap: 8px; }
+.cr-by:not([hidden]) + .cr-list { padding-top: 16px; border-top: 1px solid var(--line); }
+.cr-list dt { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cr-list dd { margin-top: 1px; font-size: 13px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+/* Close stays at the bottom of the box when the credits are taller than the screen */
+.cr-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; margin: -4px -20px -16px; padding: 10px 20px 16px; border-top: 1px solid transparent; background: var(--surface); }
+.credits.scrolls .cr-foot { border-top-color: var(--line); }
 .action-request { background: var(--maroon); box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--req-glow); }
 .action-request:hover { background: var(--maroon-hover); box-shadow: 0 2px 4px var(--shadow), 0 14px 24px -12px var(--req-glow); }
 @container app (min-width: 700px) {
@@ -726,8 +744,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         <dialog class="credits" id="credits" aria-labelledby="crTitle">
           <div class="credits-in">
             <div><p class="cr-kicker" id="crKicker"></p><h2 class="cr-title" id="crTitle">Credits</h2></div>
+            <div class="cr-by" id="crBy"></div>
             <dl class="cr-list" id="crList"></dl>
-            <button type="button" class="btn-quiet" id="crClose">Close</button>
+            <div class="cr-foot"><button type="button" class="btn-quiet" id="crClose">Close</button></div>
           </div>
         </dialog>
       </section>
@@ -1244,14 +1263,20 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       address: 'Office address', contact: 'Telephone number', email: 'Office email',
       bands: ['#014421', '#7B1113'],
       logos: [],
-      credits: [['Developed by', 'Your office or team']]
+      credits: {
+        heading: 'Conceptualized and Developed with AI Assistance by:',
+        people: [{ name: 'Developer name', lines: ['Position', 'Division or office', 'Institution'],
+          additionalAffiliation: ['Program or role', 'College or office', 'University or organization'] }],
+        dateDeveloped: 'November 2026'
+      }
     };
     var s = window.SANAY_BRAND || {};
     Object.keys(s).forEach(function (k) { if (s[k] !== undefined && s[k] !== null && s[k] !== '') b[k] = s[k]; });
     if (!Array.isArray(b.institution)) b.institution = [String(b.institution)];
     if (!Array.isArray(b.logos)) b.logos = [];
     if (!Array.isArray(b.bands) || b.bands.length < 2) b.bands = ['#014421', '#7B1113'];
-    if (!Array.isArray(b.credits)) b.credits = [];
+    if (!b.credits || typeof b.credits !== 'object' || Array.isArray(b.credits)) b.credits = {};
+    if (!Array.isArray(b.credits.people)) b.credits.people = [];
     return b;
   })();
 
@@ -2436,8 +2461,43 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   /* ---------------- credits ---------------- */
+  var CAP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M2.5 9.6 12 5.4l9.5 4.2-9.5 4.2z"></path><path d="M6.5 11.7v3.6c0 1.4 2.5 2.7 5.5 2.7s5.5-1.3 5.5-2.7v-3.6"></path><path d="M21.5 9.6v4.9"></path></svg>';
+  function creditText(v) { return String(v == null ? '' : v).trim(); }
+  function creditLines(a) { return (Array.isArray(a) ? a : [a]).map(creditText).filter(Boolean); }
+  // Who made the app, in the developer's own format: the heading, each person with the lines under the
+  // name (and a small cap that opens an additional affiliation), then the date.
+  function creditsByHTML() {
+    var c = BRAND.credits, html = '';
+    if (creditText(c.heading)) html += '<p class="cr-lead">' + esc(creditText(c.heading)) + '</p>';
+    c.people.filter(function (p) { return p && creditText(p.name); }).forEach(function (p, i) {
+      var more = creditLines(p.additionalAffiliation);
+      html += '<div class="cr-person"><p class="cr-name"><span>' + esc(creditText(p.name)) + '</span>' +
+        (more.length ? '<button type="button" class="cr-aff-btn" aria-expanded="false" aria-controls="crAff' + i + '" aria-label="Additional affiliation" title="Additional affiliation">' + CAP_ICON + '</button>' : '') +
+        '</p>' + creditLines(p.lines).map(function (l) { return '<p class="cr-line">' + esc(l) + '</p>'; }).join('') +
+        (more.length ? '<div class="cr-aff" id="crAff' + i + '" hidden><p class="cr-label">Additional Affiliation:</p>' +
+          more.map(function (l) { return '<p class="cr-line">' + esc(l) + '</p>'; }).join('') + '</div>' : '') + '</div>';
+    });
+    if (creditText(c.dateDeveloped)) html += '<p class="cr-date"><span class="cr-label">Date Developed:</span> ' + esc(creditText(c.dateDeveloped)) + '</p>';
+    return html;
+  }
+  function toggleAffiliation(e) {
+    var b = e.target.closest('.cr-aff-btn');
+    if (!b) return;
+    var open = b.getAttribute('aria-expanded') !== 'true';
+    b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('#' + b.getAttribute('aria-controls')).hidden = !open;
+    creditsFit();
+  }
+  function creditsFit() {   // a line above Close only while the credits scroll under it
+    var d = $('#credits');
+    d.classList.toggle('scrolls', d.scrollHeight > d.clientHeight + 1);
+  }
   function openCredits() {
-    var lines = BRAND.credits.filter(function (c) { return c && c[0] && c[1]; }).map(function (c) { return [String(c[0]), String(c[1])]; });
+    var by = creditsByHTML();
+    $('#crBy').innerHTML = by;   // drawn fresh each time, so the affiliation starts closed
+    $('#crBy').hidden = !by;
+    var lines = [];
     if (BRAND.figure) lines.push(['The Oblation', "Silhouette after Guillermo E. Tolentino's Oblation"]);
     if (BRAND.logos.length) lines.push(['Logos', BRAND.logos.map(function (l) { return l.alt; }).filter(Boolean).join(', ')]);
     lines.push(['QR codes', 'QR Code Generator by Kazuhiko Arase (MIT License); jsQR (Apache License 2.0) on phones without a built-in reader. QR Code is a registered trademark of DENSO WAVE INCORPORATED.']);
@@ -2448,6 +2508,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var d = $('#credits');
     if (typeof d.showModal === 'function') d.showModal();
     else { d.classList.add('fallback'); d.setAttribute('open', ''); }
+    creditsFit();
     $('#crClose').focus();
   }
   function closeCredits() {
@@ -3932,6 +3993,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('#ciForm').addEventListener('submit', onCheckIn);
     $('#doneScan').addEventListener('click', function () { show('scan'); });
     $('#creditsBtn').addEventListener('click', openCredits);
+    $('#crBy').addEventListener('click', toggleAffiliation);
+    window.addEventListener('resize', function () { if ($('#credits').open) creditsFit(); });
     $('#crClose').addEventListener('click', closeCredits);
     $('#credits').addEventListener('click', function (e) { if (e.target === this) closeCredits(); });   // a tap outside the box
     $$('#scMain .seg button').forEach(function (b) { b.addEventListener('click', function () { scMode(b.dataset.mode); }); });

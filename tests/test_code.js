@@ -334,7 +334,18 @@ const out = ctx.doGet();
 const brand = JSON.parse(out.tpl.brand.replace(/\\u003c/g, '<'));
 ok(template.name === 'Index' && brand.name === 'SANAY' && brand.logos.length === 3 && brand.logos.every(l => l.src.startsWith('data:image/webp;base64,')), 'page gets the name and three logos');
 ok(!out.tpl.brand.includes('<'), 'brand JSON has no raw "<" that could close the script tag');
-ok(brand.credits.length === 1 && brand.credits[0][0] === 'Developed by' && brand.figure && /^M/.test(brand.figure.d), 'credits (empty lines left out) and the half Oblation reach the page');
+const cr = brand.credits, me = cr.people[0];
+ok(cr.heading === 'Conceptualized and Developed with AI Assistance by:' && cr.people.length === 1 && me.name === 'Edward Andrew A. Dionido' &&
+  me.lines.join('|') === 'Science Research Specialist II|Institution Building Division|University of the Philippines Resilience Institute' &&
+  me.additionalAffiliation.join('|') === 'Graduate Student (Ongoing)|College of Professional and Graduate Studies|De La Salle University Dasmariñas' &&
+  cr.dateDeveloped === 'November 2026' && brand.figure && /^M/.test(brand.figure.d), 'credits in the developer format with the additional affiliation, and the half Oblation, reach the page');
+vm.runInContext("var keepCredits = CONFIG.credits; CONFIG.credits = { heading: '  By:  ', people: [{ name: ' ' }, { name: 'A. Person', lines: ['Role', '  '] }, null] }", ctx);
+const cr2 = JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits;
+ok(cr2.heading === 'By:' && cr2.people.length === 1 && cr2.people[0].lines.join() === 'Role' && cr2.people[0].additionalAffiliation.length === 0 && cr2.dateDeveloped === '',
+  'credits: blank names and lines are left out; no affiliation means no cap icon');
+vm.runInContext("CONFIG.credits = '<b>not a credits block</b>'", ctx);
+ok(JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits.people.length === 0, 'credits: a mistyped setting shows no credits instead of breaking the page');
+vm.runInContext('CONFIG.credits = keepCredits', ctx);
 ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
 ok(brand.expansion === 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY' && brand.project === 'TaTaK Resilience Project' &&
   brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
