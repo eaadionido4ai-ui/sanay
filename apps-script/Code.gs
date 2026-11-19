@@ -2,6 +2,10 @@
  * SANAY — training registration, attendance and evaluation
  * Google Apps Script back end. The Google Sheet is the database.
  *
+ * Home screen: Register, Attendance (with walk-ins), Evaluation, and Request a training.
+ * Organizers: SANAY › Open the report page (attendance sheet, certificates, participant profile,
+ * photo and recording, impact interviews, training requests).
+ *
  * Files in this Apps Script project:
  *   Code.gs     this file
  *   Logos.gs    the UP, UPRI and NOAH logos (optional; without it the app shows no logos)
@@ -21,9 +25,14 @@
 
 const CONFIG = {
   // ---- The name on the home screen. In the expansion, the capital letters that spell the name
-  //      (in order) are highlighted: S-A-N-A-Y. The C of CapacitY is skipped.
+  //      (in order, same case) are highlighted: S-A-N-A-Y. The C of CapacitY is skipped.
   name: 'SANAY',
-  expansion: 'Skills And Needs Assessment towards enhanced CapacitY',
+  expansion: 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY',
+
+  // ---- The project, shown above the name. projectMark is highlighted the same way: Ta-Ta-K.
+  project: 'TaTaK Resilience Project',
+  projectMark: 'TaTaK',
+  projectExpansion: 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
 
   // ---- Header and footer of the home screen and the printed attendance sheet (from the GAD template)
   institution: ['UNIVERSITY OF THE PHILIPPINES', 'Resilience Institute and NOAH Center'],
@@ -39,6 +48,28 @@ const CONFIG = {
 
   // ---- Photo and recording consent. DRAFT wording: ask your Data Protection Officer to review it.
   mediaStatement: 'We take photos and audio or video recordings during the activity for documentation, reports and official information materials, which may be posted on official websites and social media pages. Tell us if we may include you. You can change your answer anytime by telling the organizers.',
+
+  // ---- Impact monitoring consent (follow-up interviews). DRAFT wording: ask your DPO to review it.
+  impactStatement: 'After the training, our staff may contact you for impact monitoring: a short interview, by phone, online or in person, about how the training has helped you and your work. You can still say no when we call.',
+
+  // ---- Request a training: the topics people can tick, and the note shown above the consent box
+  requestTopics: [
+    'Incident Command System (ICS)',
+    'Rapid Damage Assessment and Needs Analysis (RDANA)',
+    'Psychological First Aid (PFA)',
+    'Business Continuity Planning',
+    'Contingency Planning',
+    'Early Warning Systems',
+    'Hazard and risk mapping',
+    'Community-based DRRM',
+    'Emergency Operations Center (EOC)',
+    'Basic Life Support and First Aid'
+  ],
+  requestPrivacy: 'We use these details only to plan the training you are requesting and to contact you about it, under the Data Privacy Act of 2012 (Republic Act No. 10173).',
+
+  // ---- Certificates: who is eligible. Both rules also need the evaluation.
+  //      'all-days': checked in on every training day.  'any-day': checked in on at least one day.
+  certificateRule: 'all-days',
 
   // ---- Behaviour
   timeZone: 'Asia/Manila',
@@ -56,14 +87,19 @@ const TABS = {
   Registrations: ['timestamp', 'reg_code', 'training_id', 'training_title', 'last_name', 'first_name',
     'middle_initial', 'suffix', 'full_name', 'position', 'agency', 'email', 'contact_no', 'gad_consent',
     'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent',
-    'recording_consent', 'privacy_version', 'registered_as', 'evaluated_on'],
+    'recording_consent', 'impact_consent', 'privacy_version', 'registered_as', 'evaluated_on'],
   Attendance: ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'],
   Evaluations: ['date', 'training_id', 'overall', 'objectives_met', 'resource_persons', 'venue_logistics',
-    'will_apply', 'comments']
+    'will_apply', 'comments'],
+  Requests: ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email',
+    'contact_no', 'topics', 'other_topics', 'need', 'participants', 'participant_types', 'preferred_date',
+    'alternative_date', 'mode', 'location', 'status', 'notes']
 };
 
 const AGE_RANGES = ['0-9', '10-19', '15-24', '25-59', '60+'];   // as printed in the GAD template
 const YES_NO = ['Yes', 'No'];
+const REQUEST_MODES = ['Face-to-face', 'Online', 'Blended', 'No preference'];
+const REQUEST_STATUSES = ['New', 'Contacted', 'Scheduled', 'Done', 'Declined'];
 const STATE_MESSAGES = {
   full: 'This training is full.',
   closed: 'Registration for this training is closed.',
@@ -93,6 +129,9 @@ function brandJson_() {
   const brand = {
     name: CONFIG.name,
     expansion: CONFIG.expansion,
+    project: CONFIG.project,
+    projectMark: CONFIG.projectMark,
+    projectExpansion: CONFIG.projectExpansion,
     institution: CONFIG.institution,
     address: CONFIG.address,
     contact: CONFIG.contactNo,
@@ -113,6 +152,9 @@ function getAppData() {
     evaluationDaysAfter: CONFIG.evaluationDaysAfter,
     privacyStatement: CONFIG.privacyStatement,
     mediaStatement: CONFIG.mediaStatement,
+    impactStatement: CONFIG.impactStatement,
+    requestTopics: CONFIG.requestTopics,
+    requestPrivacy: CONFIG.requestPrivacy,
     trainings: listTrainings_(today)
   };
 }
@@ -136,7 +178,8 @@ function register(form) {
     contact_no: clean_(form.contact_no, 30),
     gad_consent: oneOf_(form.gad_consent, YES_NO),
     photo_consent: oneOf_(form.photo_consent, YES_NO),
-    recording_consent: oneOf_(form.recording_consent, YES_NO)
+    recording_consent: oneOf_(form.recording_consent, YES_NO),
+    impact_consent: oneOf_(form.impact_consent, YES_NO)
   };
   const gad = { sex: '', age_range: '', senior_citizen: '', pwd: '', indigenous_people: '', tribe: '' };
   if (f.gad_consent === 'Yes') {
@@ -165,6 +208,7 @@ function register(form) {
   }
   if (!f.photo_consent) missing.push('your answer on photos');
   if (!f.recording_consent) missing.push('your answer on recordings');
+  if (!f.impact_consent) missing.push('your answer on the follow-up interview');
   if (missing.length) throw new Error('Please fill in ' + missing.join(', ') + '.');
   if (!EMAIL_RE.test(f.email)) throw new Error('Enter a valid email, like name@example.com.');
   const digits = f.contact_no.replace(/\D/g, '');
@@ -255,8 +299,61 @@ function submitEvaluation(data) {
   });
 }
 
+/** Saves a training request: topics, preferred schedule and who is asking. */
+function submitRequest(form) {
+  form = form || {};
+  const topics = (Array.isArray(form.topics) ? form.topics : [])
+    .map(function (t) { return clean_(t, 120); })
+    .filter(function (t, i, all) { return CONFIG.requestTopics.indexOf(t) > -1 && all.indexOf(t) === i; });
+  const f = {
+    first_name: clean_(form.first_name, 80),
+    last_name: clean_(form.last_name, 80),
+    position: clean_(form.position, 120),
+    agency: clean_(form.agency, 160),
+    email: clean_(form.email, 120).toLowerCase(),
+    contact_no: clean_(form.contact_no, 30),
+    topics: topics.join('; '),
+    other_topics: clean_(form.other_topics, 300),
+    need: clean_(form.need, 1500),
+    participants: Number(form.participants),
+    participant_types: clean_(form.participant_types, 200),
+    preferred_date: isoDate_(form.preferred_date),
+    alternative_date: isoDate_(form.alternative_date),
+    mode: oneOf_(form.mode, REQUEST_MODES),
+    location: clean_(form.location, 200)
+  };
+  const today = today_();
+  const missing = [];
+  if (!topics.length && !f.other_topics) missing.push('at least one topic');
+  if (!f.preferred_date) missing.push('a preferred date');
+  if (!f.mode) missing.push('the mode');
+  if (!f.first_name) missing.push('your first name');
+  if (!f.last_name) missing.push('your last name');
+  if (!f.agency) missing.push('your agency, office or department');
+  if (!f.email) missing.push('your email');
+  if (missing.length) throw new Error('Please fill in ' + missing.join(', ') + '.');
+  if (!(f.participants >= 1 && f.participants <= 5000 && Math.round(f.participants) === f.participants)) throw new Error('Enter the number of participants, from 1 to 5000.');
+  if (f.preferred_date < today || (f.alternative_date && f.alternative_date < today)) throw new Error('Choose dates from today onward.');
+  if (!EMAIL_RE.test(f.email)) throw new Error('Enter a valid email, like name@example.com.');
+  const digits = f.contact_no.replace(/\D/g, '');
+  if (f.contact_no && (digits.length < 7 || digits.length > 15)) throw new Error('Enter a contact number with 7 to 15 digits.');
+  if (form.consent !== true) throw new Error('Tick the box so we can contact you about this request.');
+
+  return withLock_(function () {
+    const now = new Date();
+    const code = newCode_(readTable_('Requests').map(function (r) { return String(r.request_code); }));
+    appendRecord_('Requests', Object.assign({}, f, {
+      timestamp: now, request_code: code, full_name: [f.first_name, f.last_name].join(' '), status: 'New', notes: ''
+    }));
+    return {
+      code: code, stamp: stamp_(now), topics: topics.concat(f.other_topics ? [f.other_topics] : []).join('; '),
+      preferred_date: f.preferred_date, alternative_date: f.alternative_date, mode: f.mode, participants: f.participants
+    };
+  });
+}
+
 /* ===================================================================
- * Organizer report (attendance sheet, participant profile, photo list)
+ * Organizer report (attendance sheet, certificates, profile, consents, requests)
  * =================================================================== */
 
 /**
@@ -321,21 +418,32 @@ function getReport(req) {
 
   const fields = ['reg_code', 'last_name', 'first_name', 'full_name', 'position', 'agency', 'email', 'contact_no',
     'gad_consent', 'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent',
-    'recording_consent', 'registered_as'];
+    'recording_consent', 'impact_consent', 'registered_as', 'evaluated_on'];
   const registrations = !t ? [] : readTable_('Registrations')
     .filter(function (r) { return String(r.training_id) === t.id; })
     .map(function (r) {
       const o = { timestamp: stamp_(r.timestamp) };
       fields.forEach(function (k) { o[k] = r[k] === undefined || r[k] === null ? '' : String(r[k]); });
+      o.evaluated_on = ymd_(r.evaluated_on);
       return o;
     });
   const attendance = !t ? [] : readTable_('Attendance')
     .filter(function (r) { return String(r.training_id) === t.id; })
     .map(function (r) { return { timestamp: stamp_(r.timestamp), date: ymd_(r.date), reg_code: String(r.reg_code) }; });
 
+  const reqFields = ['request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email', 'contact_no',
+    'topics', 'other_topics', 'need', 'participant_types', 'mode', 'location', 'status', 'notes'];
+  const requests = readTable_('Requests').filter(function (r) { return String(r.request_code).trim(); }).map(function (r) {
+    const o = { timestamp: stamp_(r.timestamp), participants: Number(r.participants) || 0,
+      preferred_date: ymd_(r.preferred_date), alternative_date: ymd_(r.alternative_date) };
+    reqFields.forEach(function (k) { o[k] = r[k] === undefined || r[k] === null ? '' : String(r[k]); });
+    return o;
+  });
+
   return {
     now: stamp_(new Date()), today: today, privacyStatement: CONFIG.privacyStatement,
-    trainings: all, training: t, registrations: registrations, attendance: attendance
+    certificateRule: CONFIG.certificateRule === 'any-day' ? 'any-day' : 'all-days',
+    trainings: all, training: t, registrations: registrations, attendance: attendance, requests: requests
   };
 }
 
@@ -427,6 +535,12 @@ function setup() {
   });
   ss.getSheetByName('Registrations').getRange(1, 1).setNote('The timestamp is when the person submitted the form. It stands in for the signature on the GAD attendance sheet.');
   ss.getSheetByName('Evaluations').getRange(1, 1).setNote('No names or codes here on purpose. New rows go in at random positions.');
+  const rq = ss.getSheetByName('Requests');
+  const RQ = headers_(rq);
+  rq.getRange(2, RQ.indexOf('timestamp') + 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
+  rq.getRange(2, RQ.indexOf('status') + 1, 999, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(REQUEST_STATUSES, true).build());
+  rq.getRange(1, RQ.indexOf('status') + 1).setNote('For organizers: New, Contacted, Scheduled, Done or Declined.');
 
   const blank = ss.getSheetByName('Sheet1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
@@ -628,6 +742,14 @@ function newCode_(existing) {
 function clean_(v, max) {
   if (v === null || v === undefined) return '';
   return String(v).replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+/** 'yyyy-MM-dd' if the text is a real date in that form, otherwise ''. */
+function isoDate_(v) {
+  const s = clean_(v, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return '';
+  const p = s.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+  return d.getUTCFullYear() === p[0] && d.getUTCMonth() === p[1] - 1 && d.getUTCDate() === p[2] ? s : '';
 }
 
 /** The value if it is one of the allowed choices, otherwise ''. */

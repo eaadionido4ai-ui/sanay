@@ -34,6 +34,16 @@
   --nav: #014421;
   --nav-hover: #00321A;
   --nav-glow: rgba(1, 68, 33, 0.42);
+  --req-glow: rgba(123, 17, 19, 0.42);
+  --wash-maroon: rgba(123, 17, 19, 0.11);
+  --wash-green: rgba(1, 68, 33, 0.11);
+  --weave-m: rgba(123, 17, 19, 0.075);
+  --weave-g: rgba(1, 68, 33, 0.075);
+  --card-shadow: rgba(16, 24, 20, 0.18);
+  --paper-hl: #FBE4E4;
+  --paper-ok: #0B5A31;
+  --paper-bad: #7B1113;
+  --paper-bar: #014421;
   --wordmark: #7B1113;
   --ring: rgba(123, 17, 19, 0.32);
   --band-green: #014421;
@@ -66,7 +76,8 @@
     --ground: #0E1210; --surface: #161B18; --sunken: #1C221E; --ink: #E9EDEA; --muted: #A2ACA5; --line: #2A312D; --line-strong: #3E4842;
     --maroon: #A8343A; --maroon-hover: #8E2A30; --maroon-text: #F0A3A6; --maroon-soft: #3A1A1C;
     --green-fill: #2C7A4E; --green-text: #8FD1A8; --green-soft: #17301F; --on-fill: #FFFFFF; --wordmark: #C9575D;
-    --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55);
+    --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
+    --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
     --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
     --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
     --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
@@ -77,7 +88,8 @@
   --ground: #0E1210; --surface: #161B18; --sunken: #1C221E; --ink: #E9EDEA; --muted: #A2ACA5; --line: #2A312D; --line-strong: #3E4842;
   --maroon: #A8343A; --maroon-hover: #8E2A30; --maroon-text: #F0A3A6; --maroon-soft: #3A1A1C;
   --green-fill: #2C7A4E; --green-text: #8FD1A8; --green-soft: #17301F; --on-fill: #FFFFFF; --wordmark: #C9575D;
-    --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55);
+    --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
+    --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
   --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
   --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
   --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
@@ -90,6 +102,16 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--ground); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; --band-h: 12px; }
 body[data-view="home"] { --band-h: clamp(30px, 8.2vw, 104px); }
+body { position: relative; isolation: isolate; }
+/* The motif: maroon and green strips woven like a banig mat, under two soft washes of the same colors. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(75vmax 55vmax at 100% 0%, var(--wash-maroon), transparent 70%),
+    radial-gradient(75vmax 55vmax at 0% 100%, var(--wash-green), transparent 70%),
+    repeating-linear-gradient(45deg, var(--weave-m) 0 1.5px, transparent 1.5px 13px, var(--weave-g) 13px 14.5px, transparent 14.5px 26px),
+    repeating-linear-gradient(-45deg, var(--weave-g) 0 1.5px, transparent 1.5px 13px, var(--weave-m) 13px 14.5px, transparent 14.5px 26px);
+}
 h1, h2, h3 { margin: 0; text-wrap: balance; }
 p, dl, dd, ol, ul { margin: 0; }
 ol, ul { padding: 0; list-style: none; }
@@ -118,14 +140,15 @@ button { cursor: pointer; }
 /* ---------- layout ---------- */
 .page { padding-block: 0 56px; }
 .shell { max-width: 480px; margin: 0 auto; display: grid; gap: 28px; align-items: start; }
-.app { min-width: 0; }
+.app { min-width: 0; container: app / inline-size; }
+body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
 .is-sheet .shell { max-width: 1240px; }
 @media (min-width: 1080px) { .is-sheet .shell { grid-template-columns: minmax(0, 460px) minmax(0, 1fr); } }
 @media (max-width: 1079px) { .is-sheet .app { width: 100%; max-width: 480px; justify-self: center; } }
 .is-report .shell { max-width: 1440px; }
 
 /* ---------- home ---------- */
-.view-home { position: relative; display: grid; justify-items: center; gap: 26px; text-align: center; margin-top: calc(12px - 0.55 * var(--band-h)); }
+.view-home { position: relative; display: grid; justify-items: center; gap: 24px; text-align: center; margin-top: calc(12px - 0.55 * var(--band-h)); padding-bottom: 8px; }
 .is-sheet .view-home { margin-top: 18px; }
 .masthead { display: grid; justify-items: center; gap: 12px; }
 .logos { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; padding: 8px 14px; border-radius: 16px; background: var(--plate); }
@@ -136,12 +159,18 @@ button { cursor: pointer; }
 .inst { display: grid; gap: 1px; }
 .inst-1 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
 .inst-2 { font-size: 14px; color: var(--muted); }
-.brand { display: grid; justify-items: center; gap: 10px; padding-top: 4px; }
-.wordmark { font-family: var(--display); font-weight: 600; font-size: clamp(54px, 16vw, 74px); line-height: 0.95; letter-spacing: 0.16em; margin-right: -0.16em; color: var(--wordmark); }
+.project { display: grid; justify-items: center; gap: 2px; padding-top: 2px; }
+.project-name { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-size: 21px; font-weight: 600; line-height: 1.2; color: var(--green-text); }
+.project-name::before, .project-name::after { content: ""; width: 32px; height: 1px; background: currentColor; opacity: 0.5; }
+.project-exp { max-width: 32ch; font-family: var(--display); font-size: 18px; font-style: italic; line-height: 1.35; color: var(--muted); }
+.project-exp b { font-weight: 700; color: var(--green-text); }
+.brand { display: grid; justify-items: center; gap: 10px; }
+.wordmark { font-family: var(--display); font-weight: 600; font-size: clamp(54px, 16vw, 78px); line-height: 0.95; letter-spacing: 0.16em; margin-right: -0.16em; color: var(--wordmark); }
 .wordmark:focus { outline: none; }
-.expansion { max-width: 31ch; font-size: 15px; color: var(--muted); }
+.expansion { max-width: 34ch; font-size: 15px; color: var(--muted); }
 .expansion b { color: var(--maroon-text); font-weight: 700; }
-.actions { width: 100%; display: grid; gap: 12px; text-align: left; }
+.actions { width: 100%; display: grid; gap: 12px; padding-top: 4px; text-align: left; }
+.flow { display: grid; gap: 12px; }
 .action { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 16px; row-gap: 2px; width: 100%; min-height: 86px; padding: 14px 16px 14px 14px; border: 0; border-radius: 18px; background: var(--nav); color: var(--on-fill); text-align: left; box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--nav-glow); transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s; }
 .action:hover { background: var(--nav-hover); transform: translateY(-1px); box-shadow: 0 2px 4px var(--shadow), 0 14px 24px -12px var(--nav-glow); }
 .action:active { transform: translateY(1px); }
@@ -151,8 +180,20 @@ button { cursor: pointer; }
 .action-hint { grid-column: 2; grid-row: 2; font-size: 14.5px; color: var(--on-fill-muted); }
 .action-arrow { grid-column: 3; grid-row: 1 / span 2; display: grid; place-items: center; color: var(--on-fill-muted); transition: transform 0.15s; }
 .action:hover .action-arrow { transform: translateX(3px); }
+.action-request { background: var(--maroon); box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--req-glow); }
+.action-request:hover { background: var(--maroon-hover); box-shadow: 0 2px 4px var(--shadow), 0 14px 24px -12px var(--req-glow); }
+@container app (min-width: 700px) {
+  .flow { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .flow .action { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto 1fr; align-items: start; min-height: 196px; padding: 20px 18px 22px 20px; row-gap: 4px; }
+  .flow .action-icon { grid-column: 1; grid-row: 1; margin-bottom: 16px; }
+  .flow .action-label { grid-column: 1 / -1; grid-row: 2; }
+  .flow .action-hint { grid-column: 1 / -1; grid-row: 3; }
+  .flow .action-arrow { grid-column: 2; grid-row: 1; }
+}
 
 /* ---------- inner screens ---------- */
+.view-card { margin-top: 18px; padding: 4px 22px 26px; border: 1px solid var(--line); border-radius: 26px; background: var(--surface); box-shadow: 0 1px 2px var(--shadow), 0 24px 48px -32px var(--card-shadow); }
+@media (max-width: 440px) { .view-card { padding: 2px 16px 22px; border-radius: 22px; } }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 2px; }
 .back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-left: -8px; padding: 8px 12px 8px 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); font-weight: 600; }
 .back:hover { background: var(--sunken); }
@@ -169,7 +210,7 @@ button { cursor: pointer; }
 .field { display: grid; gap: 6px; min-width: 0; }
 .field > label, .q-label { font-size: 15px; font-weight: 600; }
 .opt { font-size: 14px; font-weight: 400; color: var(--muted); }
-input[type="text"], input[type="email"], input[type="tel"], select, textarea {
+input[type="text"], input[type="email"], input[type="tel"], input[type="date"], input[type="number"], select, textarea {
   width: 100%; min-height: 50px; padding: 11px 14px; border: 1px solid var(--line-strong); border-radius: 10px;
   background: var(--surface); font-size: 16px; line-height: 1.3;
 }
@@ -249,7 +290,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .result p { color: var(--ink); }
 .result .result-title { font-size: 18px; font-weight: 700; color: inherit; }
 .result .btn-quiet { margin-top: 10px; }
-.walkin { margin-top: 18px; font-size: 15px; color: var(--muted); }
+.walkin-card { display: grid; gap: 8px; margin-top: 22px; padding: 16px 18px 18px; border-radius: 18px; background: var(--maroon-soft); }
+.walkin-title { font-family: var(--display); font-size: 22px; font-weight: 600; }
+.btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 10px 18px; border: 1.5px solid var(--maroon-text); border-radius: 12px; background: var(--surface); color: var(--maroon-text); font-weight: 700; transition: background-color 0.15s, color 0.15s, border-color 0.15s; }
+.btn-outline:hover { background: var(--maroon); border-color: var(--maroon); color: var(--on-fill); }
+.check { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 10px; cursor: pointer; }
+.check input { width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--green-fill); }
+.sub-title { font-family: var(--display); font-size: 21px; font-weight: 600; }
+.subgroup { display: grid; gap: 14px; }
+.subgroup + .subgroup { padding-top: 18px; border-top: 1px dashed var(--line); }
 .empty { padding: 18px; border-radius: 16px; background: var(--sunken); color: var(--muted); }
 .demo-note { padding: 10px 12px; border-radius: 12px; background: var(--warn-soft); font-size: 14px; }
 .rating .pick span { min-width: 50px; }
@@ -264,6 +313,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .rp-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding-block: 14px; }
 .rp-bar .btn-primary { width: auto; min-height: 46px; font-size: 15px; }
 .rp-summary { font-weight: 600; }
+.rp-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.rp-actions .btn-quiet { min-height: 46px; }
+.report-chrome.view-card { padding-bottom: 8px; }
+.view-report .seg { margin: 0 0 16px; }
 .paper-desk { padding: 16px; border-radius: 18px; background: var(--desk); overflow-x: auto; }
 .paper-stack { display: grid; gap: 22px; width: max-content; margin: 0 auto; }
 .locked { display: grid; gap: 10px; padding: 20px; border-radius: 16px; background: var(--sunken); }
@@ -351,6 +404,30 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .md-table td { height: 0.28in; }
 .md-table td.ctr { text-align: center; }
 .md-no { font-weight: 700; }
+.p-h3 { margin: 0.12in 0 0.06in; font-size: 7.6pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--paper-muted); }
+.ct-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 8.2pt; }
+.ct-table th, .ct-table td { padding: 0.035in 0.07in; border: 0.75pt solid var(--paper-line); vertical-align: middle; overflow-wrap: anywhere; }
+.ct-table th { font-size: 7.8pt; text-align: center; }
+.ct-table td { height: 0.27in; }
+.ct-table td.ctr { text-align: center; }
+.ct-table tr.hl td { background: var(--paper-hl); }
+.ct-ok { color: var(--paper-ok); font-weight: 700; }
+.ct-bad { color: var(--paper-bad); font-weight: 700; }
+.ct-key { display: inline-block; width: 0.13in; height: 0.13in; margin-right: 0.05in; border: 0.75pt solid var(--paper-line); background: var(--paper-hl); vertical-align: -0.02in; }
+.ct-note { margin-bottom: 0.08in; text-align: center; font-size: 8pt; color: var(--paper-muted); }
+.rq-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 0.5in; padding: 0.06in 0.3in 0; font-size: 8.4pt; }
+.rq-bars { display: grid; grid-template-columns: 2.5in minmax(0, 1fr) 0.32in; align-items: center; gap: 0.055in 0.08in; font-variant-numeric: tabular-nums; }
+.rq-track { height: 0.16in; }
+.rq-bar { height: 100%; min-width: 2px; border-radius: 0 3pt 3pt 0; background: var(--paper-bar); }
+.rq-n { text-align: right; font-weight: 700; }
+.rq-total { display: flex; flex-wrap: wrap; gap: 0.08in 0.35in; margin-bottom: 0.04in; font-size: 9pt; }
+.rq-total b { font-family: var(--display); font-size: 20pt; font-weight: 600; line-height: 1; margin-right: 0.05in; }
+.rq-others { margin-top: 0.06in; font-size: 7.8pt; color: var(--paper-muted); }
+.rq-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 7.4pt; line-height: 1.25; }
+.rq-table th, .rq-table td { padding: 0.035in 0.05in; border: 0.75pt solid var(--paper-line); vertical-align: top; overflow-wrap: anywhere; }
+.rq-table th { font-size: 7.2pt; text-align: center; vertical-align: middle; }
+.rq-table td.ctr { text-align: center; }
+.rq-sub { display: block; color: var(--paper-muted); }
 
 /* ---------- the Google Sheet, preview only ---------- */
 .sheet { min-width: 0; display: grid; gap: 12px; align-content: start; padding-top: 18px; }
@@ -391,6 +468,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 
 @media print {
   html, body { background: #FFFFFF !important; }
+  body::before { display: none !important; }
   .demo-wrap, .crest, .sheet, .report-chrome, .view:not(.view-report), .measure { display: none !important; }
   .page, .shell, .app, .view-report, .paper-desk { max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; overflow: visible !important; }
   .paper-stack { display: block !important; zoom: 1 !important; width: auto !important; }
@@ -423,34 +501,46 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <div class="logos" id="logos"></div>
           <p class="inst" id="inst"></p>
         </div>
+        <div class="project">
+          <p class="project-name" id="projectName">TaTaK Resilience Project</p>
+          <p class="project-exp" id="projectExp"></p>
+        </div>
         <div class="brand">
           <h1 class="wordmark" id="brandName" tabindex="-1">SANAY</h1>
           <p class="expansion" id="brandExpansion"></p>
         </div>
         <nav class="actions" aria-label="Choose what to do">
-          <button type="button" class="action" data-go="register" id="go-register">
-            <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="4" width="13" height="17" rx="2"></rect><path d="M9 4V3.2c0-.4.3-.7.7-.7h4.6c.4 0 .7.3.7.7V4"></path><path d="M8.5 10h7"></path><path d="M8.5 13.5h7"></path><path d="M8.5 17h4"></path></svg></span>
-            <span class="action-label">Register</span>
-            <span class="action-hint">Sign up before the training</span>
-            <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
-          </button>
-          <button type="button" class="action" data-go="attendance" id="go-attendance">
-            <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M3.5 10h17"></path><path d="M8.6 15.2l2.2 2.2 4.6-4.6"></path></svg></span>
-            <span class="action-label">Attendance</span>
-            <span class="action-hint">Check in on the training day</span>
-            <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
-          </button>
-          <button type="button" class="action" data-go="evaluation" id="go-evaluation">
-            <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"></path></svg></span>
-            <span class="action-label">Evaluation</span>
-            <span class="action-hint">Rate the training when it ends</span>
+          <div class="flow">
+            <button type="button" class="action" data-go="register" id="go-register">
+              <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="4" width="13" height="17" rx="2"></rect><path d="M9 4V3.2c0-.4.3-.7.7-.7h4.6c.4 0 .7.3.7.7V4"></path><path d="M8.5 10h7"></path><path d="M8.5 13.5h7"></path><path d="M8.5 17h4"></path></svg></span>
+              <span class="action-label">Register</span>
+              <span class="action-hint">Sign up before the training</span>
+              <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+            </button>
+            <button type="button" class="action" data-go="attendance" id="go-attendance">
+              <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"></rect><path d="M8 3v4"></path><path d="M16 3v4"></path><path d="M3.5 10h17"></path><path d="M8.6 15.2l2.2 2.2 4.6-4.6"></path></svg></span>
+              <span class="action-label">Attendance</span>
+              <span class="action-hint">Check in on the training day</span>
+              <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+            </button>
+            <button type="button" class="action" data-go="evaluation" id="go-evaluation">
+              <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"></path></svg></span>
+              <span class="action-label">Evaluation</span>
+              <span class="action-hint">Rate the training when it ends</span>
+              <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
+            </button>
+          </div>
+          <button type="button" class="action action-request" data-go="request" id="go-request">
+            <span class="action-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 18h5"></path><path d="M10.2 21h3.6"></path><path d="M12 3a6 6 0 0 0-3.7 10.7c.7.6 1.2 1.4 1.2 2.3h5c0-.9.5-1.7 1.2-2.3A6 6 0 0 0 12 3z"></path></svg></span>
+            <span class="action-label">Request a training</span>
+            <span class="action-hint">Tell us the skills your office needs, and when</span>
             <span class="action-arrow" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></span>
           </button>
         </nav>
       </section>
 
       <!-- ===================== REGISTER ===================== -->
-      <section class="view" id="view-register" aria-labelledby="regTitle" hidden>
+      <section class="view view-card" id="view-register" aria-labelledby="regTitle" hidden>
         <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
         <div id="regFormWrap">
           <header class="view-head">
@@ -505,10 +595,18 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             </div>
 
             <div class="group">
-              <p class="group-title">Photos and recordings</p>
+              <p class="group-title">Photos, recordings and follow-up</p>
+              <div class="subgroup">
+              <p class="sub-title">Photos and recordings</p>
               <p class="hint" id="mediaText"></p>
               <div class="q yn" role="radiogroup" aria-labelledby="lbl-photo"><span class="q-label" id="lbl-photo">May we take photos of you?</span><div class="picks" id="photoPicks"></div><p class="err" id="err-photo_consent" hidden></p></div>
               <div class="q yn" role="radiogroup" aria-labelledby="lbl-rec"><span class="q-label" id="lbl-rec">May we record you on audio or video?</span><div class="picks" id="recPicks"></div><p class="err" id="err-recording_consent" hidden></p></div>
+              </div>
+              <div class="subgroup">
+              <p class="sub-title">Impact monitoring</p>
+              <p class="hint" id="impactText"></p>
+              <div class="q yn" role="radiogroup" aria-labelledby="lbl-impact"><span class="q-label" id="lbl-impact">May our staff contact you later for a follow-up interview?</span><div class="picks" id="impactPicks"></div><p class="err" id="err-impact_consent" hidden></p></div>
+              </div>
             </div>
 
             <div class="submit-row">
@@ -542,7 +640,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       </section>
 
       <!-- ===================== ATTENDANCE ===================== -->
-      <section class="view" id="view-attendance" aria-labelledby="ciTitle" hidden>
+      <section class="view view-card" id="view-attendance" aria-labelledby="ciTitle" hidden>
         <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
         <header class="view-head">
           <h2 class="title" id="ciTitle" tabindex="-1">Attendance</h2>
@@ -557,12 +655,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           </div>
         </form>
         <div id="ciResult" aria-live="polite"></div>
-        <p class="walkin" id="ciWalkin">Not registered yet? <button type="button" class="link-btn" id="ciRegister">Register now</button> and you'll be checked in right away.</p>
+        <div class="walkin-card" id="ciWalkin">
+          <p class="walkin-title">Didn't register?</p>
+          <p class="hint">Fill in the attendance form as a walk-in. You're checked in as soon as you submit.</p>
+          <button type="button" class="btn-outline" id="ciRegister">Walk-in registration</button>
+        </div>
         <p class="empty" id="ciEmpty" hidden>No training is happening today. Check-in opens on the training days.</p>
       </section>
 
       <!-- ===================== EVALUATION ===================== -->
-      <section class="view" id="view-evaluation" aria-labelledby="evTitle" hidden>
+      <section class="view view-card" id="view-evaluation" aria-labelledby="evTitle" hidden>
         <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
         <div id="evFormWrap">
           <header class="view-head">
@@ -598,29 +700,100 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         </div>
       </section>
 
+      <!-- ===================== REQUEST A TRAINING ===================== -->
+      <section class="view view-card" id="view-request" aria-labelledby="rqTitle" hidden>
+        <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
+        <div id="rqFormWrap">
+          <header class="view-head">
+            <h2 class="title" id="rqTitle" tabindex="-1">Request a training</h2>
+            <p class="lead">Tell us what skills your office needs and when. We'll get in touch to plan it with you.</p>
+          </header>
+          <form class="form" id="rqForm" novalidate>
+            <div class="group">
+              <p class="group-title">Training needed</p>
+              <div class="q" role="group" aria-labelledby="lbl-topics"><span class="q-label" id="lbl-topics">Topics<small>Choose all that apply.</small></span><div class="picks" id="rqTopics"></div><p class="err" id="err-rq-topics" hidden></p></div>
+              <div class="field"><label for="rqOther">Other topics <span class="opt">optional</span></label><input type="text" id="rqOther" maxlength="300"></div>
+              <div class="field"><label for="rqNeed">What should participants be able to do after the training? <span class="opt">optional</span></label><textarea id="rqNeed" maxlength="1500"></textarea></div>
+            </div>
+            <div class="group">
+              <p class="group-title">Participants and schedule</p>
+              <div class="row-2">
+                <div class="field"><label for="rqCount">Number of participants</label><input type="number" id="rqCount" min="1" max="5000" inputmode="numeric" aria-describedby="err-rq-count"><p class="err" id="err-rq-count" hidden></p></div>
+                <div class="field"><label for="rqWho">Who are they? <span class="opt">optional</span></label><input type="text" id="rqWho" maxlength="200" placeholder="e.g. MDRRMO staff"></div>
+              </div>
+              <div class="row-2">
+                <div class="field"><label for="rqDate">Preferred date</label><input type="date" id="rqDate" aria-describedby="err-rq-date"><p class="err" id="err-rq-date" hidden></p></div>
+                <div class="field"><label for="rqAlt">Another date <span class="opt">optional</span></label><input type="date" id="rqAlt" aria-describedby="err-rq-alt"><p class="err" id="err-rq-alt" hidden></p></div>
+              </div>
+              <div class="q" role="radiogroup" aria-labelledby="lbl-mode"><span class="q-label" id="lbl-mode">Mode</span><div class="picks" id="rqModes"></div><p class="err" id="err-rq-mode" hidden></p></div>
+              <div class="field"><label for="rqPlace">Preferred venue or location <span class="opt">optional</span></label><input type="text" id="rqPlace" maxlength="200"></div>
+            </div>
+            <div class="group">
+              <p class="group-title">Your details</p>
+              <div class="row-2">
+                <div class="field"><label for="rqFirst">First name</label><input type="text" id="rqFirst" autocomplete="given-name" aria-describedby="err-rq-first"><p class="err" id="err-rq-first" hidden></p></div>
+                <div class="field"><label for="rqLast">Last name</label><input type="text" id="rqLast" autocomplete="family-name" aria-describedby="err-rq-last"><p class="err" id="err-rq-last" hidden></p></div>
+              </div>
+              <div class="field"><label for="rqPosition">Designation / Position <span class="opt">optional</span></label><input type="text" id="rqPosition" autocomplete="organization-title"></div>
+              <div class="field"><label for="rqAgency">Agency / Office / Department</label><input type="text" id="rqAgency" autocomplete="organization" aria-describedby="err-rq-agency"><p class="err" id="err-rq-agency" hidden></p></div>
+              <div class="field"><label for="rqEmail">Email</label><input type="email" id="rqEmail" autocomplete="email" inputmode="email" spellcheck="false" aria-describedby="err-rq-email"><p class="err" id="err-rq-email" hidden></p></div>
+              <div class="field"><label for="rqContact">Contact No. <span class="opt">optional</span></label><input type="tel" id="rqContact" autocomplete="tel" inputmode="tel" aria-describedby="err-rq-contact"><p class="err" id="err-rq-contact" hidden></p></div>
+            </div>
+            <div class="group">
+              <p class="hint" id="rqPrivacy"></p>
+              <label class="check" for="rqConsent"><input type="checkbox" id="rqConsent"><span>I agree that you may use these details to plan the training and contact me about it.</span></label>
+              <p class="err" id="err-rq-consent" hidden></p>
+            </div>
+            <div class="submit-row">
+              <p class="err-box" id="rqError" role="alert" hidden></p>
+              <button type="submit" class="btn-primary" id="rqSubmit">Send request</button>
+            </div>
+          </form>
+        </div>
+        <div class="done" id="rqDone" tabindex="-1" hidden>
+          <div class="done-mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"></path></svg></div>
+          <div class="view-head" style="padding:0"><h2 class="title">Request received</h2><p class="lead" id="rqDoneLead"></p></div>
+          <div class="code-card"><p class="code-label">Request number</p><p class="code" id="rqCode"></p></div>
+          <dl class="facts" id="rqFacts"></dl>
+          <p class="demo-note" id="rqDemoNote" hidden>Preview: a row was added to the Requests tab. <button type="button" class="link-btn" data-see="Requests">See it</button></p>
+          <div class="done-actions">
+            <button type="button" class="btn-quiet" id="rqAnother">Send another request</button>
+            <button type="button" class="btn-quiet" data-home>Back to home</button>
+          </div>
+        </div>
+      </section>
+
       <!-- ===================== ORGANIZER REPORT ===================== -->
       <section class="view view-report" id="view-report" aria-labelledby="rpTitle" hidden>
-        <div class="report-chrome">
+        <div class="report-chrome view-card">
           <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
           <header class="view-head">
             <h2 class="title" id="rpTitle" tabindex="-1">Training report</h2>
-            <p class="lead">For organizers. The attendance sheet in the GAD template, a profile of the participants, and who said no to photos or recording.</p>
+            <p class="lead">For organizers: the attendance sheet in the GAD template, certificates, a profile of the participants, consents, and training requests.</p>
           </header>
           <div id="rpMain">
-            <div class="rp-controls">
-              <div class="field"><label for="rpTraining">Training</label><div class="select"><select id="rpTraining"></select></div></div>
-              <div class="field"><label for="rpList">People on the list</label><div class="select"><select id="rpList"></select></div></div>
-            </div>
             <div class="seg" role="group" aria-label="Report part">
               <button type="button" data-section="sheet" aria-pressed="true">Attendance sheet</button>
+              <button type="button" data-section="certs" aria-pressed="false">Certificates</button>
               <button type="button" data-section="profile" aria-pressed="false">Participant profile</button>
               <button type="button" data-section="media" aria-pressed="false">Photo and recording</button>
+              <button type="button" data-section="impact" aria-pressed="false">Impact interviews</button>
+              <button type="button" data-section="requests" aria-pressed="false">Training requests</button>
+            </div>
+            <div class="rp-controls">
+              <div class="field" id="rpTrainingField"><label for="rpTraining">Training</label><div class="select"><select id="rpTraining"></select></div></div>
+              <div class="field" id="rpListField"><label for="rpList">People on the list</label><div class="select"><select id="rpList"></select></div></div>
+              <div class="field" id="rpShowField" hidden><label for="rpShow">Show</label><div class="select"><select id="rpShow"><option value="all">Everyone who checked in or evaluated</option><option value="check">To check only</option><option value="eligible">Eligible only</option></select></div></div>
             </div>
             <div class="rp-bar">
               <p class="rp-summary" id="rpSummary" aria-live="polite">Loading…</p>
-              <button type="button" class="btn-primary" id="rpPrint" hidden>Print or save as PDF</button>
-              <p class="hint" id="rpPrintNote" hidden>In the deployed app, a button here prints these pages or saves them as a PDF on long bond, landscape.</p>
+              <div class="rp-actions">
+                <button type="button" class="btn-quiet" id="rpCopy" hidden>Copy eligible names</button>
+                <button type="button" class="btn-primary" id="rpPrint" hidden>Print or save as PDF</button>
+              </div>
             </div>
+            <p class="hint" id="rpCopyNote" aria-live="polite"></p>
+            <p class="hint" id="rpPrintNote" hidden>In the deployed app, a button here prints these pages or saves them as a PDF on long bond, landscape.</p>
           </div>
           <div class="locked" id="rpLocked" hidden>
             <p><strong>This page is for organizers.</strong></p>
@@ -644,6 +817,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <button type="button" role="tab" data-tab="Registrations" aria-selected="false">Registrations</button>
           <button type="button" role="tab" data-tab="Attendance" aria-selected="false">Attendance</button>
           <button type="button" role="tab" data-tab="Evaluations" aria-selected="false">Evaluations</button>
+          <button type="button" role="tab" data-tab="Requests" aria-selected="false">Requests</button>
         </div>
       </div>
       <div class="sheet-legend" id="sheetLegend"></div>
@@ -672,12 +846,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   var TEMPLATE_NOTE = 'Please fill or check the appropriate box for the following fields if you provide us your consent pursuant to our Data Privacy Statement. Otherwise, proceed in affixing your signature in the rightmost field of the attendance sheet. Ensure that the filled-out information is correct.';
   var PRIVACY_TEXT = 'This data collection is conducted in accordance with the provisions of Republic Act No. 9710 and the guidelines issued by the Philippine Commission on Women, which require the generation of sex-disaggregated data to support Gender and Development (GAD) planning and monitoring. All information gathered will be processed in compliance with the Republic Act No. 10173 to ensure the protection, confidentiality, and responsible handling of personal data. The data collected may be used for research and academic purposes, institutional Gender and Development (GAD) planning and reporting, and submissions to the Performance Budget Monitoring System (PBMS). Any results derived from the data will be presented only in aggregated or anonymized form. Any other use of the information not stated above shall be properly coordinated with the participant and undertaken in accordance with applicable data privacy and ethical standards.';
   var MEDIA_TEXT = 'We take photos and audio or video recordings during the activity for documentation, reports and official information materials, which may be posted on official websites and social media pages. Tell us if we may include you. You can change your answer anytime by telling the organizers.';
+  var IMPACT_TEXT = 'After the training, our staff may contact you for impact monitoring: a short interview, by phone, online or in person, about how the training has helped you and your work. You can still say no when we call.';
+  var REQUEST_PRIVACY_TEXT = 'We use these details only to plan the training you are requesting and to contact you about it, under the Data Privacy Act of 2012 (Republic Act No. 10173).';
+  var DEFAULT_TOPICS = ['Incident Command System (ICS)', 'Rapid Damage Assessment and Needs Analysis (RDANA)', 'Psychological First Aid (PFA)',
+    'Business Continuity Planning', 'Contingency Planning', 'Early Warning Systems', 'Hazard and risk mapping', 'Community-based DRRM',
+    'Emergency Operations Center (EOC)', 'Basic Life Support and First Aid'];
+  var REQUEST_MODES = ['Face-to-face', 'Online', 'Blended', 'No preference'];
 
   /* Name, acronym, logos and the attendance-sheet header. The Apps Script version fills these in from Code.gs and Logos.gs. */
   var BRAND = (function () {
     var b = {
       name: 'SANAY',
-      expansion: 'Skills And Needs Assessment towards enhanced CapacitY',
+      expansion: 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY',
+      project: 'TaTaK Resilience Project',
+      projectMark: 'TaTaK',
+      projectExpansion: 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
       institution: ['INSTITUTION NAME', 'Office or center name'],
       address: 'Office address', contact: 'Telephone number', email: 'Office email',
       bands: ['#014421', '#7B1113'],
@@ -705,7 +888,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   var S = {
     data: null, today: '', view: 'home', params: {}, walkIn: null, lastReg: null,
     sheetOpen: false, sheetTab: 'Trainings', flash: null,
-    report: null, rpTraining: '', rpList: '', rpSection: 'sheet', rpBusy: false
+    report: null, rpTraining: '', rpList: '', rpSection: 'sheet', rpShow: 'all', rpBusy: false
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -864,7 +1047,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         last_name: p.last_name, first_name: p.first_name, middle_initial: p.middle_initial || '', suffix: p.suffix || '', full_name: fullName(p),
         position: p.position || '', agency: p.agency, email: p.email, contact_no: p.contact_no || '',
         gad_consent: p.gad_consent, sex: p.sex || '', age_range: p.age_range || '', senior_citizen: p.senior_citizen || '', pwd: p.pwd || '',
-        indigenous_people: p.indigenous_people || '', tribe: p.tribe || '', photo_consent: p.photo_consent, recording_consent: p.recording_consent,
+        indigenous_people: p.indigenous_people || '', tribe: p.tribe || '', photo_consent: p.photo_consent, recording_consent: p.recording_consent, impact_consent: p.impact_consent || '',
         privacy_version: 'GAD attendance sheet DPS', registered_as: as || 'Pre-registered', evaluated_on: ''
       };
       db.registrations.push(r);
@@ -880,7 +1063,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         position: chance(0.9) ? pick(POSITIONS) : '', agency: pick(AGENCIES), email: email,
         contact_no: chance(0.7) ? '09' + digits(2) + ' ' + digits(3) + ' ' + digits(4) : '',
         gad_consent: chance(0.88) ? 'Yes' : 'No',
-        photo_consent: chance(0.86) ? 'Yes' : 'No', recording_consent: chance(0.8) ? 'Yes' : 'No'
+        photo_consent: chance(0.86) ? 'Yes' : 'No', recording_consent: chance(0.8) ? 'Yes' : 'No', impact_consent: chance(0.72) ? 'Yes' : 'No'
       };
       if (p.gad_consent === 'Yes') {
         var x = rand();
@@ -919,12 +1102,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var ics4 = training('ICS-4');
     var juan = add(ics4, { reg_code: 'K7Q2M', first_name: 'Juan', middle_initial: 'M', last_name: 'Dela Cruz', position: 'LDRRM Officer', agency: 'MDRRMO San Isidro',
       email: 'juan.delacruz@example.com', contact_no: '0917 555 0142', gad_consent: 'Yes', sex: 'Male', age_range: '25-59', senior_citizen: 'No', pwd: 'No',
-      indigenous_people: 'No', photo_consent: 'Yes', recording_consent: 'Yes' }, D(-6) + ' 09:14');
+      indigenous_people: 'No', photo_consent: 'Yes', recording_consent: 'Yes', impact_consent: 'Yes' }, D(-6) + ' 09:14');
     var ana = add(ics4, { reg_code: 'R4XTP', first_name: 'Ana', middle_initial: 'L', last_name: 'Reyes', position: 'Program Lead', agency: 'Liwayway Rescue Volunteers',
       email: 'ana.reyes@example.com', contact_no: '', gad_consent: 'Yes', sex: 'Female', age_range: '25-59', senior_citizen: 'No', pwd: 'No',
-      indigenous_people: 'No', photo_consent: 'No', recording_consent: 'No' }, D(-5) + ' 14:02');
+      indigenous_people: 'No', photo_consent: 'No', recording_consent: 'No', impact_consent: 'No' }, D(-5) + ' 14:02');
     var rog = add(ics4, { reg_code: 'M8HWD', first_name: 'Rogelio', last_name: 'Santos', position: 'Team Leader', agency: 'Barangay Masigla Council',
-      email: 'rogelio.santos@example.com', contact_no: '0928 555 0177', gad_consent: 'No', photo_consent: 'Yes', recording_consent: 'Yes' }, D(-1) + ' 07:41', 'Walk-in');
+      email: 'rogelio.santos@example.com', contact_no: '0928 555 0177', gad_consent: 'No', photo_consent: 'Yes', recording_consent: 'Yes', impact_consent: 'Yes' }, D(-1) + ' 07:41', 'Walk-in');
     used['ICS-4juan.delacruz@example.com'] = used['ICS-4ana.reyes@example.com'] = used['ICS-4rogelio.santos@example.com'] = 1;
     var ics4Regs = fill('ICS-4', 40);
     db.attendance.push(
@@ -941,13 +1124,36 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     fill('BCP-1', 11);
     var ics3 = fill('ICS-3', 42);
     attend(ics3, D(-14), 0.92); attend(ics3, D(-13), 0.88); attend(ics3, D(-12), 0.86);
-    ics3.slice(0, 18).forEach(function (r, i) {
-      r.evaluated_on = D(-12 + (i % 3));
-      db.evaluations.push({ _id: 'e' + i, date: r.evaluated_on, training_id: 'ICS-3', overall: 3 + Math.floor(rand() * 3), objectives_met: 3 + Math.floor(rand() * 3),
-        resource_persons: 4 + Math.floor(rand() * 2), venue_logistics: 2 + Math.floor(rand() * 4), will_apply: pick(APPLY), comments: pick(COMMENTS) });
-    });
+    function evaluate(regs, lastDay, p, days) {
+      regs.forEach(function (r, i) {
+        var came = db.attendance.some(function (x) { return x.reg_code === r.reg_code && x.date === lastDay; });
+        if (!came || !chance(p)) return;
+        r.evaluated_on = addDays(lastDay, i % days);
+        db.evaluations.push({ _id: 'e' + db.evaluations.length, date: r.evaluated_on, training_id: r.training_id, overall: 3 + Math.floor(rand() * 3), objectives_met: 3 + Math.floor(rand() * 3),
+          resource_persons: 4 + Math.floor(rand() * 2), venue_logistics: 2 + Math.floor(rand() * 4), will_apply: pick(APPLY), comments: pick(COMMENTS) });
+      });
+    }
+    evaluate(ics3, D(-12), 0.88, 3);
     var cp1 = fill('CP-1', 30);
     attend(cp1, D(-40), 0.9);
+    evaluate(cp1, D(-40), 0.85, 2);
+
+    // Training requests from offices
+    var WHO = ['MDRRMO staff', 'Barangay officials', 'Hospital emergency team', 'School DRRM coordinators', 'Rescue volunteers', 'Office safety committee'];
+    db.requests = [];
+    for (var q = 0; q < 12; q++) {
+      var rf = pick(rand() < 0.5 ? FIRST_F : FIRST_M), rl = pick(LASTS), nt = 1 + Math.floor(rand() * 3), tp = [];
+      while (tp.length < nt) { var tt = pick(DEFAULT_TOPICS); if (tp.indexOf(tt) < 0) tp.push(tt); }
+      var pref = D(20 + Math.floor(rand() * 140));
+      db.requests.push({ timestamp: D(-(1 + Math.floor(rand() * 60))) + ' ' + hm(8 * 60, 18 * 60), request_code: newCode(), first_name: rf, last_name: rl, full_name: rf + ' ' + rl,
+        position: pick(POSITIONS), agency: pick(AGENCIES), email: (rf + '.' + rl).toLowerCase() + '@example.com',
+        contact_no: chance(0.7) ? '09' + digits(2) + ' ' + digits(3) + ' ' + digits(4) : '', topics: tp.join('; '),
+        other_topics: chance(0.2) ? 'Evacuation center management' : '', need: chance(0.6) ? 'Staff can run the first hours of a response on their own.' : '',
+        participants: 15 + Math.floor(rand() * 46), participant_types: pick(WHO), preferred_date: pref, alternative_date: chance(0.5) ? addDays(pref, 14) : '',
+        mode: pick(REQUEST_MODES), location: chance(0.6) ? pick(['Malaya City', 'Kalinaw', 'Dalisay', 'San Isidro']) : '',
+        status: pick(['New', 'New', 'New', 'Contacted', 'Scheduled']), notes: '' });
+    }
+    db.requests.sort(byStamp);
     db.registrations.sort(byStamp);
     db.attendance.sort(byStamp);
 
@@ -985,7 +1191,21 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     return {
       db: db, today: today, counts: counts, list: list,
       getAppData: function () {
-        return { today: today, evaluationDaysAfter: 14, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, trainings: list() };
+        return { today: today, evaluationDaysAfter: 14, privacyStatement: PRIVACY_TEXT, mediaStatement: MEDIA_TEXT, impactStatement: IMPACT_TEXT,
+          requestPrivacy: REQUEST_PRIVACY_TEXT, requestTopics: DEFAULT_TOPICS, trainings: list() };
+      },
+      submitRequest: function (f) {
+        var topics = (f.topics || []).filter(function (t) { return DEFAULT_TOPICS.indexOf(t) > -1; });
+        if (!topics.length && !f.other_topics) throw new Error('Choose at least one topic.');
+        if (!f.preferred_date || f.preferred_date < today) throw new Error('Choose a preferred date from today onward.');
+        if (REQUEST_MODES.indexOf(f.mode) < 0 || !f.consent) throw new Error('Please answer every question.');
+        var code = newCode(), stamp = manilaStamp(), all = topics.concat(f.other_topics ? [f.other_topics] : []).join('; ');
+        db.requests.push({ timestamp: stamp, request_code: code, first_name: f.first_name, last_name: f.last_name, full_name: f.first_name + ' ' + f.last_name,
+          position: f.position, agency: f.agency, email: String(f.email).toLowerCase(), contact_no: f.contact_no, topics: topics.join('; '), other_topics: f.other_topics,
+          need: f.need, participants: Number(f.participants), participant_types: f.participant_types, preferred_date: f.preferred_date,
+          alternative_date: f.alternative_date, mode: f.mode, location: f.location, status: 'New', notes: '' });
+        S.flash = { tab: 'Requests', id: code };
+        return { code: code, stamp: stamp, topics: all, preferred_date: f.preferred_date, alternative_date: f.alternative_date, mode: f.mode, participants: Number(f.participants) };
       },
       register: function (f) {
         var t = list().filter(function (x) { return x.id === f.training_id; })[0];
@@ -1004,7 +1224,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             email: email, contact_no: f.contact_no, gad_consent: f.gad_consent,
             sex: g ? f.sex : '', age_range: g ? f.age_range : '', senior_citizen: g ? f.senior_citizen : '', pwd: g ? f.pwd : '',
             indigenous_people: g ? f.indigenous_people : '', tribe: g && f.indigenous_people === 'Yes' ? f.tribe : '',
-            photo_consent: f.photo_consent, recording_consent: f.recording_consent
+            photo_consent: f.photo_consent, recording_consent: f.recording_consent, impact_consent: f.impact_consent
           }, manilaStamp(), today >= t.start ? 'Walk-in' : 'Pre-registered');
           S.flash = { tab: 'Registrations', id: r.reg_code };
           res = { already: false, code: r.reg_code, name: r.full_name, training: t, stamp: r.timestamp };
@@ -1040,6 +1260,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         var t = all.filter(function (x) { return x.id === id; })[0] || null;
         return {
           now: manilaStamp(), today: today, privacyStatement: PRIVACY_TEXT, trainings: all, training: t,
+          requests: db.requests.slice(), certificateRule: 'all-days',
           registrations: t ? db.registrations.filter(function (r) { return r.training_id === t.id; }) : [],
           attendance: t ? db.attendance.filter(function (a) { return a.training_id === t.id; }).map(function (a) { return { timestamp: a.timestamp, date: a.date, reg_code: a.reg_code }; }) : []
         };
@@ -1055,12 +1276,16 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   }
 
   /* ---------------- brand: logos, name and acronym ---------------- */
-  /* Highlights the capital letters that spell the name, in order: S-A-N-A-Y in
-     "Skills And Needs Assessment towards enhanced CapacitY" (the C is skipped). */
+  /* Highlights the letters that spell a name, in order and with their case: S-A-N-A-Y in
+     "Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY", and
+     Ta-Ta-K in "TagapagTaguyod ng Kasanayan tungo sa Katatagan". A capital can match anywhere;
+     a small letter only right after a highlighted one. */
   function acronymHTML(expansion, name) {
-    var want = String(name || '').toUpperCase().replace(/[^A-Z]/g, ''), i = 0;
+    var want = String(name || '').replace(/[^A-Za-z]/g, ''), i = 0, prev = false;
     return String(expansion || '').split('').map(function (ch) {
-      if (i < want.length && ch === want.charAt(i)) { i++; return '<b>' + esc(ch) + '</b>'; }
+      var w = want.charAt(i);
+      if (i < want.length && ch === w && (w !== w.toLowerCase() || prev)) { i++; prev = true; return '<b>' + esc(ch) + '</b>'; }
+      prev = false;
       return esc(ch);
     }).join('');
   }
@@ -1073,6 +1298,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#brandName').textContent = BRAND.name;
     $$('[data-brand-name]').forEach(function (el) { el.textContent = BRAND.name; });
     $('#brandExpansion').innerHTML = acronymHTML(BRAND.expansion, BRAND.name);
+    $('#projectName').textContent = BRAND.project || '';
+    $('#projectExp').innerHTML = acronymHTML(BRAND.projectExpansion, BRAND.projectMark);
+    $('#projectName').parentNode.hidden = !BRAND.project;
     document.title = BRAND.name + ' Training Registration';
   }
 
@@ -1091,6 +1319,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#ipPicks').innerHTML = pills('indigenous_people', ['Yes', 'No']);
     $('#photoPicks').innerHTML = pills('photo_consent', ['Yes', 'No']);
     $('#recPicks').innerHTML = pills('recording_consent', ['Yes', 'No']);
+    $('#impactPicks').innerHTML = pills('impact_consent', ['Yes', 'No']);
+    $('#rqModes').innerHTML = pills('rq_mode', REQUEST_MODES);
     $('#suffix').innerHTML = '<option value="">None</option>' + SUFFIXES.map(function (s) { return '<option>' + esc(s) + '</option>'; }).join('');
     $('#evRatings').innerHTML = RATINGS.map(function (r, i) {
       return '<fieldset class="q rating"><legend>' + (i + 1) + '. ' + esc(r.q) + '</legend><div class="picks">' + pills('rate-' + r.key, [1, 2, 3, 4, 5]) +
@@ -1103,6 +1333,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var d = S.data;
     $('#privacyText').textContent = d.privacyStatement || PRIVACY_TEXT;
     $('#mediaText').textContent = d.mediaStatement || MEDIA_TEXT;
+    $('#impactText').textContent = d.impactStatement || IMPACT_TEXT;
+    $('#rqPrivacy').textContent = d.requestPrivacy || REQUEST_PRIVACY_TEXT;
+    fillRequest();
     fillRegister();
     fillAttendance();
     fillEvaluation();
@@ -1179,7 +1412,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   }
 
   /* ---------------- views ---------------- */
-  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'report'];
+  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'report'];
   function show(view, opts) {
     opts = opts || {};
     if (VIEWS.indexOf(view) === -1) view = 'home';
@@ -1218,7 +1451,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     ['indigenous_people', '#ipPicks input', 'Choose yes or no.'],
     ['tribe', '#tribe', 'Enter the name of your tribe.'],
     ['photo_consent', '#photoPicks input', 'Choose yes or no.'],
-    ['recording_consent', '#recPicks input', 'Choose yes or no.']
+    ['recording_consent', '#recPicks input', 'Choose yes or no.'],
+    ['impact_consent', '#impactPicks input', 'Choose yes or no.']
   ];
   var GAD_KEYS = ['sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people'];
   function readReg() {
@@ -1226,7 +1460,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       training_id: $('#regTraining').value,
       first_name: val('#firstName'), last_name: val('#lastName'), middle_initial: val('#middleInitial'), suffix: $('#suffix').value,
       position: val('#position'), agency: val('#agency'), email: val('#email'), contact_no: val('#contactNo'),
-      gad_consent: radio('gad_consent'), photo_consent: radio('photo_consent'), recording_consent: radio('recording_consent'),
+      gad_consent: radio('gad_consent'), photo_consent: radio('photo_consent'), recording_consent: radio('recording_consent'), impact_consent: radio('impact_consent'),
       walk_in: !!S.walkIn
     };
     if (f.gad_consent === 'Yes') {
@@ -1237,7 +1471,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   }
   function validateReg(f) {
     var errs = {};
-    ['training_id', 'first_name', 'last_name', 'agency', 'email', 'gad_consent', 'photo_consent', 'recording_consent'].forEach(function (k) {
+    ['training_id', 'first_name', 'last_name', 'agency', 'email', 'gad_consent', 'photo_consent', 'recording_consent', 'impact_consent'].forEach(function (k) {
       if (!f[k]) errs[k] = REG_FIELDS.filter(function (r) { return r[0] === k; })[0][2];
     });
     if (f.gad_consent === 'Yes') {
@@ -1344,6 +1578,115 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     S.walkIn = tid;
     fillRegister();
     $('#firstName').focus();
+  }
+
+  /* ---------------- request a training ---------------- */
+  var RQ_FIELDS = [
+    ['topics', '#rqTopics input', 'Choose at least one topic, or type one under Other topics.', 'err-rq-topics'],
+    ['participants', '#rqCount', '', 'err-rq-count'],
+    ['preferred_date', '#rqDate', '', 'err-rq-date'],
+    ['alternative_date', '#rqAlt', '', 'err-rq-alt'],
+    ['mode', '#rqModes input', 'Choose one.', 'err-rq-mode'],
+    ['first_name', '#rqFirst', 'Enter your first name.', 'err-rq-first'],
+    ['last_name', '#rqLast', 'Enter your last name.', 'err-rq-last'],
+    ['agency', '#rqAgency', 'Enter your agency, office or department.', 'err-rq-agency'],
+    ['email', '#rqEmail', 'Enter your email.', 'err-rq-email'],
+    ['contact_no', '#rqContact', '', 'err-rq-contact'],
+    ['consent', '#rqConsent', 'Tick the box so we can contact you about this request.', 'err-rq-consent']
+  ];
+  var RQ_BY_ID = { rqOther: 'topics', rqCount: 'participants', rqDate: 'preferred_date', rqAlt: 'alternative_date', rqFirst: 'first_name', rqLast: 'last_name',
+    rqAgency: 'agency', rqEmail: 'email', rqContact: 'contact_no', rqConsent: 'consent' };
+  function fillRequest() {
+    var topics = S.data && S.data.requestTopics && S.data.requestTopics.length ? S.data.requestTopics : DEFAULT_TOPICS;
+    var box = $('#rqTopics'), key = topics.join('|');
+    var min = S.today || manilaToday();
+    $('#rqDate').min = min;
+    $('#rqAlt').min = min;
+    if (box.getAttribute('data-key') === key) return;
+    var checked = $$('#rqTopics input:checked').map(function (el) { return el.value; });
+    box.innerHTML = topics.map(function (t, i) {
+      var id = 'rq-topic-' + i;
+      return '<label class="pick" for="' + id + '"><input type="checkbox" name="rq_topic" id="' + id + '" value="' + esc(t) + '"' + (checked.indexOf(t) > -1 ? ' checked' : '') + '><span>' + esc(t) + '</span></label>';
+    }).join('');
+    box.setAttribute('data-key', key);
+  }
+  function readRequest() {
+    return {
+      topics: $$('#rqTopics input:checked').map(function (el) { return el.value; }),
+      other_topics: val('#rqOther'), need: $('#rqNeed').value.trim(),
+      participants: $('#rqCount').value.trim(), participant_types: val('#rqWho'),
+      preferred_date: $('#rqDate').value, alternative_date: $('#rqAlt').value,
+      mode: radio('rq_mode'), location: val('#rqPlace'),
+      first_name: val('#rqFirst'), last_name: val('#rqLast'), position: val('#rqPosition'), agency: val('#rqAgency'),
+      email: val('#rqEmail'), contact_no: val('#rqContact'), consent: $('#rqConsent').checked
+    };
+  }
+  function validateRequest(f) {
+    var e = {}, today = S.today || manilaToday(), n = Number(f.participants), digits = f.contact_no.replace(/\D/g, '');
+    if (!f.topics.length && !f.other_topics) e.topics = RQ_FIELDS[0][2];
+    if (!f.participants) e.participants = 'Enter the number of participants.';
+    else if (!(n >= 1 && n <= 5000 && Math.round(n) === n)) e.participants = 'Enter a whole number from 1 to 5000.';
+    if (!f.preferred_date) e.preferred_date = 'Choose a preferred date.';
+    else if (f.preferred_date < today) e.preferred_date = 'Choose a date from today onward.';
+    if (f.alternative_date && f.alternative_date < today) e.alternative_date = 'Choose a date from today onward.';
+    ['mode', 'first_name', 'last_name', 'agency', 'email', 'consent'].forEach(function (k) {
+      if (!f[k]) e[k] = RQ_FIELDS.filter(function (r) { return r[0] === k; })[0][2];
+    });
+    if (f.email && !EMAIL_RE.test(f.email)) e.email = 'Enter a valid email, like name@example.com.';
+    if (f.contact_no && (digits.length < 7 || digits.length > 15)) e.contact_no = 'Enter a number with 7 to 15 digits, like 0917 123 4567.';
+    return e;
+  }
+  function showRequestErrors(errs) {
+    var first = null;
+    RQ_FIELDS.forEach(function (r) {
+      var box = $('#' + r[3]), msg = errs[r[0]];
+      if (box) { box.textContent = msg || ''; box.hidden = !msg; }
+      $$(r[1]).forEach(function (el) { if (msg) el.setAttribute('aria-invalid', 'true'); else el.removeAttribute('aria-invalid'); });
+      if (msg && !first) first = $(r[1]);
+    });
+    return first;
+  }
+  function clearRequestError(e) {
+    var key = RQ_BY_ID[e.target.id] || (e.target.name === 'rq_topic' ? 'topics' : e.target.name === 'rq_mode' ? 'mode' : '');
+    var r = RQ_FIELDS.filter(function (x) { return x[0] === key; })[0], box = r && $('#' + r[3]);
+    if (!box || box.hidden) return;
+    box.hidden = true;
+    box.textContent = '';
+    $$(r[1]).forEach(function (el) { el.removeAttribute('aria-invalid'); });
+  }
+  function onRequest(e) {
+    e.preventDefault();
+    var f = readRequest(), first = showRequestErrors(validateRequest(f));
+    $('#rqError').hidden = true;
+    if (first) { first.focus(); return; }
+    var btn = $('#rqSubmit');
+    busy(btn, true, 'Sending…');
+    call('submitRequest', f).then(function (res) {
+      $('#rqCode').textContent = res.code;
+      $('#rqDoneLead').textContent = 'Thank you, ' + f.first_name + '. We will contact you at ' + f.email + ' to plan the training.';
+      $('#rqFacts').innerHTML = '<div><dt>Topics</dt><dd>' + esc(res.topics) + '</dd></div>' +
+        '<div><dt>Preferred</dt><dd>' + esc(fmtFull(res.preferred_date) + (res.alternative_date ? ', or ' + fmtFull(res.alternative_date) : '')) + '</dd></div>' +
+        '<div><dt>Mode</dt><dd>' + esc(res.mode) + '</dd></div>' +
+        '<div><dt>Participants</dt><dd>' + esc(res.participants) + '</dd></div>' +
+        '<div><dt>Sent</dt><dd>' + esc(fmtStamp(res.stamp)) + '</dd></div>';
+      $('#rqDemoNote').hidden = LIVE;
+      $('#rqFormWrap').hidden = true;
+      $('#rqDone').hidden = false;
+      try { window.scrollTo(0, 0); } catch (e2) { /* ignore */ }
+      $('#rqDone').focus();
+      if (!LIVE && S.sheetOpen) { S.sheetTab = 'Requests'; renderSheet(); }
+      if (!LIVE && S.report) S.report = Demo.getReport({ training_id: S.rpTraining });
+    }).catch(function (err) {
+      $('#rqError').textContent = err.message || 'Something went wrong. Please try again.';
+      $('#rqError').hidden = false;
+    }).then(function () { busy(btn, false); });
+  }
+  function resetRequest() {
+    $('#rqForm').reset();
+    showRequestErrors({});
+    $('#rqError').hidden = true;
+    $('#rqDone').hidden = true;
+    $('#rqFormWrap').hidden = false;
   }
 
   /* ---------------- attendance ---------------- */
@@ -1493,7 +1836,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#rpList').innerHTML = lists.map(function (l) { return '<option value="' + esc(l.id) + '">' + esc(l.label) + '</option>'; }).join('');
     if (!lists.some(function (l) { return l.id === S.rpList; })) S.rpList = 'reg';
     $('#rpList').value = S.rpList;
-    $$('.seg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.section === S.rpSection ? 'true' : 'false'); });
+    syncReportControls();
+  }
+  /* Which controls each part of the report uses */
+  function syncReportControls() {
+    var sec = S.rpSection;
+    $('#rpTrainingField').hidden = sec === 'requests';
+    $('#rpListField').hidden = sec === 'certs' || sec === 'requests';
+    $('#rpShowField').hidden = sec !== 'certs';
+    $('#rpCopy').hidden = sec !== 'certs';
+    $('#rpCopyNote').textContent = '';
+    $$('.seg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.section === sec ? 'true' : 'false'); });
   }
   function rpRows(rp, listId) {
     var byCode = {};
@@ -1522,14 +1875,31 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     return fontsReady().then(function () {
       var lists = rpLists(rp), list = lists.filter(function (l) { return l.id === S.rpList; })[0] || lists[0];
       var rows = rp.training ? rpRows(rp, list.id) : [];
-      var out = !rp.training ? { html: '', pages: 0 }
-        : S.rpSection === 'profile' ? { html: profilePage(rp, list, rows), pages: 1 }
-        : S.rpSection === 'media' ? mediaPages(rp, list, rows)
-        : sheetPages(rp, list, rows);
+      var sec = S.rpSection, out, n = rows.length, unit = n === 1 ? 'person' : 'people', extra = '';
+      if (sec === 'requests') {
+        out = requestsPages(rp);
+        n = (rp.requests || []).length;
+        unit = n === 1 ? 'request' : 'requests';
+      } else if (!rp.training) {
+        out = { html: '', pages: 0 };
+      } else if (sec === 'certs') {
+        var c = certData(rp);
+        out = certPages(rp, c);
+        n = c.shown.length;
+        extra = ' · ' + c.eligible + ' eligible, ' + c.check + ' to check';
+      } else if (sec === 'profile') {
+        out = { html: profilePage(rp, list, rows), pages: 1 };
+      } else if (sec === 'media') {
+        out = mediaPages(rp, list, rows);
+      } else if (sec === 'impact') {
+        out = impactPages(rp, list, rows);
+      } else {
+        out = sheetPages(rp, list, rows);
+      }
       $('#paperStack').innerHTML = out.html;
-      var what = { sheet: 'Attendance sheet', profile: 'Participant profile', media: 'Photo and recording' }[S.rpSection];
-      $('#rpSummary').textContent = !rp.training ? 'No trainings in the Sheet yet.'
-        : what + ' · ' + rows.length + (rows.length === 1 ? ' person' : ' people') + ' · ' + out.pages + (out.pages === 1 ? ' page' : ' pages');
+      var what = { sheet: 'Attendance sheet', certs: 'Certificates', profile: 'Participant profile', media: 'Photo and recording', impact: 'Impact interviews', requests: 'Training requests' }[sec];
+      $('#rpSummary').textContent = !rp.training && sec !== 'requests' ? 'No trainings in the Sheet yet.'
+        : what + ' · ' + n + ' ' + unit + extra + ' · ' + out.pages + (out.pages === 1 ? ' page' : ' pages');
       fitPapers();
     });
   }
@@ -1559,7 +1929,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   function listWords(list) { return list.kind === 'reg' ? 'Registered participants' : list.kind === 'any' ? 'Attended on any day' : 'Attended on ' + fmtFull(list.date); }
 
   /* Packs rows into pages by measuring them at print size. */
-  function paginate(buildPage, rowsHtml, blankRow) {
+  function paginate(buildPage, rowsHtml, blankRow, offset) {
+    offset = offset || 0;
     var m = $('#measure');
     m.innerHTML = buildPage(rowsHtml.join(''), 1, 1);
     var paper = m.querySelector('.paper'), tbody = paper.querySelector('tbody'), foot = paper.querySelector('.p-foot');
@@ -1579,7 +1950,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     var html = pages.map(function (p, i) {
       var body = p.join('');
       if (i === pages.length - 1) for (var b = 0; b < blanks; b++) body += blankRow(rowsHtml.length + b + 1);
-      return buildPage(body, i + 1, pages.length);
+      return buildPage(body, i + 1 + offset, pages.length + offset);
     }).join('');
     m.innerHTML = '';
     return { html: html, pages: pages.length };
@@ -1705,23 +2076,170 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     }), null);
   }
 
+  function byRegName(a, b) {
+    var x = (a.last_name + ' ' + a.first_name).toLowerCase(), y = (b.last_name + ' ' + b.first_name).toLowerCase();
+    return x < y ? -1 : x > y ? 1 : 0;
+  }
+
+  /* Certificates: eligible = checked in on every training day (or any day, if Code.gs says so) and evaluated. */
+  function certData(rp) {
+    var t = rp.training, rule = rp.certificateRule === 'any-day' ? 'any-day' : 'all-days';
+    var start = t.start, end = t.end || t.start, total = start ? Math.max(1, dayNumber(start, end)) : 1, days = {};
+    rp.attendance.forEach(function (a) { if (a.date >= start && a.date <= end) (days[a.reg_code] = days[a.reg_code] || {})[a.date] = 1; });
+    var all = rp.registrations.map(function (r) {
+      var att = Object.keys(days[r.reg_code] || {}).length, ev = !!String(r.evaluated_on || '').trim(), need = rule === 'any-day' ? 1 : total, why = [];
+      if (!att) why.push('no check-in');
+      else if (att < need) why.push('attended ' + att + ' of ' + total + ' days');
+      if (!ev) why.push('no evaluation');
+      return { reg: r, att: att, ev: ev, ok: !why.length, why: why };
+    }).filter(function (x) { return x.att > 0 || x.ev; });
+    all.sort(function (a, b) { return byRegName(a.reg, b.reg); });
+    var eligible = all.filter(function (x) { return x.ok; });
+    return {
+      rule: rule, total: total, all: all, eligible: eligible.length, check: all.length - eligible.length, okList: eligible,
+      noShow: rp.registrations.length - all.length, final: end < rp.today,
+      shown: all.filter(function (x) { return S.rpShow === 'eligible' ? x.ok : S.rpShow === 'check' ? !x.ok : true; })
+    };
+  }
+  function certPages(rp, c) {
+    var t = rp.training, meta = reportMeta(rp);
+    var top = '<p class="p-title">CERTIFICATE ELIGIBILITY</p><p class="p-sub">' + esc([t.title, fmtFullRange(t.start, t.end), t.venue].filter(Boolean).join(' · ')) + '</p>' +
+      '<div class="md-summary"><span>Eligible: <b>' + c.eligible + '</b></span><span><span class="ct-key"></span>To check: <b>' + c.check + '</b></span>' +
+      '<span>Registered, never checked in: <b>' + c.noShow + '</b></span></div>' +
+      '<p class="ct-note">Eligible means ' + (c.rule === 'any-day' ? 'checked in on at least one training day' : 'checked in on every training day (' + c.total + (c.total === 1 ? ' day)' : ' days)')) +
+      ' and answered the evaluation.' + (c.final ? '' : ' The training is not over, so this can still change.') +
+      (S.rpShow === 'eligible' ? ' Showing eligible people only.' : S.rpShow === 'check' ? ' Showing people to check only.' : '') + '</p>';
+    var head = '<colgroup><col style="width:0.45in"><col style="width:2.75in"><col style="width:2.85in"><col style="width:2.35in"><col style="width:1.05in"><col style="width:1in"><col style="width:2.1in"></colgroup>' +
+      '<thead><tr><th>No.</th><th>Name on the certificate</th><th>Agency / Office / Department</th><th>Email</th><th>Days attended</th><th>Evaluation</th><th>Status</th></tr></thead>';
+    if (!c.shown.length) {
+      return { html: '<article class="paper">' + paperHead() + top + '<p class="p-empty">' + (c.all.length ? 'No one in this group.' : 'No one has checked in or evaluated yet.') + '</p>' + paperFoot(meta, 1, 1) + '</article>', pages: 1 };
+    }
+    return paginate(function (body, no, of) {
+      return '<article class="paper">' + paperHead() + top + '<table class="ct-table">' + head + '<tbody>' + body + '</tbody></table>' + paperFoot(meta, no, of) + '</article>';
+    }, c.shown.map(function (x, i) {
+      return '<tr' + (x.ok ? '' : ' class="hl"') + '><td class="ctr">' + (i + 1) + '</td><td>' + esc(x.reg.full_name) + '</td><td>' + esc(x.reg.agency) + '</td><td>' + esc(x.reg.email) + '</td>' +
+        '<td class="ctr">' + x.att + ' of ' + c.total + '</td><td class="ctr">' + (x.ev ? 'Done' : '–') + '</td>' +
+        '<td>' + (x.ok ? '<span class="ct-ok">Eligible</span>' : '<span class="ct-bad">Check: ' + esc(x.why.join(', ')) + '</span>') + '</td></tr>';
+    }), null);
+  }
+  function copyEligible() {
+    var rp = S.report, note = $('#rpCopyNote');
+    if (!rp || !rp.training) return;
+    var rows = certData(rp).okList;
+    var text = ['Name\tAgency / Office / Department\tEmail'].concat(rows.map(function (x) { return [x.reg.full_name, x.reg.agency, x.reg.email].join('\t'); })).join('\n');
+    function done() { note.textContent = 'Copied ' + rows.length + ' eligible ' + (rows.length === 1 ? 'name' : 'names') + ' with offices and emails. Paste them into a Google Sheet for the certificate mail merge.'; }
+    function fallback() {
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.className = 'sr-only';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (ok) { done(); return; }
+      } catch (e) { /* fall through */ }
+      note.textContent = 'Copying is blocked here. Choose “Eligible only” and print the list instead.';
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  }
+
+  /* People who agreed to a follow-up interview for impact monitoring */
+  function impactPages(rp, list, rows) {
+    var t = rp.training, regs = rows.map(function (x) { return x.reg; }), meta = reportMeta(rp);
+    var yes = regs.filter(function (r) { return r.impact_consent === 'Yes'; }).sort(byRegName);
+    var no = regs.filter(function (r) { return r.impact_consent === 'No'; }).length, notAsked = regs.length - yes.length - no;
+    var top = '<p class="p-title">IMPACT MONITORING CONTACTS</p><p class="p-sub">' + esc([t.title, listDate(rp, list), t.venue].filter(Boolean).join(' · ')) + ' · ' + esc(listWords(list)) + '</p>' +
+      '<div class="md-summary"><span>Agreed to a follow-up interview: <b>' + yes.length + '</b></span><span>Did not agree: <b>' + no + '</b></span>' +
+      (notAsked ? '<span>Not asked: <b>' + notAsked + '</b></span>' : '') + '</div>' +
+      '<p class="md-warn">Contact only the people on this list. The interview is voluntary.</p>';
+    var head = '<colgroup><col style="width:0.45in"><col style="width:2.6in"><col style="width:2in"><col style="width:3in"><col style="width:2.85in"><col style="width:1.6in"></colgroup>' +
+      '<thead><tr><th>No.</th><th>Name</th><th>Designation / Position</th><th>Agency / Office / Department</th><th>Email</th><th>Contact No.</th></tr></thead>';
+    if (!yes.length) {
+      return { html: '<article class="paper">' + paperHead() + top + '<p class="p-empty">' + (regs.length ? 'No one on this list agreed to a follow-up interview.' : 'No one on this list yet.') + '</p>' + paperFoot(meta, 1, 1) + '</article>', pages: 1 };
+    }
+    return paginate(function (body, n, of) {
+      return '<article class="paper">' + paperHead() + top + '<table class="md-table">' + head + '<tbody>' + body + '</tbody></table>' + paperFoot(meta, n, of) + '</article>';
+    }, yes.map(function (r, i) {
+      return '<tr><td class="ctr">' + (i + 1) + '</td><td>' + esc(r.full_name) + '</td><td>' + esc(r.position) + '</td><td>' + esc(r.agency) + '</td><td>' + esc(r.email) + '</td><td class="ctr">' + esc(r.contact_no || '-') + '</td></tr>';
+    }), null);
+  }
+
+  /* Training requests: a summary page, then the list */
+  function requestsPages(rp) {
+    var reqs = (rp.requests || []).slice().sort(function (a, b) { return byStamp(b, a); }), meta = reportMeta(rp);
+    var title = '<p class="p-title">TRAINING REQUESTS</p>';
+    if (!reqs.length) return { html: '<article class="paper">' + paperHead() + title + '<p class="p-empty">No training requests yet.</p>' + paperFoot(meta, 1, 1) + '</article>', pages: 1 };
+    var topics = {}, others = [], months = {}, modes = {}, people = 0;
+    function add(o, k) { o[k] = (o[k] || 0) + 1; }
+    reqs.forEach(function (q) {
+      String(q.topics || '').split(';').map(function (x) { return x.trim(); }).filter(Boolean).forEach(function (x) { add(topics, x); });
+      if (String(q.other_topics || '').trim()) others.push(String(q.other_topics).trim());
+      if (q.preferred_date) add(months, String(q.preferred_date).slice(0, 7));
+      add(modes, q.mode || 'Not given');
+      people += Number(q.participants) || 0;
+    });
+    function bars(counts, keys, label) {
+      var max = Math.max.apply(null, keys.map(function (k) { return counts[k]; }).concat([1]));
+      return keys.map(function (k) {
+        return '<span>' + esc(label ? label(k) : k) + '</span><div class="rq-track"><div class="rq-bar" style="width:' + (counts[k] / max * 100).toFixed(1) + '%"></div></div><span class="rq-n">' + counts[k] + '</span>';
+      }).join('');
+    }
+    function monthLabel(k) { var p = k.split('-'); return MONTH[Number(p[1]) - 1] + ' ' + p[0]; }
+    var topicKeys = Object.keys(topics).sort(function (a, b) { return topics[b] - topics[a] || (a < b ? -1 : 1); });
+    var otherText = others.filter(function (x, i) { return others.indexOf(x) === i; }).map(esc).join('; ');
+    var first = reqs[reqs.length - 1].timestamp.slice(0, 10), last = reqs[0].timestamp.slice(0, 10);
+    var listHead = '<colgroup><col style="width:0.4in"><col style="width:0.8in"><col style="width:1.55in"><col style="width:1.6in"><col style="width:2.6in"><col style="width:1.15in"><col style="width:1.1in"><col style="width:0.85in"><col style="width:1.6in"><col style="width:0.7in"></colgroup>' +
+      '<thead><tr><th>No.</th><th>Received</th><th>Requested by</th><th>Agency / Office</th><th>Topics</th><th>Preferred date</th><th>Mode and venue</th><th>Participants</th><th>Contact</th><th>Status</th></tr></thead>';
+    var rows = reqs.map(function (q, i) {
+      var need = String(q.need || '').trim();
+      return '<tr><td class="ctr">' + (i + 1) + '</td><td>' + esc(fmtDay(q.timestamp.slice(0, 10), true)) + '</td>' +
+        '<td>' + esc(q.full_name) + (q.position ? '<span class="rq-sub">' + esc(q.position) + '</span>' : '') + '</td><td>' + esc(q.agency) + '</td>' +
+        '<td>' + esc([q.topics, q.other_topics].filter(Boolean).join('; ')) + (need ? '<span class="rq-sub">' + esc(need.length > 140 ? need.slice(0, 139) + '…' : need) + '</span>' : '') + '</td>' +
+        '<td>' + esc(q.preferred_date ? fmtDay(q.preferred_date, true) : '') + (q.alternative_date ? '<span class="rq-sub">or ' + esc(fmtDay(q.alternative_date, true)) + '</span>' : '') + '</td>' +
+        '<td>' + esc(q.mode) + (q.location ? '<span class="rq-sub">' + esc(q.location) + '</span>' : '') + '</td>' +
+        '<td class="ctr">' + esc(q.participants) + (q.participant_types ? '<span class="rq-sub">' + esc(q.participant_types) + '</span>' : '') + '</td>' +
+        '<td>' + esc(q.email) + (q.contact_no ? '<span class="rq-sub">' + esc(q.contact_no) + '</span>' : '') + '</td><td class="ctr">' + esc(q.status || 'New') + '</td></tr>';
+    });
+    var list = paginate(function (body, n, of) {
+      return '<article class="paper">' + paperHead() + '<p class="p-title">TRAINING REQUESTS: LIST</p><p class="p-sub">Newest first</p><table class="rq-table">' + listHead + '<tbody>' + body + '</tbody></table>' + paperFoot(meta, n, of) + '</article>';
+    }, rows, null, 1);
+    var summary = '<article class="paper">' + paperHead() + title +
+      '<p class="p-sub">' + reqs.length + (reqs.length === 1 ? ' request' : ' requests') + ' received, ' + esc(fmtFull(first)) + (first === last ? '' : ' to ' + esc(fmtFull(last))) + '</p>' +
+      '<div class="rq-grid"><section><h3 class="p-h3">Most requested topics</h3><div class="rq-bars">' + bars(topics, topicKeys) + '</div>' +
+      (otherText ? '<p class="rq-others">Other topics named: ' + otherText + '</p>' : '') + '</section>' +
+      '<section><div class="rq-total"><span><b>' + reqs.length + '</b>' + (reqs.length === 1 ? 'request' : 'requests') + '</span><span><b>' + people + '</b>participants in all</span></div>' +
+      '<h3 class="p-h3">Preferred month</h3><div class="rq-bars" style="grid-template-columns:1.3in minmax(0,1fr) 0.32in">' + bars(months, Object.keys(months).sort(), monthLabel) + '</div>' +
+      '<h3 class="p-h3">Mode</h3><div class="rq-bars" style="grid-template-columns:1.3in minmax(0,1fr) 0.32in">' + bars(modes, REQUEST_MODES.concat(['Not given']).filter(function (k) { return modes[k]; })) + '</div>' +
+      '</section></div>' + paperFoot(meta, 1, list.pages + 1) + '</article>';
+    return { html: summary + list.html, pages: list.pages + 1 };
+  }
+
   /* ------------------------------------------------------------------
    * Preview only: the Google Sheet the app writes to
    * ------------------------------------------------------------------ */
   var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   var REG_HEAD = ['timestamp', 'reg_code', 'training_id', 'training_title', 'last_name', 'first_name', 'middle_initial', 'suffix', 'full_name', 'position', 'agency', 'email',
-    'contact_no', 'gad_consent', 'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent', 'recording_consent', 'privacy_version',
+    'contact_no', 'gad_consent', 'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent', 'recording_consent', 'impact_consent', 'privacy_version',
     'registered_as', 'evaluated_on'];
   var REG_SHOWN = ['timestamp', 'reg_code', 'training_id', 'full_name', 'agency', 'gad_consent', 'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe',
-    'photo_consent', 'recording_consent', 'registered_as', 'evaluated_on'];
+    'photo_consent', 'recording_consent', 'impact_consent', 'registered_as', 'evaluated_on'];
+  var REQ_HEAD = ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email', 'contact_no', 'topics', 'other_topics', 'need',
+    'participants', 'participant_types', 'preferred_date', 'alternative_date', 'mode', 'location', 'status', 'notes'];
+  var REQ_SHOWN = ['timestamp', 'request_code', 'full_name', 'agency', 'topics', 'participants', 'preferred_date', 'alternative_date', 'mode', 'status'];
   var ATT_HEAD = ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'];
   var EVAL_HEAD = ['date', 'training_id', 'overall', 'objectives_met', 'resource_persons', 'venue_logistics', 'will_apply', 'comments'];
   var SHOW_LAST = 14;
   var CAPTIONS = {
     Trainings: '<strong>Organizers add one row per training.</strong> The app reads this tab to build the dropdowns. Try it: untick a show_in_list box, or move an end date into the past, and watch the Register dropdown change.',
-    Registrations: '<strong>One row per registration.</strong> The timestamp stands in for the signature. GAD columns stay blank when the person did not consent. Showing 16 of 25 columns.',
+    Registrations: '<strong>One row per registration.</strong> The timestamp stands in for the signature. GAD columns stay blank when the person did not consent. Showing 17 of 26 columns.',
     Attendance: '<strong>One row per person per training day</strong>, added at check-in. The organizer report turns these into the attendance sheet.',
-    Evaluations: '<strong>No names here on purpose.</strong> Each new row goes in at a random position, so the order doesn’t show who answered when.'
+    Evaluations: '<strong>No names here on purpose.</strong> Each new row goes in at a random position, so the order doesn’t show who answered when.',
+    Requests: '<strong>One row per training request.</strong> Organizers update the status column: New, Contacted, Scheduled, Done or Declined. The report page tallies the topics and preferred months.'
   };
   function appShows(r, t) {
     if (r.show_in_list !== true) return '<span class="chip muted">Hidden</span>';
@@ -1779,6 +2297,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     } else if (tab === 'Attendance') {
       html = gridRows(tab, ATT_HEAD, ATT_HEAD, db.attendance, flashId, function (r) { return r.reg_code + r.date; });
       fx = 'One check-in per person per day. Repeat check-ins on the same day are ignored.';
+    } else if (tab === 'Requests') {
+      html = gridRows(tab, REQ_HEAD, REQ_SHOWN, db.requests, flashId, function (r) { return r.request_code; });
+      fx = db.requests.length + ' requests. The status column is for organizers.';
     } else {
       html = gridRows(tab, EVAL_HEAD, EVAL_HEAD, db.evaluations, flashId, function (r) { return r._id; });
       fx = 'Ratings are 1 to 5. No code, no name, date only.';
@@ -1848,6 +2369,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#indigenous_people-No').checked = true;
     $('#photo_consent-Yes').checked = true;
     $('#recording_consent-No').checked = true;
+    $('#impact_consent-Yes').checked = true;
     syncGad();
     updateCertName();
     showRegErrors({});
@@ -1862,6 +2384,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         if (go === 'register' && !$('#regDone').hidden) { resetRegForm(true); $('#regDone').hidden = true; $('#regFormWrap').hidden = false; }
         if (go === 'evaluation' && !$('#evDone').hidden) { $('#evDone').hidden = true; $('#evFormWrap').hidden = false; }
         if (go === 'attendance') $('#ciResult').innerHTML = '';
+        if (go === 'request' && !$('#rqDone').hidden) resetRequest();
         show(go);
       });
     });
@@ -1912,6 +2435,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#ciForm').addEventListener('submit', onCheckIn);
     $('#ciRegister').addEventListener('click', function () { startWalkIn($('#ciTraining').value); });
     $('#evForm').addEventListener('submit', onEvaluate);
+    $('#rqForm').addEventListener('submit', onRequest);
+    $('#rqForm').addEventListener('input', clearRequestError);
+    $('#rqForm').addEventListener('change', clearRequestError);
+    $('#rqAnother').addEventListener('click', function () {
+      resetRequest();
+      try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+      var firstTopic = $('#rqTopics input');
+      if (firstTopic) firstTopic.focus();
+    });
+    $('#rpShow').addEventListener('change', function () { S.rpShow = this.value; renderReport(); });
+    $('#rpCopy').addEventListener('click', copyEligible);
     $('#evAgain').addEventListener('click', function () {
       $('#evDone').hidden = true;
       $('#evFormWrap').hidden = false;
@@ -1922,7 +2456,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $$('.seg button').forEach(function (b) {
       b.addEventListener('click', function () {
         S.rpSection = b.dataset.section;
-        $$('.seg button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+        syncReportControls();
         renderReport();
       });
     });
@@ -1976,7 +2510,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     readParams().then(function (p) {
       S.params = p || {};
       var page = String(S.params.page || '').toLowerCase();
-      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register' }[page] || page;
+      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request' }[page] || page;
       var hashView = LIVE ? '' : location.hash.replace('#', '');
       show(VIEWS.indexOf(page) > -1 ? page : VIEWS.indexOf(hashView) > -1 ? hashView : 'home', { focus: false });
       return load();

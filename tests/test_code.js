@@ -92,7 +92,14 @@ const person = o => Object.assign({
   training_id: 'SAMPLE-1', first_name: 'Juan', last_name: 'Dela Cruz', middle_initial: 'm', suffix: 'Jr.', position: 'LDRRM Officer',
   agency: 'MDRRMO San Isidro', email: 'Juan@Example.com', contact_no: '0917 123 4567',
   gad_consent: 'Yes', sex: 'Male', age_range: '10-19', senior_citizen: 'No', pwd: 'No', indigenous_people: 'Yes', tribe: 'Aeta',
-  photo_consent: 'Yes', recording_consent: 'No'
+  photo_consent: 'Yes', recording_consent: 'No', impact_consent: 'Yes'
+}, o);
+const request = o => Object.assign({
+  topics: ['Incident Command System (ICS)', 'Contingency Planning', 'Not a real topic'], other_topics: 'Evacuation center management',
+  need: 'Run the first hours of a response', participants: '35', participant_types: 'MDRRMO staff',
+  preferred_date: ctx.addDays_(ctx.today_(), 30), alternative_date: '', mode: 'Face-to-face', location: 'Malaya City',
+  first_name: 'Rhea', last_name: 'Domingo', position: 'LDRRM Officer', agency: 'MDRRMO Dalisay', email: 'Rhea@Example.com',
+  contact_no: '0917 555 0100', consent: true
 }, o);
 const isPlain = o => JSON.stringify(o) === JSON.stringify(JSON.parse(JSON.stringify(o))) && !JSON.stringify(o).includes('"__row"');
 let pass = 0;
@@ -102,11 +109,11 @@ const throws = (fn, re, msg) => { assert.throws(fn, re, msg); pass++; };
 // 1. setup
 ctx.setup();
 ok(!ss.getSheetByName('Sheet1'), 'empty Sheet1 removed');
-ok(['Trainings', 'Registrations', 'Attendance', 'Evaluations'].every(n => T(n)), 'all tabs exist');
+ok(['Trainings', 'Registrations', 'Attendance', 'Evaluations', 'Requests'].every(n => T(n)), 'all five tabs exist, Requests included');
 const th = T('Trainings').getRange(1, 1, 1, T('Trainings').getLastColumn()).getValues()[0];
 ok(th.join(',') === 'training_id,title,start_date,end_date,venue,mode,show_in_list,max_participants,registration_closes,notes,registered,female,male', 'trainings headers: ' + th.join(','));
 const rh = T('Registrations').getRange(1, 1, 1, T('Registrations').getLastColumn()).getValues()[0];
-ok(rh.length === 25 && rh[14] === 'sex' && rh[0] === 'timestamp', 'registrations has 25 columns, sex in column O');
+ok(rh.length === 26 && rh[14] === 'sex' && rh[22] === 'impact_consent', 'registrations has 26 columns, sex in column O, impact consent added');
 ok(T('Trainings').formulas[0].includes('COUNTIF(Registrations!C2:C,A2:A)'), 'registered formula counts Registrations!C: ' + T('Trainings').formulas[0]);
 ok(T('Trainings').formulas[1].includes('Registrations!O2:O,"Female"'), 'female formula reads the sex column O: ' + T('Trainings').formulas[1]);
 ok(table('Trainings').length === 3 && table('Trainings')[0].start_date instanceof CtxDate, 'three sample trainings with real dates');
@@ -122,6 +129,7 @@ ok(byId('SAMPLE-2').state === 'open' && !byId('SAMPLE-2').happening && byId('SAM
 ok(byId('SAMPLE-3').state === 'completed' && byId('SAMPLE-3').listed && byId('SAMPLE-3').evalOpen, 'SAMPLE-3 completed, listed, evaluation open');
 ok(d.privacyStatement.startsWith('This data collection is conducted in accordance with the provisions of Republic Act No. 9710') && d.mediaStatement.length > 40, 'privacy statement (template wording) and media statement sent');
 ok(isPlain(d), 'app data is plain JSON (no Date objects)');
+ok(d.requestTopics.length === 10 && d.impactStatement.includes('impact monitoring') && d.requestPrivacy.includes('10173'), 'request topics, impact and request privacy wording sent');
 
 // 3. register, with consent
 let r1 = ctx.register(person({ last_name: '=HYPERLINK("http://x")' }));
@@ -134,7 +142,7 @@ ok(reg.last_name === '=HYPERLINK("http://x")' && typeof reg.last_name === 'strin
 ok(reg.full_name === 'Juan M. =HYPERLINK("http://x") Jr.', 'full name built: ' + reg.full_name);
 ok(reg.age_range === '10-19' && typeof reg.age_range === 'string', 'age range 10-19 stays text (not a date)');
 ok(reg.email === 'juan@example.com' && reg.gad_consent === 'Yes' && reg.sex === 'Male' && reg.indigenous_people === 'Yes' && reg.tribe === 'Aeta', 'email lower-cased, GAD answers saved');
-ok(reg.photo_consent === 'Yes' && reg.recording_consent === 'No', 'photo and recording answers saved');
+ok(reg.photo_consent === 'Yes' && reg.recording_consent === 'No' && reg.impact_consent === 'Yes', 'photo, recording and follow-up interview answers saved');
 ok(reg.privacy_version === 'GAD attendance sheet DPS', 'privacy version recorded');
 ok(reg.registered_as === 'Walk-in', 'registering on a training day is marked Walk-in');
 ok(reg.timestamp instanceof CtxDate, 'timestamp is a real date');
@@ -154,6 +162,7 @@ throws(() => ctx.register(person({ age_range: '18-30', email: 'c2@example.com' }
 throws(() => ctx.register(person({ tribe: '', email: 'd@example.com' })), /tribe/, 'IP yes needs the tribe');
 throws(() => ctx.register(person({ photo_consent: '', email: 'e@example.com' })), /photos/, 'photo answer required');
 throws(() => ctx.register(person({ recording_consent: 'Maybe', email: 'f@example.com' })), /recordings/, 'recording answer must be yes or no');
+throws(() => ctx.register(person({ impact_consent: '', email: 'f2@example.com' })), /follow-up interview/, 'follow-up interview answer required');
 throws(() => ctx.register(person({ email: 'not-an-email' })), /valid email/, 'bad email refused');
 throws(() => ctx.register(person({ email: 'g@example.com', contact_no: '12' })), /7 to 15 digits/, 'too-short contact number refused');
 throws(() => ctx.register(person({ email: 'h@example.com', agency: '' })), /agency/, 'agency required');
@@ -195,6 +204,22 @@ for (let i = 0; i < 6; i++) {
 ev = table('Evaluations');
 ok(ev.length === 7 && ev.every(e => e.training_id === 'SAMPLE-1' && e.overall >= 1), 'random placement leaves no gaps: ' + ev.length + ' rows');
 
+// 6b. training requests
+let q1 = ctx.submitRequest(request());
+let rqRow = table('Requests')[0];
+ok(/^[A-HJKMNP-Z2-9]{5}$/.test(q1.code) && rqRow.request_code === q1.code, 'request saved with a request number: ' + q1.code);
+ok(rqRow.topics === 'Incident Command System (ICS); Contingency Planning' && rqRow.other_topics === 'Evacuation center management', 'only listed topics kept, other topics in their own column');
+ok(rqRow.email === 'rhea@example.com' && rqRow.status === 'New' && rqRow.full_name === 'Rhea Domingo' && rqRow.participants === 35, 'request row: email lower-cased, status New, name, participant count');
+ok(typeof rqRow.preferred_date === 'string' && rqRow.preferred_date === request().preferred_date, 'preferred date kept as text yyyy-mm-dd');
+ok(q1.topics.includes('Evacuation center management') && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(q1.stamp), 'reply lists the topics and the time sent');
+throws(() => ctx.submitRequest(request({ topics: [], other_topics: '' })), /at least one topic/, 'request needs a topic');
+throws(() => ctx.submitRequest(request({ preferred_date: '2020-01-01' })), /from today onward/, 'past dates refused');
+throws(() => ctx.submitRequest(request({ preferred_date: '2026-02-30' })), /preferred date/, 'impossible date refused');
+throws(() => ctx.submitRequest(request({ participants: '0' })), /number of participants/, 'participant count must be 1 or more');
+throws(() => ctx.submitRequest(request({ mode: 'By carrier pigeon' })), /the mode/, 'mode must be one of the choices');
+throws(() => ctx.submitRequest(request({ consent: false })), /Tick the box/, 'request needs consent to be contacted');
+ok(table('Requests').length === 1, 'refused requests leave no rows');
+
 // 7. report link and report data
 throws(() => ctx.getReport({}), /expired or is not valid/, 'report refused without a key');
 throws(() => ctx.getReport({ key: 'abc123' }), /expired or is not valid/, 'report refused with a made-up key');
@@ -215,6 +240,10 @@ ok(rp.registrations.length === table('Registrations').filter(r => r.training_id 
 ok(rp.registrations.every(r => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(r.timestamp) && 'photo_consent' in r && 'gad_consent' in r && !('__row' in r)), 'registration fields for the sheet, timestamps as text');
 ok(rp.attendance.length === 2 && rp.attendance.every(a => a.date === rp.today && /\d{2}:\d{2}$/.test(a.timestamp)), 'attendance rows for today');
 ok(rp.privacyStatement === ctx.getAppData().privacyStatement, 'report carries the privacy statement for the sheet header');
+const juanRp = rp.registrations.find(r => r.reg_code === r1.code);
+ok(juanRp.impact_consent === 'Yes' && /^\d{4}-\d{2}-\d{2}$/.test(juanRp.evaluated_on), 'report has the follow-up answer and the evaluation date (for certificates)');
+ok(rp.certificateRule === 'all-days', 'report says how certificates are decided');
+ok(rp.requests.length === 1 && rp.requests[0].request_code === q1.code && rp.requests[0].participants === 35 && rp.requests[0].preferred_date === request().preferred_date, 'report includes the training requests');
 let rpDefault = ctx.getReport({ key, training_id: 'NOPE' });
 ok(rpDefault.training.id === 'SAMPLE-1', 'unknown training falls back to the one happening today');
 
@@ -225,6 +254,8 @@ const brand = JSON.parse(out.tpl.brand.replace(/\\u003c/g, '<'));
 ok(template.name === 'Index' && brand.name === 'SANAY' && brand.logos.length === 3 && brand.logos.every(l => l.src.startsWith('data:image/webp;base64,')), 'page gets the name and three logos');
 ok(!out.tpl.brand.includes('<'), 'brand JSON has no raw "<" that could close the script tag');
 ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
+ok(brand.expansion === 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY' && brand.project === 'TaTaK Resilience Project' &&
+  brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan', 'SANAY expansion and the TaTaK Resilience Project');
 
 // 9. full and hidden
 const trS = T('Trainings'), H = trS.getRange(1, 1, 1, trS.getLastColumn()).getValues()[0];
