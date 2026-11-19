@@ -149,7 +149,8 @@ let d = ctx.getAppData();
 const byId = id => d.trainings.find(t => t.id === id);
 ok(d.trainings.length === 3, 'three trainings listed');
 ok(byId('SAMPLE-1').state === 'open' && byId('SAMPLE-1').happening, 'SAMPLE-1 open and happening');
-ok(d.selfCheckIn === true, 'people can check themselves in unless selfCheckIn is turned off');
+ok(d.selfCheckIn === 'online', 'by default, people check themselves in only for online trainings');
+vm.runInContext('CONFIG.selfCheckIn = true', ctx);   // the next checks use self check-in for SAMPLE-1, which is face-to-face
 ok(byId('SAMPLE-2').state === 'open' && !byId('SAMPLE-2').happening && byId('SAMPLE-2').closes, 'SAMPLE-2 upcoming with a closing date');
 ok(byId('SAMPLE-3').state === 'completed' && byId('SAMPLE-3').listed && byId('SAMPLE-3').evalOpen, 'SAMPLE-3 completed, listed, evaluation open');
 ok(d.privacyStatement.startsWith('This data collection is conducted in accordance with the provisions of Republic Act No. 9710') && d.mediaStatement.length > 40, 'privacy statement (template wording) and media statement sent');
@@ -346,6 +347,8 @@ ctx.openScanner();
 const scDlg = dialogs.pop();
 const k1 = keyOf(scDlg.html);
 ok(k1 && k1.length === 32 && /SAMPLE · Training happening today/.test(scDlg.html) && /Add a device/.test(scDlg.html), 'scanner dialog: a link for the training happening today');
+const pin1 = JSON.parse(props['scanner:SAMPLE-1']).pin;
+ok(/^\d{6}$/.test(pin1) && scDlg.html.includes('>' + pin1 + '<'), 'and a 6-digit scanner PIN, shown only in the Sheet: ' + pin1);
 ctx.openScanner();
 ok(keyOf(dialogs.pop().html) === k1, 'opening it again gives the same link, so devices already set up keep working');
 active.activeRow = 4;                                    // SAMPLE-3 has ended
@@ -357,7 +360,12 @@ throws(() => ctx.openScanner(), /getUi/, 'the scanner menu cannot run from the w
 throws(() => ctx.renewScanner('SAMPLE-1'), /getUi/, 'nor can a new link be made from the web page');
 uiAvailable = true;
 throws(() => ctx.getScanner({ key: 'abc' }), /scanner link has expired/, 'a made-up key is refused');
-let sc = ctx.getScanner({ key: k1 });
+throws(() => ctx.getScanner({ key: k1 }), /Wrong scanner PIN/, 'the link alone is not enough: the scanner needs the PIN');
+throws(() => ctx.scanSync({ key: k1, pin: '000000', items: [{ id: 'nope', code: r1.code }] }), /Wrong scanner PIN/, 'a wrong PIN sends nothing');
+['1', '2', '3'].forEach(n => { try { ctx.getScanner({ key: k1, pin: '99999' + n }); } catch (e) { /* counted */ } });
+throws(() => ctx.getScanner({ key: k1, pin: pin1 }), /Too many wrong PINs/, 'five wrong PINs lock the link for 10 minutes, even for the right PIN');
+delete cache['pinfail:' + k1];
+let sc = ctx.getScanner({ key: k1, pin: pin1 });
 ok(sc.training.id === 'SAMPLE-1' && sc.trainingDay && sc.day === 1 && sc.days === 2 && sc.link.endsWith('page=scan&k=' + k1), 'scanner gets the training, the day and its own link');
 ok(sc.roster.length === table('Registrations').filter(r => r.training_id === 'SAMPLE-1').length &&
   sc.roster.every(p => Object.keys(p).sort().join() === 'agency,code,name,walkIn'), 'the device gets only codes, names and offices: no emails or numbers');
@@ -365,44 +373,52 @@ ok(sc.checkedIn.some(c => c.code === r1.code && /AM|PM/.test(c.time)), 'and who 
 const r9 = ctx.register(person({ email: 'rosa.scan@example.com', first_name: 'Rosa' }));
 const attRows = () => table('Attendance').filter(a => a.reg_code === r9.code);
 const t0 = Date.now();
-let s1 = ctx.scanSync({ key: k1, items: [{ id: 'dev1-1', code: 'sanay:' + r9.code.toLowerCase(), at: t0 - 60000, how: 'QR' }] });
+let s1 = ctx.scanSync({ key: k1, pin: pin1, items: [{ id: 'dev1-1', code: 'sanay:' + r9.code.toLowerCase(), at: t0 - 60000, how: 'QR' }] });
 ok(s1.results.length === 1 && s1.results[0].status === 'ok' && s1.results[0].id === 'dev1-1' && attRows().length === 1 && attRows()[0].method === 'QR', 'a QR scan checks the person in, method QR');
 ok(s1.checkedIn.some(c => c.code === r9.code), 'the reply tells every device who is in');
-ok(ctx.scanSync({ key: k1, items: [{ id: 'dev1-1', code: r9.code, at: t0 }] }).results[0].status === 'ok' && attRows().length === 1, 'a resent scan (same id) is not counted twice');
-let s2 = ctx.scanSync({ key: k1, items: [{ id: 'dev2-1', code: r9.code, at: t0 }] });
+ok(ctx.scanSync({ key: k1, pin: pin1, items: [{ id: 'dev1-1', code: r9.code, at: t0 }] }).results[0].status === 'ok' && attRows().length === 1, 'a resent scan (same id) is not counted twice');
+let s2 = ctx.scanSync({ key: k1, pin: pin1, items: [{ id: 'dev2-1', code: r9.code, at: t0 }] });
 ok(s2.results[0].status === 'already' && attRows().length === 1, 'the same person from another device: already checked in, still one row');
 const firstAt = attRows()[0].timestamp.getTime();
-ctx.scanSync({ key: k1, items: [{ id: 'dev3-1', code: r9.code, at: t0 - 5 * 60000, how: 'QR' }] });
+ctx.scanSync({ key: k1, pin: pin1, items: [{ id: 'dev3-1', code: r9.code, at: t0 - 5 * 60000, how: 'QR' }] });
 ok(attRows().length === 1 && attRows()[0].timestamp.getTime() === t0 - 5 * 60000 && firstAt === t0 - 60000, 'an earlier scan arriving late (a phone that was offline) keeps the earlier time');
-let s3 = ctx.scanSync({ key: k1, items: [{ id: 'x1', code: 'ZZZZZ', at: t0 }, { id: 'x2', code: r3.code, at: t0 }, { id: 'x3', code: r2.code, at: t0 - 2 * 864e5 }, { id: 'x4', code: r2.code, at: t0 + 864e5, how: 'Typed code' }] });
+let s3 = ctx.scanSync({ key: k1, pin: pin1, items: [{ id: 'x1', code: 'ZZZZZ', at: t0 }, { id: 'x2', code: r3.code, at: t0 }, { id: 'x3', code: r2.code, at: t0 - 2 * 864e5 }, { id: 'x4', code: r2.code, at: t0 + 864e5, how: 'Typed code' }] });
 ok(s3.results.map(r => r.status).join() === 'not-found,other-training,not-a-training-day,already', 'unknown code, another training\'s code, a day outside the training, and a future time (taken as now): ' + s3.results.map(r => r.status).join());
 ok(table('Attendance').every(a => !(a.timestamp instanceof CtxDate) || a.timestamp.getTime() <= Date.now() + 1000), 'nothing is ever recorded in the future');
-ok(ctx.scanSync({ key: k1, items: [], roster: true }).roster.length > 0 && !ctx.scanSync({ key: k1, items: [] }).roster, 'the full list comes only when asked for');
-let wk = ctx.scanWalkIn({ key: k1, id: 'desk-1', at: t0 - 120000, form: person({ email: 'desk.walkin@example.com', first_name: 'Dino', training_id: 'SAMPLE-2' }) });
+ok(ctx.scanSync({ key: k1, pin: pin1, items: [], roster: true }).roster.length > 0 && !ctx.scanSync({ key: k1, pin: pin1, items: [] }).roster, 'the full list comes only when asked for');
+let wk = ctx.scanWalkIn({ key: k1, pin: pin1, id: 'desk-1', at: t0 - 120000, form: person({ email: 'desk.walkin@example.com', first_name: 'Dino', training_id: 'SAMPLE-2' }) });
 const wreg = table('Registrations').find(r => r.email === 'desk.walkin@example.com');
 ok(wk.status === 'ok' && !wk.already && wk.checkIn.status === 'ok' && wreg.training_id === 'SAMPLE-1' && wreg.registered_as === 'Walk-in' &&
   table('Attendance').find(a => a.reg_code === wk.code).method === 'Walk-in', 'walk-in at the door: registered for the scanner\'s training and checked in');
 ok(wreg.timestamp.getTime() === t0 - 120000, 'its time is when the form was filled in, even if it was sent later');
-ok(ctx.scanWalkIn({ key: k1, id: 'desk-1', at: t0, form: person({ email: 'desk.walkin@example.com' }) }).code === wk.code &&
+ok(ctx.scanWalkIn({ key: k1, pin: pin1, id: 'desk-1', at: t0, form: person({ email: 'desk.walkin@example.com' }) }).code === wk.code &&
   table('Registrations').filter(r => r.email === 'desk.walkin@example.com').length === 1, 'a resent walk-in is saved once');
-throws(() => ctx.scanWalkIn({ key: k1, id: 'desk-2', at: t0, form: person({ email: 'bad' }) }), /valid email/, 'walk-in forms are checked like any registration');
-const k2 = ctx.renewScanner('SAMPLE-1');
-ok(keyOf(k2.replace('&', '&amp;')) && keyOf(k2.replace('&', '&amp;')) !== k1, 'Make a new link gives a different key');
-throws(() => ctx.scanSync({ key: k1, items: [] }), /scanner link has expired/, 'and the old link stops working');
-ok(ctx.getScanner({ key: keyOf(k2.replace('&', '&amp;')) }).training.id === 'SAMPLE-1', 'the new one works');
+throws(() => ctx.scanWalkIn({ key: k1, pin: pin1, id: 'desk-2', at: t0, form: person({ email: 'bad' }) }), /valid email/, 'walk-in forms are checked like any registration');
+const k2 = ctx.renewScanner('SAMPLE-1'), k2key = keyOf(k2.link.replace('&', '&amp;'));
+ok(k2key && k2key !== k1 && /^\d{6}$/.test(k2.pin), 'Make a new link and PIN gives a different key and a PIN');
+throws(() => ctx.scanSync({ key: k1, pin: pin1, items: [] }), /scanner link has expired/, 'and the old link stops working');
+ok(ctx.getScanner({ key: k2key, pin: k2.pin }).training.id === 'SAMPLE-1', 'the new one works with the new PIN');
 // a phone that had no signal on the last day can still send its saved scans for a week after
 const tday = vm.runInContext('today_()', ctx), add = n => vm.runInContext('addDays_(' + JSON.stringify(tday) + ', ' + n + ')', ctx);
 vm.runInContext('appendRecord_("Trainings", { training_id: "FIELD-1", title: "Field training", start_date: ' + JSON.stringify(add(-4)) + ', end_date: ' + JSON.stringify(add(-3)) + ', venue: "Barangay hall" })', ctx);
 vm.runInContext('appendRecord_("Registrations", { timestamp: new Date(), training_id: "FIELD-1", reg_code: "FLD42", full_name: "Luz Tan", email: "luz@example.com", agency: "Barangay Dalisay" })', ctx);
-props['scanner:FIELD-1'] = JSON.stringify({ key: 'f'.repeat(32), until: add(-3) });
+props['scanner:FIELD-1'] = JSON.stringify({ key: 'f'.repeat(32), pin: '111111', until: add(-3) });
 const fieldAt = new Date(add(-3) + 'T09:15:00+08:00').getTime();
-const sf = ctx.scanSync({ key: 'f'.repeat(32), items: [{ id: 'field-1', code: 'FLD42', at: fieldAt, how: 'QR' }, { id: 'field-2', code: 'FLD42', at: Date.now() }] });
+const sf = ctx.scanSync({ key: 'f'.repeat(32), pin: '111111', items: [{ id: 'field-1', code: 'FLD42', at: fieldAt, how: 'QR' }, { id: 'field-2', code: 'FLD42', at: Date.now() }] });
 ok(!sf.trainingDay && sf.results.map(r => r.status).join() === 'ok,not-a-training-day' &&
   table('Attendance').find(a => a.reg_code === 'FLD42').timestamp.getTime() === fieldAt, 'three days after the training, a saved scan from the last day still goes in, with its time; a scan made today does not');
-props['scanner:FIELD-1'] = JSON.stringify({ key: 'f'.repeat(32), until: add(-3) });
+props['scanner:FIELD-1'] = JSON.stringify({ key: 'f'.repeat(32), pin: '111111', until: add(-3) });
 vm.runInContext('setValue_("Trainings", ' + (table('Trainings').findIndex(r => r.training_id === 'FIELD-1') + 2) + ', "end_date", ' + JSON.stringify(add(-9)) + ')', ctx);
-throws(() => ctx.scanSync({ key: 'f'.repeat(32), items: [] }), /scanner link has expired/, 'more than a week after the last day, the link is closed');
+throws(() => ctx.scanSync({ key: 'f'.repeat(32), pin: '111111', items: [] }), /scanner link has expired/, 'more than a week after the last day, the link is closed');
 
+vm.runInContext("CONFIG.selfCheckIn = 'online'", ctx);
+throws(() => ctx.checkIn({ training_id: 'SAMPLE-1', key: r9.code }), /at the door/, "default: no self check-in for a face-to-face training, so nobody checks in from home");
+const wF = ctx.register(person({ email: 'f2f.walkin@example.com', walk_in: true }));
+ok(wF.atDoor && !wF.checkIn, 'a walk-in who registers on their phone for a face-to-face training is checked in at the door');
+const trRow = table('Trainings').findIndex(r => r.training_id === 'SAMPLE-1') + 2;
+vm.runInContext('setValue_("Trainings", ' + trRow + ', "mode", "Online")', ctx);
+ok(ctx.checkIn({ training_id: 'SAMPLE-1', key: 'f2f.walkin@example.com' }).status === 'ok', 'for an online training, people check themselves in');
+vm.runInContext('setValue_("Trainings", ' + trRow + ', "mode", "Face-to-face")', ctx);
 vm.runInContext('CONFIG.selfCheckIn = false', ctx);
 throws(() => ctx.checkIn({ training_id: 'SAMPLE-1', key: r9.code }), /at the door/, 'with selfCheckIn off, people cannot check themselves in');
 const w9 = ctx.register(person({ email: 'door.only@example.com', walk_in: true }));

@@ -93,10 +93,13 @@ const CONFIG = {
     ['Team', '']   // the people who built and look after the app, e.g. 'Juan dela Cruz, Maria Santos'
   ],
 
-  // ---- Check-in. Each registration gets a QR code that the scanner at the door reads
-  //      (SANAY › Open the check-in scanner). selfCheckIn: true also lets people check themselves in
-  //      on the Attendance screen with their code or email; false leaves check-in to the scanner only.
-  selfCheckIn: true,
+  // ---- Check-in. Each registration gets a QR code that only the organizers' scanner reads
+  //      (SANAY › Open the check-in scanner, which also asks for a PIN). Can people check themselves in
+  //      on the Attendance screen with their code or email, from anywhere?
+  //      'online': only for trainings whose mode is Online (there is no door to scan at). Face-to-face
+  //                and blended trainings check in at the venue, so nobody can check in from home.
+  //      false:    never; true: always (anyone with a code could then check in remotely).
+  selfCheckIn: 'online',
 
   // ---- Certificates: who is eligible. Both rules also need the evaluation.
   //      'all-days': checked in on every training day.  'any-day': checked in on at least one day.
@@ -233,7 +236,7 @@ function getAppData() {
     partnershipTypes: CONFIG.partnershipTypes,
     organizationTypes: CONFIG.organizationTypes,
     partnershipPrivacy: CONFIG.partnershipPrivacy,
-    selfCheckIn: selfCheckIn_(),
+    selfCheckIn: CONFIG.selfCheckIn === true ? true : CONFIG.selfCheckIn === 'online' ? 'online' : false,
     trainings: listTrainings_(today)
   };
 }
@@ -262,8 +265,8 @@ function register(form) {
       stamp: stamp_(saved.already ? saved.reg.timestamp : now)
     };
     if (canWalkIn) {
-      if (selfCheckIn_()) result.checkIn = recordCheckIn_(t, saved.reg, 'Walk-in', now);
-      else result.atDoor = true;   // the scanner at the door checks them in
+      if (selfCheckInFor_(t)) result.checkIn = recordCheckIn_(t, saved.reg, 'Walk-in', now);
+      else result.atDoor = true;   // the scanner at the venue checks them in
     }
     return result;
   });
@@ -347,12 +350,12 @@ function checkIn(data) {
   const trainingId = clean_(data.training_id, 60);
   const key = clean_(data.key, 120);
   if (!trainingId || !key) throw new Error('Choose your training and enter your registration code or email.');
-  if (!selfCheckIn_()) throw new Error('Check-in is at the door: show your QR code to the organizers.');
 
   return withLock_(function () {
     const today = today_();
     const t = listTrainings_(today).filter(function (x) { return x.id === trainingId; })[0];
     if (!t || !t.happening) throw new Error('Check-in is open only on the training days.');
+    if (!selfCheckInFor_(t)) throw new Error('Check-in for this training is at the door: show your QR code to the organizers.');
     const reg = findRegistration_(trainingId, key);
     if (!reg) return { status: 'not-found' };
     return recordCheckIn_(t, reg, key.indexOf('@') > -1 ? 'Email' : 'Code', new Date());
@@ -665,7 +668,8 @@ function openScanner() {
     ui.alert(t.id + ' has ended, so it has no scanner. Click the row of a current or upcoming training and try again.');
     return;
   }
-  const link = scannerLink_(url, scannerFor_(t, false).key);
+  const sc = scannerFor_(t, false);
+  const link = scannerLink_(url, sc.key);
   const dates = t.start === t.end ? t.start : t.start + ' to ' + t.end;
   const button = 'display:inline-block;padding:10px 18px;border-radius:10px;background:#014421;color:#FFFFFF;font-weight:bold;text-decoration:none';
   const html = HtmlService.createHtmlOutput(
@@ -675,31 +679,34 @@ function openScanner() {
     '<b>Add a device</b> on the scanner and scan the QR code it shows. Open it where there is signal: after that it keeps working without one, ' +
     'and sends what it saved when the signal is back. The link works until the last training day, and for a week after only to send saved scans.</p>' +
     '<p style="margin:0 0 14px"><a id="open" href="' + esc_(link) + '" target="_blank" rel="noopener" style="' + button + '">Open the scanner</a></p>' +
+    '<p style="margin:0 0 12px">Scanner PIN: <b id="pin" style="font:700 22px/1 monospace;letter-spacing:0.14em">' + sc.pin + '</b><br>' +
+    '<span style="font-size:12px;color:#59625C">Each device asks for it once, while it has signal. Tell it to the door staff; never show it where participants can see it.</span></p>' +
     '<p style="margin:0 0 4px;font-size:12px;color:#59625C">Share the link only with the door staff: it shows the names and offices of this training\'s participants.</p>' +
     '<input id="link" readonly value="' + esc_(link) + '" style="box-sizing:border-box;width:100%;padding:6px 8px;font:12px monospace" onclick="this.select()">' +
-    '<p style="margin:12px 0 0;font-size:12px;color:#59625C">Shared it with the wrong person? <a href="#" id="renew">Make a new link</a>. ' +
-    'The old one stops working, so open the new one on every device.</p>' +
+    '<p style="margin:12px 0 0;font-size:12px;color:#59625C">Link or PIN shared with the wrong person? <a href="#" id="renew">Make a new link and PIN</a>. ' +
+    'The old ones stop working, so open the new link on every device (let them send their saved scans first).</p>' +
     '<script>document.getElementById("renew").onclick = function (e) { e.preventDefault(); var a = this; a.textContent = "Making a new link…";' +
-    'google.script.run.withSuccessHandler(function (l) { document.getElementById("link").value = l; document.getElementById("open").href = l; a.textContent = "Done. Make another"; })' +
+    'google.script.run.withSuccessHandler(function (n) { document.getElementById("link").value = n.link; document.getElementById("open").href = n.link; ' +
+    'document.getElementById("pin").textContent = n.pin; a.textContent = "Done. Make another"; })' +
     '.withFailureHandler(function (err) { a.textContent = err.message; }).renewScanner(' + JSON.stringify(t.id).replace(/</g, '\\u003c') + '); };</script>' +
     '</div>'
-  ).setWidth(500).setHeight(330);
+  ).setWidth(500).setHeight(400);
   ui.showModalDialog(html, CONFIG.name + ' check-in scanner');
 }
 
-/** From the scanner dialog: a new link for the training. The old link stops working. */
+/** From the scanner dialog: a new link and PIN for the training. The old ones stop working. */
 function renewScanner(trainingId) {
   SpreadsheetApp.getUi();   // only from the Sheet, never from the web page
   if (!isSteward_()) throw new Error('Only the data stewards can make a new scanner link.');
   const t = allTrainings_().filter(function (x) { return x.id === clean_(trainingId, 60); })[0];
   if (!t) throw new Error('That training is no longer in the Trainings tab.');
-  return scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), scannerFor_(t, true).key);
+  const sc = scannerFor_(t, true);
+  return { link: scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), sc.key), pin: sc.pin };
 }
 
 /** The scanner page asks for this when it opens: the training, everyone registered, and who is in today. */
 function getScanner(req) {
-  const t = scannerTraining_((req || {}).key);
-  if (!t) throw new Error(SCANNER_GONE);
+  const t = scannerAccess_(req);
   const state = scannerState_(t, true);
   state.link = scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), String(req.key).replace(/[^0-9a-f]/gi, ''));
   return state;
@@ -711,8 +718,7 @@ function getScanner(req) {
  */
 function scanSync(req) {
   req = req || {};
-  const t = scannerTraining_(req.key);
-  if (!t) throw new Error(SCANNER_GONE);
+  const t = scannerAccess_(req);
   const items = (Array.isArray(req.items) ? req.items : []).slice(0, 100);
   const cache = CacheService.getScriptCache();
   const results = [];
@@ -740,8 +746,7 @@ function scanSync(req) {
 /** A walk-in registered at the door (by the scanner's Walk-in form): saved and checked in at the time it was filled in. */
 function scanWalkIn(req) {
   req = req || {};
-  const t = scannerTraining_(req.key);
-  if (!t) throw new Error(SCANNER_GONE);
+  const t = scannerAccess_(req);
   const id = clean_(req.id, 40).replace(/[^\w-]/g, '');
   const cache = CacheService.getScriptCache();
   const seen = id ? cache.get('walkin:' + id) : null;
@@ -821,26 +826,44 @@ function scannerFor_(t, renew) {
   });
   let s = null;
   try { s = JSON.parse(props.getProperty('scanner:' + t.id) || 'null'); } catch (e) { s = null; }
-  if (!s || !s.key || renew) s = { key: Utilities.getUuid().replace(/-/g, '') };
+  if (!s || !s.key || !s.pin || renew) {
+    s = { key: Utilities.getUuid().replace(/-/g, ''), pin: String(parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 1000000).padStart(6, '0') };
+  }
   s.until = t.end;
   props.setProperty('scanner:' + t.id, JSON.stringify(s));
   return s;
 }
 
-/** The training a scanner key belongs to, until a week after its last day; otherwise null. Scans are still checked against the training days. */
-function scannerTraining_(key) {
-  key = String(key || '').replace(/[^0-9a-f]/gi, '').slice(0, 64);
-  if (key.length < 24) return null;
+/**
+ * The training a scanner request is for, if its link and PIN are right. The link works until a week after
+ * the training's last day (scans are still checked against the training days). Five wrong PINs lock the
+ * link for 10 minutes.
+ */
+function scannerAccess_(req) {
+  req = req || {};
+  const key = String(req.key || '').replace(/[^0-9a-f]/gi, '').slice(0, 64);
+  const found = key.length >= 24 ? scannerEntry_(key) : null;
+  if (!found) throw new Error(SCANNER_GONE);
+  const cache = CacheService.getScriptCache();
+  const fails = Number(cache.get('pinfail:' + key) || 0);
+  if (fails >= 5) throw new Error('Too many wrong PINs. Wait 10 minutes, then try again.');
+  if (String(req.pin || '').replace(/\D/g, '') !== found.pin) {
+    cache.put('pinfail:' + key, String(fails + 1), 600);
+    throw new Error('Wrong scanner PIN. The data steward sees it in the Google Sheet, in the scanner dialog.');
+  }
+  return found.t;
+}
+
+function scannerEntry_(key) {
   const all = PropertiesService.getScriptProperties().getProperties();
-  const today = today_();
-  let id = '';
+  let id = '', pin = '';
   Object.keys(all).forEach(function (name) {
     if (name.indexOf('scanner:') !== 0) return;
-    try { if (JSON.parse(all[name]).key === key) id = name.slice(8); } catch (e) { /* skip */ }
+    try { const s = JSON.parse(all[name]); if (s.key === key) { id = name.slice(8); pin = String(s.pin || ''); } } catch (e) { /* skip */ }
   });
-  if (!id) return null;
+  if (!id || !pin) return null;
   const t = allTrainings_().filter(function (x) { return x.id === id; })[0];
-  return t && t.start && today <= addDays_(t.end, SCANNER_GRACE_DAYS) ? t : null;
+  return t && t.start && today_() <= addDays_(t.end, SCANNER_GRACE_DAYS) ? { t: t, pin: pin } : null;
 }
 
 function scannerLink_(url, key) {
@@ -1090,8 +1113,10 @@ function allTrainings_() {
     });
 }
 
-function selfCheckIn_() {
-  return CONFIG.selfCheckIn !== false;
+/** Can people check themselves in for this training on the Attendance screen? See selfCheckIn in CONFIG. */
+function selfCheckInFor_(t) {
+  const s = CONFIG.selfCheckIn;
+  return s === true || (s === 'online' && String(t.mode || '').trim() === 'Online');
 }
 
 function findRegistration_(trainingId, key) {
