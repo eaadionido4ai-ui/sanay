@@ -1,0 +1,15 @@
+# test output
+tests/out/
+out/
+*.png
+!assets/**/*.png
+*.pdf
+
+# tooling
+node_modules/
+__pycache__/
+.DS_Store
+
+# never commit participant data
+*.xlsx
+*.csv

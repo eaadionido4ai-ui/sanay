@@ -1,0 +1,242 @@
+// Runs apps-script/Code.gs against a small mock of Google Sheets and Apps Script.
+//   node tests/test_code.js
+const fs = require('fs'), path = require('path'), vm = require('vm'), assert = require('assert'), crypto = require('crypto');
+const root = path.join(__dirname, '..');
+const src = fs.readFileSync(path.join(root, 'apps-script', 'Code.gs'), 'utf8');
+const logosSrc = fs.readFileSync(path.join(root, 'apps-script', 'Logos.gs'), 'utf8');
+
+const ctx = { console };
+vm.createContext(ctx);
+const CtxDate = vm.runInContext('Date', ctx);
+
+function fmtDate(d, tz, fmt) {
+  const p = {};
+  new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(d).forEach(x => { p[x.type] = x.value; });
+  if (p.hour === '24') p.hour = '00';
+  if (fmt === 'yyyy-MM-dd') return `${p.year}-${p.month}-${p.day}`;
+  if (fmt === 'yyyy-MM-dd HH:mm') return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+  if (fmt === 'h:mm a') { const h = +p.hour; return `${(h + 11) % 12 + 1}:${p.minute} ${h >= 12 ? 'PM' : 'AM'}`; }
+  throw new Error('unsupported format ' + fmt);
+}
+function parse(v) {               // what the Sheet does with a value you write
+  if (typeof v !== 'string') return v;
+  if (v.startsWith("'")) return v.slice(1);                                   // forced text
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return new CtxDate(v + 'T00:00:00+08:00'); // read as a date
+  if (/^\d{1,2}-\d{1,2}$/.test(v)) return new CtxDate('2026-' + v.replace('-', '-').padStart(5, '0') + 'T00:00:00+08:00'); // "10-19" would become a date
+  if (v.startsWith('=')) return { FORMULA: v };                                // would run as a formula
+  return v;
+}
+class Range {
+  constructor(sh, r, c, nr, nc) { Object.assign(this, { sh, r, c, nr, nc }); }
+  getValues() { const out = []; for (let i = 0; i < this.nr; i++) { const row = []; for (let j = 0; j < this.nc; j++) row.push(this.sh.get(this.r + i, this.c + j)); out.push(row); } return out; }
+  getValue() { return this.sh.get(this.r, this.c); }
+  getRow() { return this.r; }
+  setValues(v) { assert.strictEqual(v.length, this.nr, 'row count'); v.forEach((row, i) => { assert.strictEqual(row.length, this.nc, 'col count'); row.forEach((x, j) => this.sh.set(this.r + i, this.c + j, parse(x))); }); return this; }
+  setValue(x) { this.sh.set(this.r, this.c, parse(x)); return this; }
+  setFormulas(f) { f.forEach((row, i) => row.forEach((x, j) => { const m = /^=\{"([^"]+)"/.exec(x); this.sh.set(this.r + i, this.c + j, m ? m[1] : { FORMULA: x }); this.sh.formulas.push(x); })); return this; }
+  setNumberFormat() { return this; } setFontWeight() { return this; } setBackground() { return this; } setNote() { return this; } setDataValidation() { return this; }
+}
+class Sheet {
+  constructor(name) { this.name = name; this.data = []; this.formulas = []; this.activeRow = 1; }
+  set(r, c, v) { while (this.data.length < r) this.data.push([]); const row = this.data[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
+  get(r, c) { const row = this.data[r - 1]; return row && row[c - 1] !== undefined ? row[c - 1] : ''; }
+  getLastRow() { for (let i = this.data.length; i > 0; i--) if (this.data[i - 1].some(v => v !== '' && v !== undefined)) return i; return 0; }
+  getLastColumn() { let m = 0; this.data.forEach(row => { for (let j = row.length; j > 0; j--) if (row[j - 1] !== '' && row[j - 1] !== undefined) { m = Math.max(m, j); break; } }); return m; }
+  getRange(r, c, nr, nc) { return new Range(this, r, c, nr || 1, nc || 1); }
+  getActiveRange() { return new Range(this, this.activeRow, 1, 1, 1); }
+  appendRow(row) { const r = this.getLastRow() + 1; row.forEach((v, j) => this.set(r, j + 1, parse(v))); }
+  insertRowBefore(pos) { this.data.splice(pos - 1, 0, []); }
+  setFrozenRows() {} getName() { return this.name; }
+}
+const sheets = [new Sheet('Sheet1')];
+let active = null;
+const ss = {
+  getSheetByName: n => sheets.find(s => s.name === n) || null,
+  insertSheet: n => { const s = new Sheet(n); sheets.push(s); return s; },
+  getSheets: () => sheets.slice(),
+  deleteSheet: s => sheets.splice(sheets.indexOf(s), 1),
+  setSpreadsheetTimeZone() {}, toast() {}
+};
+const builder = { requireDate() { return this; }, requireValueInList() { return this; }, requireCheckbox() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } };
+const cache = {};
+const dialogs = [];
+let uiAvailable = true;
+const ui = {
+  createMenu: () => ({ addItem() { return this; }, addSeparator() { return this; }, addToUi() {} }),
+  alert: msg => dialogs.push({ alert: msg }),
+  showModalDialog: (out, title) => dialogs.push({ html: out.content, title })
+};
+let template = null;
+Object.assign(ctx, {
+  SpreadsheetApp: {
+    getActiveSpreadsheet: () => ss, newDataValidation: () => builder,
+    getUi: () => { if (!uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.'); return ui; },
+    getActiveSheet: () => active
+  },
+  Utilities: { formatDate: fmtDate, getUuid: () => crypto.randomUUID() },
+  LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
+  CacheService: { getScriptCache: () => ({ put: (k, v, s) => { assert.ok(s <= 21600, 'cache time within 6 hours'); cache[k] = v; }, get: k => (k in cache ? cache[k] : null) }) },
+  ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }) },
+  HtmlService: {
+    XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
+    createTemplateFromFile: name => (template = { name, evaluate() { return { tpl: this, setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } }; } }),
+    createHtmlOutput: html => ({ content: html, setWidth() { return this; }, setHeight() { return this; } })
+  }
+});
+vm.runInContext(src, ctx, { filename: 'Code.gs' });
+
+const T = name => ss.getSheetByName(name);
+const table = name => { const s = T(name); const v = s.getRange(1, 1, s.getLastRow(), s.getLastColumn()).getValues(); const h = v.shift(); return v.map(r => Object.fromEntries(h.map((k, i) => [k, r[i]]))); };
+const person = o => Object.assign({
+  training_id: 'SAMPLE-1', first_name: 'Juan', last_name: 'Dela Cruz', middle_initial: 'm', suffix: 'Jr.', position: 'LDRRM Officer',
+  agency: 'MDRRMO San Isidro', email: 'Juan@Example.com', contact_no: '0917 123 4567',
+  gad_consent: 'Yes', sex: 'Male', age_range: '10-19', senior_citizen: 'No', pwd: 'No', indigenous_people: 'Yes', tribe: 'Aeta',
+  photo_consent: 'Yes', recording_consent: 'No'
+}, o);
+const isPlain = o => JSON.stringify(o) === JSON.stringify(JSON.parse(JSON.stringify(o))) && !JSON.stringify(o).includes('"__row"');
+let pass = 0;
+const ok = (cond, msg) => { assert.ok(cond, msg); pass++; };
+const throws = (fn, re, msg) => { assert.throws(fn, re, msg); pass++; };
+
+// 1. setup
+ctx.setup();
+ok(!ss.getSheetByName('Sheet1'), 'empty Sheet1 removed');
+ok(['Trainings', 'Registrations', 'Attendance', 'Evaluations'].every(n => T(n)), 'all tabs exist');
+const th = T('Trainings').getRange(1, 1, 1, T('Trainings').getLastColumn()).getValues()[0];
+ok(th.join(',') === 'training_id,title,start_date,end_date,venue,mode,show_in_list,max_participants,registration_closes,notes,registered,female,male', 'trainings headers: ' + th.join(','));
+const rh = T('Registrations').getRange(1, 1, 1, T('Registrations').getLastColumn()).getValues()[0];
+ok(rh.length === 25 && rh[14] === 'sex' && rh[0] === 'timestamp', 'registrations has 25 columns, sex in column O');
+ok(T('Trainings').formulas[0].includes('COUNTIF(Registrations!C2:C,A2:A)'), 'registered formula counts Registrations!C: ' + T('Trainings').formulas[0]);
+ok(T('Trainings').formulas[1].includes('Registrations!O2:O,"Female"'), 'female formula reads the sex column O: ' + T('Trainings').formulas[1]);
+ok(table('Trainings').length === 3 && table('Trainings')[0].start_date instanceof CtxDate, 'three sample trainings with real dates');
+ctx.setup();   // run again: must not duplicate anything
+ok(table('Trainings').length === 3 && T('Trainings').getLastColumn() === 13 && T('Trainings').formulas.length === 3, 'second setup run changes nothing');
+
+// 2. app data
+let d = ctx.getAppData();
+const byId = id => d.trainings.find(t => t.id === id);
+ok(d.trainings.length === 3, 'three trainings listed');
+ok(byId('SAMPLE-1').state === 'open' && byId('SAMPLE-1').happening, 'SAMPLE-1 open and happening');
+ok(byId('SAMPLE-2').state === 'open' && !byId('SAMPLE-2').happening && byId('SAMPLE-2').closes, 'SAMPLE-2 upcoming with a closing date');
+ok(byId('SAMPLE-3').state === 'completed' && byId('SAMPLE-3').listed && byId('SAMPLE-3').evalOpen, 'SAMPLE-3 completed, listed, evaluation open');
+ok(d.privacyStatement.startsWith('This data collection is conducted in accordance with the provisions of Republic Act No. 9710') && d.mediaStatement.length > 40, 'privacy statement (template wording) and media statement sent');
+ok(isPlain(d), 'app data is plain JSON (no Date objects)');
+
+// 3. register, with consent
+let r1 = ctx.register(person({ last_name: '=HYPERLINK("http://x")' }));
+ok(/^[A-HJKMNP-Z2-9]{5}$/.test(r1.code) && !r1.already, 'registration code issued: ' + r1.code);
+ok(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(r1.stamp), 'submission time returned for the signature column: ' + r1.stamp);
+ok(!r1.checkIn, 'a normal registration does not check in');
+let reg = table('Registrations')[0];
+ok(reg.contact_no === '0917 123 4567', 'contact number kept as typed');
+ok(reg.last_name === '=HYPERLINK("http://x")' && typeof reg.last_name === 'string', 'a name starting with = is stored as text, not a formula');
+ok(reg.full_name === 'Juan M. =HYPERLINK("http://x") Jr.', 'full name built: ' + reg.full_name);
+ok(reg.age_range === '10-19' && typeof reg.age_range === 'string', 'age range 10-19 stays text (not a date)');
+ok(reg.email === 'juan@example.com' && reg.gad_consent === 'Yes' && reg.sex === 'Male' && reg.indigenous_people === 'Yes' && reg.tribe === 'Aeta', 'email lower-cased, GAD answers saved');
+ok(reg.photo_consent === 'Yes' && reg.recording_consent === 'No', 'photo and recording answers saved');
+ok(reg.privacy_version === 'GAD attendance sheet DPS', 'privacy version recorded');
+ok(reg.registered_as === 'Walk-in', 'registering on a training day is marked Walk-in');
+ok(reg.timestamp instanceof CtxDate, 'timestamp is a real date');
+let r2 = ctx.register(person({ email: 'juan@example.com' }));
+ok(r2.already && r2.code === r1.code && table('Registrations').length === 1, 'same email, same training: returns the existing code');
+
+// 3b. without consent: no GAD data kept even if sent
+let rNo = ctx.register(person({ email: 'noconsent@example.com', gad_consent: 'No', sex: 'Female', age_range: '60+', pwd: 'Yes', tribe: 'X' }));
+let regNo = table('Registrations').find(r => r.email === 'noconsent@example.com');
+ok(rNo.code && regNo.gad_consent === 'No' && ['sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe'].every(k => regNo[k] === ''), 'no consent: GAD columns left blank');
+
+// 3c. validation
+throws(() => ctx.register(person({ training_id: 'SAMPLE-3', email: 'a@example.com' })), /has ended/, 'completed training refused');
+throws(() => ctx.register(person({ gad_consent: '', email: 'b@example.com' })), /consent/, 'consent answer required');
+throws(() => ctx.register(person({ sex: '', email: 'c@example.com' })), /your sex/, 'with consent, sex required');
+throws(() => ctx.register(person({ age_range: '18-30', email: 'c2@example.com' })), /age range/, 'age range must be one of the template ranges');
+throws(() => ctx.register(person({ tribe: '', email: 'd@example.com' })), /tribe/, 'IP yes needs the tribe');
+throws(() => ctx.register(person({ photo_consent: '', email: 'e@example.com' })), /photos/, 'photo answer required');
+throws(() => ctx.register(person({ recording_consent: 'Maybe', email: 'f@example.com' })), /recordings/, 'recording answer must be yes or no');
+throws(() => ctx.register(person({ email: 'not-an-email' })), /valid email/, 'bad email refused');
+throws(() => ctx.register(person({ email: 'g@example.com', contact_no: '12' })), /7 to 15 digits/, 'too-short contact number refused');
+throws(() => ctx.register(person({ email: 'h@example.com', agency: '' })), /agency/, 'agency required');
+let r3 = ctx.register(person({ training_id: 'SAMPLE-2', email: 'ana@example.com', first_name: 'Ana', last_name: 'Reyes', sex: 'Female', middle_initial: '', suffix: '', indigenous_people: 'No', tribe: 'ignored' }));
+let reg3 = table('Registrations').find(r => r.email === 'ana@example.com');
+ok(reg3.registered_as === 'Pre-registered' && reg3.tribe === '', 'registering ahead is Pre-registered; tribe dropped when IP is No');
+
+// 4. check in
+let c1 = ctx.checkIn({ training_id: 'SAMPLE-1', key: r1.code.toLowerCase() });
+ok(c1.status === 'ok' && c1.day === 1 && c1.days === 2 && /\d{1,2}:\d{2} (AM|PM)/.test(c1.time), 'check-in by code works: ' + JSON.stringify(c1));
+let c2 = ctx.checkIn({ training_id: 'SAMPLE-1', key: 'JUAN@example.com' });
+ok(c2.status === 'already', 'second check-in the same day is recognized');
+ok(table('Attendance').length === 1 && table('Attendance')[0].method === 'Code' && table('Attendance')[0].sex === 'Male' && table('Attendance')[0].full_name.startsWith('Juan'), 'one attendance row, with name and sex');
+ok(ctx.checkIn({ training_id: 'SAMPLE-1', key: 'ZZZZZ' }).status === 'not-found', 'unknown code is not found');
+throws(() => ctx.checkIn({ training_id: 'SAMPLE-2', key: r3.code }), /training days/, 'check-in refused before the training');
+
+// 5. walk-in: registers and checks in at once
+let w = ctx.register(person({ email: 'walkin@example.com', first_name: 'Walk', walk_in: true }));
+ok(w.checkIn && w.checkIn.status === 'ok' && w.checkIn.day === 1, 'walk-in is checked in right away');
+ok(table('Attendance').some(a => a.reg_code === w.code && a.method === 'Walk-in'), 'walk-in attendance row marked Walk-in');
+let w2 = ctx.register(person({ email: 'walkin@example.com', walk_in: true }));
+ok(w2.already && w2.checkIn.status === 'already', 'walk-in twice: same code, already checked in');
+let w3 = ctx.register(person({ email: 'early@example.com', training_id: 'SAMPLE-2', walk_in: true, indigenous_people: 'No', tribe: '' }));
+ok(!w3.checkIn, 'walk-in flag before the training does not check in');
+
+// 6. evaluate
+const answers = { overall: 5, objectives_met: 4, resource_persons: 5, venue_logistics: 3, will_apply: 'Use ICS forms', comments: '' };
+ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers }).status === 'ok', 'evaluation saved');
+ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: 'juan@example.com', answers }).status === 'already', 'second evaluation refused');
+let ev = table('Evaluations');
+ok(ev.length === 1 && !('reg_code' in ev[0]) && !JSON.stringify(ev[0]).includes('Juan') && ev[0].overall === 5, 'evaluation row has no name or code');
+ok(typeof table('Registrations')[0].evaluated_on === 'string' && table('Registrations')[0].evaluated_on.length === 10, 'registration marked as evaluated');
+throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers: { overall: 5 } }), /every rating/, 'missing ratings refused');
+throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-2', key: r3.code, answers }), /closed/, 'evaluation before the training refused');
+for (let i = 0; i < 6; i++) {
+  const r = ctx.register(person({ email: `p${i}@example.com`, first_name: 'P' + i }));
+  ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r.code, answers: Object.assign({}, answers, { overall: (i % 5) + 1 }) });
+}
+ev = table('Evaluations');
+ok(ev.length === 7 && ev.every(e => e.training_id === 'SAMPLE-1' && e.overall >= 1), 'random placement leaves no gaps: ' + ev.length + ' rows');
+
+// 7. report link and report data
+throws(() => ctx.getReport({}), /expired or is not valid/, 'report refused without a key');
+throws(() => ctx.getReport({ key: 'abc123' }), /expired or is not valid/, 'report refused with a made-up key');
+uiAvailable = false;
+throws(() => ctx.openReport(), /getUi/, 'openReport cannot run from the web page');
+ok(Object.keys(cache).length === 0, 'no key was made by that attempt');
+uiAvailable = true;
+active = T('Trainings'); active.activeRow = 2;           // the cursor is on SAMPLE-1's row
+ctx.openReport();
+const dlg = dialogs.pop();
+const m = /href="([^"]+)"/.exec(dlg.html);
+ok(m && /\?page=report&amp;key=[0-9a-f]{32}&amp;t=SAMPLE-1$/.test(m[1]), 'menu makes a report link for the selected training: ' + (m && m[1]));
+const key = /key=([0-9a-f]{32})/.exec(m[1])[1];
+let rp = ctx.getReport({ key, training_id: 'SAMPLE-1' });
+ok(isPlain(rp), 'report data is plain JSON (no Date objects)');
+ok(rp.training.id === 'SAMPLE-1' && rp.trainings.length === 3, 'report for SAMPLE-1, with all trainings to choose from');
+ok(rp.registrations.length === table('Registrations').filter(r => r.training_id === 'SAMPLE-1').length, 'all SAMPLE-1 registrations returned');
+ok(rp.registrations.every(r => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(r.timestamp) && 'photo_consent' in r && 'gad_consent' in r && !('__row' in r)), 'registration fields for the sheet, timestamps as text');
+ok(rp.attendance.length === 2 && rp.attendance.every(a => a.date === rp.today && /\d{2}:\d{2}$/.test(a.timestamp)), 'attendance rows for today');
+ok(rp.privacyStatement === ctx.getAppData().privacyStatement, 'report carries the privacy statement for the sheet header');
+let rpDefault = ctx.getReport({ key, training_id: 'NOPE' });
+ok(rpDefault.training.id === 'SAMPLE-1', 'unknown training falls back to the one happening today');
+
+// 8. page and logos
+vm.runInContext(logosSrc, ctx, { filename: 'Logos.gs' });
+const out = ctx.doGet();
+const brand = JSON.parse(out.tpl.brand.replace(/\\u003c/g, '<'));
+ok(template.name === 'Index' && brand.name === 'SANAY' && brand.logos.length === 3 && brand.logos.every(l => l.src.startsWith('data:image/webp;base64,')), 'page gets the name and three logos');
+ok(!out.tpl.brand.includes('<'), 'brand JSON has no raw "<" that could close the script tag');
+ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
+
+// 9. full and hidden
+const trS = T('Trainings'), H = trS.getRange(1, 1, 1, trS.getLastColumn()).getValues()[0];
+trS.set(3, H.indexOf('max_participants') + 1, 2);           // SAMPLE-2 now has 2 registrations
+d = ctx.getAppData();
+ok(byId('SAMPLE-2').state === 'full', 'SAMPLE-2 now full');
+throws(() => ctx.register(person({ training_id: 'SAMPLE-2', email: 'late@example.com' })), /full/, 'full training refused');
+trS.set(2, H.indexOf('max_participants') + 1, 1);           // SAMPLE-1 full too, but it is happening
+throws(() => ctx.register(person({ email: 'late2@example.com' })), /full/, 'full training refused for a normal registration');
+ok(ctx.register(person({ email: 'late3@example.com', walk_in: true })).checkIn.status === 'ok', 'walk-ins still get in on the training day');
+trS.set(3, H.indexOf('show_in_list') + 1, false);
+d = ctx.getAppData();
+ok(!byId('SAMPLE-2'), 'unticked show_in_list hides SAMPLE-2');
+
+console.log(pass + ' checks passed');
