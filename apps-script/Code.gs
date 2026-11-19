@@ -34,6 +34,7 @@ const CONFIG = {
   project: 'TaTaK Resilience Project',
   projectMark: 'TaTaK',
   projectExpansion: 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
+  projectAccent: 'Katatagan',   // shown in green: it means resilience, like "Resilience Project" below it
 
   // ---- Header and footer of the home screen and the printed attendance sheet (from the GAD template)
   institution: ['UNIVERSITY OF THE PHILIPPINES', 'Resilience Institute and NOAH Center'],
@@ -150,6 +151,7 @@ function brandJson_() {
     project: CONFIG.project,
     projectMark: CONFIG.projectMark,
     projectExpansion: CONFIG.projectExpansion,
+    projectAccent: CONFIG.projectAccent,
     institution: CONFIG.institution,
     address: CONFIG.address,
     contact: CONFIG.contactNo,

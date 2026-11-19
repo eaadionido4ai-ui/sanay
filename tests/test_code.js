@@ -280,7 +280,7 @@ ok(template.name === 'Index' && brand.name === 'SANAY' && brand.logos.length ===
 ok(!out.tpl.brand.includes('<'), 'brand JSON has no raw "<" that could close the script tag');
 ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
 ok(brand.expansion === 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY' && brand.project === 'TaTaK Resilience Project' &&
-  brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan', 'SANAY expansion and the TaTaK Resilience Project');
+  brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
 
 // 9. full and hidden
 const trS = T('Trainings'), H = trS.getRange(1, 1, 1, trS.getLastColumn()).getValues()[0];

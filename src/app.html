@@ -160,7 +160,8 @@ body[data-view="home"]:not(.is-sheet) .shell { max-width: 960px; }
    then SANAY in maroon, then SANAY's meaning. Green over maroon, like the bands above. */
 .lockup { display: grid; justify-items: center; gap: 12px; padding-top: 4px; }
 .lockup-top { max-width: 30ch; font-family: var(--display); font-size: 18.5px; font-style: italic; line-height: 1.3; color: var(--muted); text-wrap: balance; }
-.lockup-top b { font-weight: 700; color: var(--green-text); }
+.lockup-top b { font-weight: 700; color: var(--wordmark-g); }
+.lockup-top .kw { color: var(--wordmark-g); }
 .lockup-names { display: grid; justify-items: center; gap: 4px; margin: 0; font-family: var(--display); font-weight: 600; line-height: 1; }
 .lockup-names:focus { outline: none; }
 .lockup-project { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: 0.26em; row-gap: 2px; font-size: clamp(27px, 7.6vw, 40px); color: var(--wordmark-g); }
@@ -938,6 +939,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       project: 'TaTaK Resilience Project',
       projectMark: 'TaTaK',
       projectExpansion: 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
+      projectAccent: 'Katatagan',
       institution: ['INSTITUTION NAME', 'Office or center name'],
       address: 'Office address', contact: 'Telephone number', email: 'Office email',
       bands: ['#014421', '#7B1113'],
@@ -1418,7 +1420,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     $('#projectRest').textContent = mark && project.indexOf(mark) === 0 ? project.slice(mark.length).trim() : (mark ? '' : project);
     $('#projectLine').hidden = !project;
     $('#projectExp').hidden = !project || !BRAND.projectExpansion;
-    $('#projectExp').innerHTML = acronymHTML(BRAND.projectExpansion, mark);
+    // Katatagan means resilience, so it takes the same green as "Resilience Project" below it.
+    var exp = acronymHTML(BRAND.projectExpansion, mark), word = esc(BRAND.projectAccent || '');
+    if (word && exp.indexOf(word) > -1) exp = exp.replace(word, '<span class="kw">' + word + '</span>');
+    $('#projectExp').innerHTML = exp;
     document.title = BRAND.name + ' Training Registration';
   }
 

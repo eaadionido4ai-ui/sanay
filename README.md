@@ -75,7 +75,7 @@ The dropdown follows the dates: open trainings can be chosen; full, closed and f
 All in `Code.gs`, at the top (`CONFIG`):
 
 - `name` and `expansion`. In the expansion, the letters that spell the name are highlighted, in order and with their case: S-A-N-A-Y. The same goes for `projectMark` in `projectExpansion`: Ta-Ta-K in *TagapagTaguyod ng Kasanayan tungo sa Katatagan*.
-- `project`, `projectMark`, `projectExpansion`: the TaTaK Resilience Project line above the name.
+- `project`, `projectMark`, `projectExpansion`: the TaTaK Resilience Project line above the name. `projectAccent`: a word in the expansion shown in green, now *Katatagan*, since it means resilience.
 - `institution`, `address`, `contactNo`, `email`: the header and footer of the printed pages.
 - `privacyStatement`: word for word from the template. If you change it, change `privacyVersion` too. Each registration records the version the person saw.
 - `mediaStatement` and `impactStatement`: the photo, recording and follow-up interview consent. **This wording is a draft. Have the Data Protection Officer review it.**

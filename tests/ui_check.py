@@ -29,7 +29,7 @@ LOGOS = json.loads((ROOT / 'assets' / 'logos' / 'logos.json').read_text(encoding
 BRAND = {   # what Code.gs writes into the deployed page
     'name': 'SANAY',
     'expansion': 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY',
-    'project': 'TaTaK Resilience Project', 'projectMark': 'TaTaK', 'projectExpansion': 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
+    'project': 'TaTaK Resilience Project', 'projectMark': 'TaTaK', 'projectExpansion': 'TagapagTaguyod ng Kasanayan tungo sa Katatagan', 'projectAccent': 'Katatagan',
     'institution': ['UNIVERSITY OF THE PHILIPPINES', 'Resilience Institute and NOAH Center'],
     'address': 'UP Resilience Institute, Magsaysay Avenue corner Apacible Street, University of the Philippines, Diliman, 1101 Quezon City, Philippines.',
     'contact': 'Tel. +63 (2) 8981-8500 Local 3770, 3771', 'email': 'resilience.institute@up.edu.ph',
@@ -104,6 +104,7 @@ with sync_playwright() as p:
     top = pg.evaluate("() => ['#projectExp', '#projectLine', '#sanayMark', '#brandExpansion'].map(s => document.querySelector(s).getBoundingClientRect().top)")
     check(top[0] < top[1] < top[2] < top[3], 'stacked: TaTaK meaning, TaTaK Resilience Project, SANAY, SANAY meaning')
     check(''.join(pg.eval_on_selector_all('#projectExp b', 'bs => bs.map(b => b.textContent)')) == 'TaTaK', 'Ta-Ta-K highlighted in the Filipino expansion')
+    check(pg.text_content('#projectExp .kw') == 'Katatagan' and pg.evaluate("() => getComputedStyle(document.querySelector('#projectExp .kw')).color === getComputedStyle(document.querySelector('#projectRest')).color"), 'Katatagan in the same green as Resilience Project')
     check(pg.locator('.logo-slot').count() == 3, 'preview shows three logo slots')
     check(pg.inner_text('#brandExpansion').startswith('Skills And Needs'), 'acronym expansion shown')
     check(''.join(pg.eval_on_selector_all('#brandExpansion b', 'bs => bs.map(b => b.textContent)')) == 'SANAY', 'only S-A-N-A-Y highlighted (the C of CapacitY is not)')
