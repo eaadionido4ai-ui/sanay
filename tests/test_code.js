@@ -390,6 +390,19 @@ const k2 = ctx.renewScanner('SAMPLE-1');
 ok(keyOf(k2.replace('&', '&amp;')) && keyOf(k2.replace('&', '&amp;')) !== k1, 'Make a new link gives a different key');
 throws(() => ctx.scanSync({ key: k1, items: [] }), /scanner link has expired/, 'and the old link stops working');
 ok(ctx.getScanner({ key: keyOf(k2.replace('&', '&amp;')) }).training.id === 'SAMPLE-1', 'the new one works');
+// a phone that had no signal on the last day can still send its saved scans for a week after
+const tday = vm.runInContext('today_()', ctx), add = n => vm.runInContext('addDays_(' + JSON.stringify(tday) + ', ' + n + ')', ctx);
+vm.runInContext('appendRecord_("Trainings", { training_id: "FIELD-1", title: "Field training", start_date: ' + JSON.stringify(add(-4)) + ', end_date: ' + JSON.stringify(add(-3)) + ', venue: "Barangay hall" })', ctx);
+vm.runInContext('appendRecord_("Registrations", { timestamp: new Date(), training_id: "FIELD-1", reg_code: "FLD42", full_name: "Luz Tan", email: "luz@example.com", agency: "Barangay Dalisay" })', ctx);
+props['scanner:FIELD-1'] = JSON.stringify({ key: 'f'.repeat(32), until: add(-3) });
+const fieldAt = new Date(add(-3) + 'T09:15:00+08:00').getTime();
+const sf = ctx.scanSync({ key: 'f'.repeat(32), items: [{ id: 'field-1', code: 'FLD42', at: fieldAt, how: 'QR' }, { id: 'field-2', code: 'FLD42', at: Date.now() }] });
+ok(!sf.trainingDay && sf.results.map(r => r.status).join() === 'ok,not-a-training-day' &&
+  table('Attendance').find(a => a.reg_code === 'FLD42').timestamp.getTime() === fieldAt, 'three days after the training, a saved scan from the last day still goes in, with its time; a scan made today does not');
+props['scanner:FIELD-1'] = JSON.stringify({ key: 'f'.repeat(32), until: add(-3) });
+vm.runInContext('setValue_("Trainings", ' + (table('Trainings').findIndex(r => r.training_id === 'FIELD-1') + 2) + ', "end_date", ' + JSON.stringify(add(-9)) + ')', ctx);
+throws(() => ctx.scanSync({ key: 'f'.repeat(32), items: [] }), /scanner link has expired/, 'more than a week after the last day, the link is closed');
+
 vm.runInContext('CONFIG.selfCheckIn = false', ctx);
 throws(() => ctx.checkIn({ training_id: 'SAMPLE-1', key: r9.code }), /at the door/, 'with selfCheckIn off, people cannot check themselves in');
 const w9 = ctx.register(person({ email: 'door.only@example.com', walk_in: true }));

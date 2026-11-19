@@ -78,7 +78,7 @@ The dropdown follows the dates: open trainings can be chosen; full, closed and f
 
 ## Check-in with QR codes
 
-Every registration comes with a QR code. People see it as soon as they register (and again after they check themselves in), and can keep it with a screenshot. It holds only their registration code, never their name or email. For people without a phone, print **Name tags** from the report page: each tag carries the person's QR code.
+Every registration comes with a QR code. People see it as soon as they register (and again after they check themselves in), and can keep it with a screenshot. It holds only their registration code (the `reg_code` column of the Registrations tab), never their name or email, so the Sheet needs no picture: the app draws the QR code from the code whenever it's needed. For people without a phone, print **Name tags** from the report page: each tag carries the person's QR code.
 
 **Set up the door** (a few minutes before people arrive):
 
@@ -91,7 +91,8 @@ On the scanner:
 
 - **List** shows everyone registered, who is in and who isn't. Search by name or office and tap **Check in** twice for someone who lost their QR code or whose phone died.
 - **Type the code** in the box under the camera if a QR code won't scan. A handheld USB or Bluetooth QR scanner works too: it types into that box.
-- **Weak signal:** each scan counts on the device at once and waits there (the top shows "No signal · 3 waiting to send"). Everything goes to the Sheet by itself when the signal comes back, with the time of the scan. Walk-in forms wait the same way. Open the scanner while you have signal and keep the page open: a closed page can't reopen without signal.
+- **Weak signal:** each scan counts on the device at once and waits there (the top shows "No signal · 3 waiting to send"). Everything goes to the Sheet by itself when the signal comes back, with the time of the scan. Walk-in forms wait the same way.
+- **No internet at the venue at all:** before you leave, where there is signal, print the **Name tags** and open the scanner on each door device. Keep the scanner page open: it then works all day with no signal, even overnight into the next training day, and each scan is saved on the device with its time. People who forgot their tag can be found in the **List**, which also works offline. When you're back where there is signal, open the device: if the page was closed, open the scanner link again. It sends everything by itself. For this, the link keeps working for a week after the last day, only to send saved scans. A closed scanner page can't be reopened without signal, so don't close it at the venue.
 - **The link** works until the end of the training's last day. It shows the names and offices of the people registered, so share it only with the door staff. If it reached the wrong person, choose **Make a new link** in the same Sheet dialog: the old link stops working, so open the new one on every device.
 
 **Test the camera on your phones before the first training.** The camera runs inside the Google page, which most phones allow; if one won't open it, use a handheld scanner, type the codes, or use the List. Android phones read QR codes on their own; iPhones and Windows laptops load a small QR reader (jsQR) from the jsDelivr CDN the first time.

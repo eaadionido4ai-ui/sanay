@@ -2474,7 +2474,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
    * ------------------------------------------------------------------ */
   var SC = {
     started: false, key: '', link: '', state: null, roster: {}, inToday: {}, queue: [], recent: [], shown: null, waiters: {},
-    offset: 0, busy: false, seq: 0, timer: null, fails: 0, syncedAt: 0, rosterAt: 0, offline: false,
+    offset: 0, busy: false, seq: 0, timer: null, fails: 0, syncedAt: 0, rosterAt: 0, offline: false, inDay: '',
     mode: 'scan', stream: null, decode: null, looping: false, lastCode: '', lastAt: 0, audio: null, confirm: '', confirmTimer: null
   };
   var JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
@@ -2504,6 +2504,24 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function timeAt(ms) { var p = manilaParts(new Date(ms)), h = Number(p.hour); return ((h + 11) % 12 + 1) + ':' + p.minute + (h >= 12 ? ' PM' : ' AM'); }
   function scLater(ms, fn) { clearTimeout(SC.timer); SC.timer = setTimeout(fn || function () { scSync(false); }, ms); }
+  /* Today's date by this device's clock, corrected at each sync. With no signal the scanner still knows
+     when a new training day starts: yesterday's check-ins stop counting, and scans after the last day are refused. */
+  function scToday() { return stampAt(Date.now() + SC.offset).slice(0, 10); }
+  function scDay() {
+    var t = SC.state.training, d = scToday();
+    return { today: d, open: !!t.start && t.start <= d && d <= t.end, before: !!t.start && d < t.start, day: t.start ? dayNumber(t.start, d) : 0, days: t.start ? dayNumber(t.start, t.end) : 0 };
+  }
+  function scRoll() {
+    var d = scToday();
+    if (SC.inDay === d) return;
+    SC.inDay = d;
+    SC.inToday = {};
+    SC.queue.forEach(function (it) {   // scans still waiting on this device count as checked in
+      if (it.kind === 'scan' && SC.roster[it.code] && stampAt(it.at).slice(0, 10) === d && !SC.inToday[it.code]) {
+        SC.inToday[it.code] = { time: timeAt(it.at), sent: false, id: it.id };
+      }
+    });
+  }
 
   function startScanner() {
     if (SC.started) { scRender(); return; }
@@ -2515,13 +2533,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var saved = scKeep('state');
     if (saved && saved.state) {
       SC.link = saved.link || '';
+      SC.offset = Number(saved.offset) || 0;
       scApply({ training: saved.state.training, today: saved.state.today, trainingDay: saved.state.trainingDay, day: saved.state.day, days: saved.state.days,
         registered: saved.state.registered, checkedIn: saved.state.checkedIn, roster: saved.roster }, true, true);
-      SC.queue.forEach(function (it) {   // scans still waiting on this device count as checked in
-        if (it.kind === 'scan' && SC.roster[it.code] && stampAt(it.at).slice(0, 10) === SC.state.today && !SC.inToday[it.code]) {
-          SC.inToday[it.code] = { time: timeAt(it.at), sent: false, id: it.id };
-        }
-      });
       scRender();
     }
     window.addEventListener('online', function () { if (S.view === 'scan') scSync(true); });
@@ -2606,20 +2620,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     scKeep('queue', SC.queue);
   }
   function scApply(st, full, cached) {
-    if (SC.state && SC.state.today !== st.today) SC.inToday = {};   // a new training day
+    if (!cached && typeof st.now === 'number') SC.offset = st.now - Date.now();
     if (full && st.roster) {
       SC.roster = {};
       st.roster.forEach(function (p) { SC.roster[p.code] = p; });
       if (!cached) SC.rosterAt = Date.now();
     }
-    var next = {};
-    Object.keys(SC.inToday).forEach(function (c) { if (!SC.inToday[c].sent) next[c] = SC.inToday[c]; });
-    (st.checkedIn || []).forEach(function (c) { next[c.code] = { time: c.time, sent: true }; });
-    SC.inToday = next;
     SC.state = { training: st.training, today: st.today, trainingDay: st.trainingDay, day: st.day, days: st.days, registered: st.registered,
       checkedIn: (st.checkedIn || []).slice() };
-    if (!cached && typeof st.now === 'number') SC.offset = st.now - Date.now();
-    scKeep('state', { state: SC.state, roster: Object.keys(SC.roster).map(function (k) { return SC.roster[k]; }), link: SC.link });
+    scRoll();
+    if (st.today === SC.inDay) {   // the Sheet's list of who is in, for the same day as this device
+      var next = {};
+      Object.keys(SC.inToday).forEach(function (c) { if (!SC.inToday[c].sent) next[c] = SC.inToday[c]; });
+      (st.checkedIn || []).forEach(function (c) { next[c.code] = { time: c.time, sent: true }; });
+      SC.inToday = next;
+    }
+    scKeep('state', { state: SC.state, roster: Object.keys(SC.roster).map(function (k) { return SC.roster[k]; }), link: SC.link, offset: SC.offset });
     $('#scLocked').hidden = true;
     $('#scMain').hidden = false;
   }
@@ -2646,8 +2662,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     if (how === 'QR' && code === SC.lastCode && now - SC.lastAt < 4000) return;   // the same code, still in front of the camera
     SC.lastCode = code; SC.lastAt = now;
+    scRoll();
     var at = now + SC.offset, p = SC.roster[code], have = SC.inToday[code];
-    if (!SC.state.trainingDay) {
+    if (!scDay().open) {
+      scRender();
       scFeedback('bad');
       scShow({ id: '', status: 'not-a-training-day', name: p ? p.name : code, agency: p ? p.agency : '' }, true);
       return;
@@ -2710,10 +2728,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
   function scRender() {
     if (!SC.state) return;
-    var t = SC.state.training;
+    scRoll();
+    var t = SC.state.training, d = scDay();
     $('#scTitle').textContent = t.title;
-    $('#scLead').textContent = SC.state.trainingDay ? 'Day ' + SC.state.day + ' of ' + SC.state.days + ' · ' + fmtLong(SC.state.today)
-      : "Today isn't one of the training days (" + fmtRange(t.start, t.end) + '). Scans are refused until then.';
+    $('#scLead').textContent = d.open ? 'Day ' + d.day + ' of ' + d.days + ' · ' + fmtLong(d.today)
+      : d.before ? 'The training starts on ' + fmtLong(t.start) + '. Scans count from then.'
+      : 'The training ended on ' + fmtLong(t.end) + '. Anything still saved on this device is sent when it is online.';
     var codes = Object.keys(SC.roster), inN = codes.filter(function (c) { return SC.inToday[c]; }).length;
     $('#scIn').textContent = inN;
     $('#scOf').textContent = codes.length;

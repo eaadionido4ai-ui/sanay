@@ -627,6 +627,8 @@ function defaultReportTraining_(all, today) {
  * the Sheet keeps the earlier time.
  * =================================================================== */
 
+// After the last day, a scanner link still works for this many days, only to send scans that waited on a phone with no signal.
+const SCANNER_GRACE_DAYS = 7;
 const SCANNER_GONE = 'This scanner link has expired or is not valid. In the Google Sheet, click the training\'s row ' +
   'in the Trainings tab, then choose ' + CONFIG.name + ' › Open the check-in scanner.';
 
@@ -670,7 +672,8 @@ function openScanner() {
     '<div style="font:14px/1.5 Arial,sans-serif;color:#1A1F1C">' +
     '<p style="margin:0 0 8px"><b>' + esc_(t.title) + '</b> · ' + esc_(dates) + '</p>' +
     '<p style="margin:0 0 12px">Open the scanner on the phone or laptop at the door. To add more devices, tap ' +
-    '<b>Add a device</b> on the scanner and scan the QR code it shows. The link works until the end of the last training day.</p>' +
+    '<b>Add a device</b> on the scanner and scan the QR code it shows. Open it where there is signal: after that it keeps working without one, ' +
+    'and sends what it saved when the signal is back. The link works until the last training day, and for a week after only to send saved scans.</p>' +
     '<p style="margin:0 0 14px"><a id="open" href="' + esc_(link) + '" target="_blank" rel="noopener" style="' + button + '">Open the scanner</a></p>' +
     '<p style="margin:0 0 4px;font-size:12px;color:#59625C">Share the link only with the door staff: it shows the names and offices of this training\'s participants.</p>' +
     '<input id="link" readonly value="' + esc_(link) + '" style="box-sizing:border-box;width:100%;padding:6px 8px;font:12px monospace" onclick="this.select()">' +
@@ -814,7 +817,7 @@ function scannerFor_(t, renew) {
   const all = props.getProperties();
   Object.keys(all).forEach(function (name) {   // tidy up keys of trainings that have ended
     if (name.indexOf('scanner:') !== 0) return;
-    try { if (JSON.parse(all[name]).until < today) props.deleteProperty(name); } catch (e) { props.deleteProperty(name); }
+    try { if (addDays_(JSON.parse(all[name]).until, SCANNER_GRACE_DAYS) < today) props.deleteProperty(name); } catch (e) { props.deleteProperty(name); }
   });
   let s = null;
   try { s = JSON.parse(props.getProperty('scanner:' + t.id) || 'null'); } catch (e) { s = null; }
@@ -824,7 +827,7 @@ function scannerFor_(t, renew) {
   return s;
 }
 
-/** The training a scanner key belongs to, while the training hasn't ended; otherwise null. */
+/** The training a scanner key belongs to, until a week after its last day; otherwise null. Scans are still checked against the training days. */
 function scannerTraining_(key) {
   key = String(key || '').replace(/[^0-9a-f]/gi, '').slice(0, 64);
   if (key.length < 24) return null;
@@ -837,7 +840,7 @@ function scannerTraining_(key) {
   });
   if (!id) return null;
   const t = allTrainings_().filter(function (x) { return x.id === id; })[0];
-  return t && t.start && today <= t.end ? t : null;
+  return t && t.start && today <= addDays_(t.end, SCANNER_GRACE_DAYS) ? t : null;
 }
 
 function scannerLink_(url, key) {

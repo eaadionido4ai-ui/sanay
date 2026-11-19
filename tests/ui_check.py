@@ -10,6 +10,7 @@ the real fonts when Google Fonts can't be reached. Needs: pip install playwright
 import json
 import pathlib
 import base64
+import datetime
 import re
 import sys
 
@@ -350,7 +351,21 @@ with sync_playwright() as p:
     pg.click('#scMain .seg [data-mode="list"]')
     pg.fill('#scSearch', 'Benjie Villanueva')
     check('In ·' in pg.inner_text('#scPeople'), 'and reaches the Sheet, checked in, when the signal is back')
+    # no signal across days: the scanner keeps track of the date on its own
     pg.click('#scMain .seg [data-mode="scan"]')
+    pg.click('#scSignal')
+    tomorrow = pg.evaluate("() => Date.now() + 864e5")
+    at = lambda ms: datetime.datetime.fromtimestamp(ms / 1000, tz=datetime.timezone.utc)
+    pg.clock.set_fixed_time(at(tomorrow))
+    pg.fill('#scCode', first); pg.press('#scCode', 'Enter')
+    check(pg.inner_text('#scResult .st').startswith('Checked in') and 'Day 3 of 3' in pg.inner_text('#scLead'),
+          'no signal overnight: on the next training day, people checked in yesterday can check in again')
+    pg.clock.set_fixed_time(at(tomorrow + 864e5))
+    pg.fill('#scCode', first); pg.press('#scCode', 'Enter')
+    check("isn't a training day" in pg.inner_text('#scResult .st') and 'ended' in pg.inner_text('#scLead'), 'after the last day, scans are refused')
+    pg.click('#scSignal')
+    pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")', timeout=20000)
+    check(True, 'the scan saved on the last day is sent once the signal is back')
     pg.click('#scAdd')
     check(read_qr(pg, '#scAddQr svg') == 'https://script.google.com/macros/s/your-web-app/exec?page=scan&k=preview', 'Add a device shows the scanner link as a QR code')
     no_overflow(pg, 'scanner (phone)')
