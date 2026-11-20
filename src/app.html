@@ -2497,12 +2497,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var by = creditsByHTML();
     $('#crBy').innerHTML = by;   // drawn fresh each time, so the affiliation starts closed
     $('#crBy').hidden = !by;
-    var lines = [];
-    if (BRAND.figure) lines.push(['The Oblation', "Silhouette after Guillermo E. Tolentino's Oblation"]);
-    if (BRAND.logos.length) lines.push(['Logos', BRAND.logos.map(function (l) { return l.alt; }).filter(Boolean).join(', ')]);
-    lines.push(['QR codes', 'QR Code Generator by Kazuhiko Arase (MIT License); jsQR (Apache License 2.0) on phones without a built-in reader. QR Code is a registered trademark of DENSO WAVE INCORPORATED.']);
-    lines.push(['Fonts', 'EB Garamond, Source Sans 3 and Source Code Pro (SIL Open Font License)']);
-    lines.push(['Runs on', 'Google Apps Script and Google Sheets']);
+    var lines = [
+      ['QR codes', 'QR Code Generator by Kazuhiko Arase (MIT License); jsQR (Apache License 2.0) on phones without a built-in reader. QR Code is a registered trademark of DENSO WAVE INCORPORATED.'],
+      ['Runs on', 'Google Apps Script and Google Sheets']
+    ];
     $('#crKicker').textContent = BRAND.project + ' · ' + BRAND.name;
     $('#crList').innerHTML = lines.map(function (c) { return '<div><dt>' + esc(c[0]) + '</dt><dd>' + esc(c[1]) + '</dd></div>'; }).join('');
     var d = $('#credits');

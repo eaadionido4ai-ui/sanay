@@ -147,8 +147,8 @@ with sync_playwright() as p:
     pg.screenshot(path=str(OUT / '01-phone-home.png'))
     pg.click('#creditsBtn')
     credits = pg.text_content('#crList')
-    check(pg.is_visible('#credits') and 'Kazuhiko Arase' in credits and 'Oblation' not in credits,
-          'the (i) under the buttons opens the credits (the preview has no Oblation, so no credit for it)')
+    check(pg.is_visible('#credits') and 'Kazuhiko Arase' in credits and pg.locator('#crList dt').all_text_contents() == ['QR codes', 'Runs on'],
+          'the (i) under the buttons opens the credits; below the developer, only the QR code and Runs on notes')
     by = pg.inner_text('#crBy')
     check(by.startswith('Conceptualized and Developed with AI Assistance by:') and 'Developer name' in by and 'Date Developed: November 2026' in by,
           'credits in the developer format: heading, name and lines, date developed (the preview uses placeholders)')
@@ -536,7 +536,9 @@ with sync_playwright() as p:
     check(pg.locator('#logos img').count() == 3, 'deployed look: three logos')
     check(pg.is_visible('#figure svg path'), 'deployed look: the half Oblation at the right edge')
     pg.click('#creditsBtn')
-    check("Guillermo E. Tolentino's Oblation" in pg.inner_text('#crList') and 'NOAH Center logo' in pg.inner_text('#crList'), 'credits name the Oblation and the logos')
+    notes = pg.locator('#crList dt').all_text_contents()
+    check(notes == ['QR codes', 'Runs on'] and not any(w in pg.inner_text('#credits') for w in ('Oblation', 'Logos', 'NOAH', 'Garamond')),
+          'deployed credits: no Oblation, logo or font notes, only QR codes and Runs on: %s' % notes)
     by = [l.strip() for l in pg.inner_text('#crBy').split('\n') if l.strip()]
     check(by == ['Conceptualized and Developed with AI Assistance by:', 'Edward Andrew A. Dionido', 'Science Research Specialist II',
                  'Institution Building Division', 'University of the Philippines Resilience Institute', 'Date Developed: November 2026'],
@@ -548,11 +550,18 @@ with sync_playwright() as p:
           'the cap opens the additional affiliation: %s' % aff)
     pg.screenshot(path=str(OUT / '09c-branded-phone-credits-affiliation.png'))
     close_box = pg.locator('#crClose').bounding_box()
-    check(close_box['y'] >= 0 and close_box['y'] + close_box['height'] <= 844, 'Close stays on screen while the opened credits scroll')
+    check(close_box['y'] + close_box['height'] <= 844 and not pg.evaluate("() => document.querySelector('#credits').classList.contains('scrolls')"),
+          'opened, the credits fit a phone screen, Close included')
+    pg.set_viewport_size({'width': 390, 'height': 560})
+    pg.wait_for_timeout(150)
+    close_box = pg.locator('#crClose').bounding_box()
+    check(close_box['y'] >= 0 and close_box['y'] + close_box['height'] <= 560, 'on a short screen, Close stays in view while the credits scroll')
     end = pg.evaluate('''() => { const d = document.querySelector('#credits'); d.scrollTop = d.scrollHeight;
         const last = [...document.querySelectorAll('#crList dd')].pop().getBoundingClientRect(), foot = document.querySelector('.cr-foot').getBoundingClientRect();
         return [d.classList.contains('scrolls'), last.bottom <= foot.top + 0.5]; }''')
-    check(end == [True, True], 'scrolled to the end, the last note sits above Close (a line marks the edge): %s' % end)
+    check(end == [True, True], 'scrolled to the end on a short screen, the last note sits above Close (a line marks the edge): %s' % end)
+    pg.set_viewport_size({'width': 390, 'height': 844})
+    pg.wait_for_timeout(150)
     name, cap = pg.locator('#crBy .cr-name span').bounding_box(), pg.locator('#crBy .cr-aff-btn').bounding_box()
     mid = pg.evaluate("() => { const r = document.querySelector('#crBy').getBoundingClientRect(); return r.left + r.width / 2; }")
     check(abs((name['x'] + cap['x'] + cap['width']) / 2 - mid) < 2, 'the name and its cap sit centered like the lines under them')

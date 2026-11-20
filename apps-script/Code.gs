@@ -89,7 +89,7 @@ const CONFIG = {
   // ---- Credits: the small (i) under the buttons on the home screen. The heading, then each person: the
   //      name, the lines under it, and an additional affiliation that opens from a small cap icon beside
   //      the name (leave it [] for no icon). Then the date. Empty lines are left out. Below these the app
-  //      adds the notes for the Oblation, the logos, the QR code libraries and the fonts itself.
+  //      adds a short note on the QR code libraries and what it runs on.
   credits: {
     heading: 'Conceptualized and Developed with AI Assistance by:',
     people: [
