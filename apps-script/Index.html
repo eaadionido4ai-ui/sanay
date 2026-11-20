@@ -46,7 +46,15 @@
   --paper-bar: #014421;
   --wordmark: #7B1113;
   --wordmark-g: #014421;
-  --photo-opacity: 0.16;
+  --photo-opacity: 0.24;
+  --photo-filter: none;
+  --gold: #A07A28;
+  --trim: transparent;
+  --inst-ink: var(--ink);
+  --icon-ink: var(--on-fill);
+  --plate-ring: transparent;
+  --glow: transparent;
+  --scrim: rgba(244, 246, 243, 0.78);
   --ring: rgba(123, 17, 19, 0.32);
   --band-green: #014421;
   --band-maroon: #7B1113;
@@ -86,7 +94,9 @@
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
     --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
-    --photo-opacity: 0.1;
+    --photo-opacity: 0.24; --photo-filter: grayscale(1) sepia(0.3) brightness(0.85);
+    --gold: #D6B567; --trim: #D6B567; --inst-ink: #D6B567; --icon-ink: #D6B567; --plate-ring: rgba(214, 181, 103, 0.7);
+    --glow: rgba(214, 181, 103, 0.1); --scrim: rgba(10, 14, 12, 0.55);
     --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
     --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
     color-scheme: dark;
@@ -99,7 +109,9 @@
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
   --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
-  --photo-opacity: 0.1;
+  --photo-opacity: 0.24; --photo-filter: grayscale(1) sepia(0.3) brightness(0.85);
+  --gold: #D6B567; --trim: #D6B567; --inst-ink: #D6B567; --icon-ink: #D6B567; --plate-ring: rgba(214, 181, 103, 0.7);
+  --glow: rgba(214, 181, 103, 0.1); --scrim: rgba(10, 14, 12, 0.55);
   --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
   --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
@@ -116,6 +128,7 @@ body { position: relative; isolation: isolate; }
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
+    radial-gradient(60vmax 38vmax at 50% 6%, var(--glow), transparent 70%),
     radial-gradient(75vmax 55vmax at 100% 0%, var(--wash-maroon), transparent 70%),
     radial-gradient(75vmax 55vmax at 0% 100%, var(--wash-green), transparent 70%),
     repeating-linear-gradient(45deg, var(--weave-m) 0 1.5px, transparent 1.5px 13px, var(--weave-g) 13px 14.5px, transparent 14.5px 26px),
@@ -142,7 +155,7 @@ button { cursor: pointer; }
 .chip-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 
 /* ---------- the photo faded behind the woven pattern (comes with the logos, so only in the deployed app) ---------- */
-.bg-photo { position: fixed; inset: 0; z-index: -2; pointer-events: none; background-repeat: no-repeat; background-size: cover; background-position: center; opacity: var(--photo-opacity); }
+.bg-photo { position: fixed; inset: 0; z-index: -2; pointer-events: none; background-repeat: no-repeat; background-size: cover; background-position: center; opacity: var(--photo-opacity); filter: var(--photo-filter); }
 .is-report .bg-photo, .is-sheet .bg-photo { display: none; }
 
 /* ---------- QR codes ---------- */
@@ -221,6 +234,7 @@ body[data-view="scan"] .shell { max-width: 560px; }
 .crest { display: block; width: 100%; height: var(--band-h); }
 .band-g { fill: var(--band-green); }
 .band-m { fill: var(--band-maroon); }
+.band-trim { fill: none; stroke: var(--trim); stroke-width: 1.5px; }
 
 /* ---------- layout ---------- */
 .page { padding-block: 0 56px; }
@@ -237,17 +251,22 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .view-home { position: relative; display: grid; justify-items: center; gap: 24px; text-align: center; margin-top: calc(12px - 0.55 * var(--band-h)); padding-bottom: 8px; }
 .is-sheet .view-home { margin-top: 18px; }
 .masthead { display: grid; justify-items: center; gap: 12px; }
-.logos { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; padding: 8px 14px; border-radius: 16px; background: var(--plate); }
+.logos { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; padding: 8px 14px; border-radius: 16px; background: var(--plate); box-shadow: 0 0 0 1px var(--plate-ring); }
 .logos img { display: block; height: 46px; width: auto; max-width: 100%; }
 .logo-slot { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; border: 1.5px dashed var(--line-strong); background: var(--surface); color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .logo-slot.wide { width: 100px; border-radius: 12px; }
 @media (min-width: 600px) { .logos img, .logo-slot { height: 54px; } .logo-slot { width: 54px; } .logo-slot.wide { width: 116px; } }
 .inst { display: grid; gap: 1px; }
-.inst-1 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; }
+.inst-1 { font-size: 12.5px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--inst-ink); }
 .inst-2 { font-size: 14px; color: var(--muted); }
 /* The lockup, stacked at the center: TaTaK's meaning, then "TaTaK Resilience Project" in green,
    then SANAY in maroon, then SANAY's meaning. Green over maroon, like the bands above. */
 .lockup { display: grid; justify-items: center; gap: 12px; padding-top: 4px; }
+/* the logos, the university and the names, with one soft shade behind them so they stay readable over the background photo */
+.hero { position: relative; isolation: isolate; display: grid; justify-items: center; gap: 24px; width: 100%; }
+.hero::before { content: ""; position: absolute; inset: -18px -16px -24%; z-index: -1; pointer-events: none; background: radial-gradient(closest-side, var(--scrim) 82%, transparent); }
+/* wide screens have room beside the column, so the shade can spread further without making the page scroll sideways */
+@media (min-width: 1344px) { .hero::before { inset: -18px -20% -24%; background: radial-gradient(closest-side, var(--scrim) 70%, transparent); } }
 .lockup-top { max-width: 30ch; font-family: var(--display); font-size: 18.5px; font-style: italic; line-height: 1.3; color: var(--muted); text-wrap: balance; }
 .lockup-top b { font-weight: 700; color: var(--wordmark-g); }
 .lockup-top .kw { color: var(--wordmark-g); }
@@ -259,13 +278,13 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .wm-sanay { margin-right: -0.16em; font-size: clamp(56px, 17vw, 86px); letter-spacing: 0.16em; color: var(--wordmark); }
 .lockup-bottom { max-width: 40ch; font-size: 15px; color: var(--muted); text-wrap: balance; }
 .lockup-bottom b { font-weight: 700; color: var(--maroon-text); }
-.actions { width: 100%; display: grid; gap: 12px; padding-top: 4px; text-align: left; }
+.actions { position: relative; width: 100%; display: grid; gap: 12px; padding-top: 4px; text-align: left; }   /* positioned, so the buttons sit above the shade behind the title */
 .flow { display: grid; gap: 12px; }
 .action { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 16px; row-gap: 2px; width: 100%; min-height: 86px; padding: 14px 16px 14px 14px; border: 0; border-radius: 18px; background: var(--nav); color: var(--on-fill); text-align: left; box-shadow: 0 1px 2px var(--shadow), 0 10px 20px -12px var(--nav-glow); transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s; }
 .action:hover { background: var(--nav-hover); transform: translateY(-1px); box-shadow: 0 2px 4px var(--shadow), 0 14px 24px -12px var(--nav-glow); }
 .action:active { transform: translateY(1px); }
 .action:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
-.action-icon { grid-row: 1 / span 2; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: var(--on-fill-soft); }
+.action-icon { grid-row: 1 / span 2; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: var(--on-fill-soft); color: var(--icon-ink); }
 .action-label { grid-column: 2; font-family: var(--display); font-size: 27px; font-weight: 600; line-height: 1.05; }
 .action-hint { grid-column: 2; grid-row: 2; font-size: 14.5px; color: var(--on-fill-muted); }
 .action-arrow { grid-column: 3; grid-row: 1 / span 2; display: grid; place-items: center; color: var(--on-fill-muted); transition: transform 0.15s; }
@@ -301,6 +320,8 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .cr-by:not([hidden]) + .cr-list { padding-top: 16px; border-top: 1px solid var(--line); }
 .cr-list dt { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cr-list dd { margin-top: 1px; font-size: 13px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.cr-list a { color: var(--green-text); font-weight: 600; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.cr-list a:hover { text-decoration-thickness: 2px; }
 /* Close stays at the bottom of the box when the credits are taller than the screen */
 .cr-foot { position: sticky; bottom: 0; display: flex; justify-content: flex-end; margin: -4px -20px -16px; padding: 10px 20px 16px; border-top: 1px solid transparent; background: var(--surface); }
 .credits.scrolls .cr-foot { border-top-color: var(--line); }
@@ -683,13 +704,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
   </div>
 </div>
 <div class="bg-photo" id="bgPhoto" aria-hidden="true" hidden></div>
-<svg class="crest" viewBox="0 0 1300 106" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="band-g" points="0,0 795,0 645,20 0,106"></polygon><polygon class="band-m" points="795,0 1300,0 1300,106 645,20"></polygon></svg>
+<svg class="crest" viewBox="0 0 1300 106" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="band-g" points="0,0 795,0 645,20 0,106"></polygon><polygon class="band-m" points="795,0 1300,0 1300,106 645,20"></polygon><polyline class="band-trim" points="0,106 645,20 1300,106" vector-effect="non-scaling-stroke"></polyline></svg>
 <div class="page gutter">
   <div class="shell">
     <main class="app" id="app">
 
       <!-- ===================== HOME ===================== -->
       <section class="view view-home" id="view-home" aria-labelledby="brandName">
+        <div class="hero">
         <div class="masthead">
           <div class="logos" id="logos"></div>
           <p class="inst" id="inst"></p>
@@ -701,6 +723,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             <span class="wm-sanay" id="sanayMark">SANAY</span>
           </h1>
           <p class="lockup-bottom" id="brandExpansion"></p>
+        </div>
         </div>
         <nav class="actions" aria-label="Choose what to do">
           <div class="flow">
@@ -2500,12 +2523,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var by = creditsByHTML();
     $('#crBy').innerHTML = by;   // drawn fresh each time, so the affiliation starts closed
     $('#crBy').hidden = !by;
-    var lines = (BRAND.backdrop && BRAND.backdrop.credit ? [['Background photo', String(BRAND.backdrop.credit)]] : []).concat([
+    var bd = BRAND.backdrop;
+    var lines = (bd && bd.credit ? [['Background photo', String(bd.credit), /^https:\/\/[^\s"'<>]+$/.test(bd.creditLink || '') ? bd.creditLink : '']] : []).concat([
       ['QR codes', 'QR Code Generator by Kazuhiko Arase (MIT License); jsQR (Apache License 2.0) on phones without a built-in reader. QR Code is a registered trademark of DENSO WAVE INCORPORATED.'],
       ['Runs on', 'Google Apps Script and Google Sheets']
     ]);
     $('#crKicker').textContent = BRAND.project + ' · ' + BRAND.name;
-    $('#crList').innerHTML = lines.map(function (c) { return '<div><dt>' + esc(c[0]) + '</dt><dd>' + esc(c[1]) + '</dd></div>'; }).join('');
+    $('#crList').innerHTML = lines.map(function (c) {
+      return '<div><dt>' + esc(c[0]) + '</dt><dd>' + (c[2] ? '<a href="' + esc(c[2]) + '" target="_blank" rel="noopener noreferrer">' + esc(c[1]) + '</a>' : esc(c[1])) + '</dd></div>';
+    }).join('');
     var d = $('#credits');
     if (typeof d.showModal === 'function') d.showModal();
     else { d.classList.add('fallback'); d.setAttribute('open', ''); }

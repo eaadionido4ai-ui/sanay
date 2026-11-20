@@ -543,20 +543,30 @@ with sync_playwright() as p:
     ctx.close()
 
     # ---------------- a background photo: faded, under the woven pattern, not on report pages ----------------
-    photo = dict(BRAND, backdrop={'src': tiny_png(), 'position': '50% 30%', 'credit': 'Photo: Test Person'})
+    photo = dict(BRAND, backdrop={'src': tiny_png(), 'position': '50% 30%', 'credit': 'Test Person on Flickr', 'creditLink': 'https://www.example.org/photos/1'})
     ctx, pg, errors = open_page(browser, 390, 844, brand=photo)
     st = pg.evaluate("""() => { const el = document.querySelector('#bgPhoto'), cs = getComputedStyle(el), weave = getComputedStyle(document.body, '::before');
         return [!el.hidden, cs.backgroundImage.slice(0, 26), cs.backgroundPosition, cs.position, cs.zIndex, weave.zIndex, cs.opacity]; }""")
-    check(st == [True, 'url("data:image/png;base64', '50% 30%', 'fixed', '-2', '-1', '0.16'], 'background photo: fixed, faded, under the woven pattern: %s' % st)
+    check(st == [True, 'url("data:image/png;base64', '50% 30%', 'fixed', '-2', '-1', '0.24'], 'background photo: fixed, faded, under the woven pattern: %s' % st)
+    lt = pg.evaluate("""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return [q('#bgPhoto').filter, q('.inst-1').color, q('.band-trim').stroke, q('.logos').boxShadow.startsWith('rgba(0, 0, 0, 0)')]; }""")
+    check(lt == ['none', 'rgb(26, 31, 28)', 'rgba(0, 0, 0, 0)', True], 'light mode: the photo in color and no gold touches: %s' % lt)
     pg.click('#creditsBtn')
-    check(pg.locator('#crList dt').all_text_contents() == ['Background photo', 'QR codes', 'Runs on'] and 'Photo: Test Person' in pg.inner_text('#crList'),
-          'the photo credit comes first in the credits notes')
+    link = pg.locator('#crList dd a')
+    check(pg.locator('#crList dt').all_text_contents() == ['Background photo', 'QR codes', 'Runs on'] and link.count() == 1 and link.inner_text() == 'Test Person on Flickr'
+          and link.get_attribute('href') == 'https://www.example.org/photos/1' and link.get_attribute('target') == '_blank' and 'noopener' in link.get_attribute('rel'),
+          'the photo credit comes first in the credits notes and links to the photo, in a new tab')
     pg.click('#crClose')
     pg.evaluate("() => document.body.classList.add('is-report')")
+    on_top = pg.evaluate("""() => { const r = document.querySelector('#go-register').getBoundingClientRect();
+        return document.elementFromPoint(r.left + r.width / 2, r.top + 3).closest('#go-register') !== null; }""")
+    check(on_top, 'the home buttons sit above the shade behind the title')
     check(pg.is_hidden('#bgPhoto'), 'background photo: not behind report pages')
     ctx.close()
     ctx, pg, errors = open_page(browser, 390, 844, dark=True, brand=photo)
-    check(pg.evaluate("() => getComputedStyle(document.querySelector('#bgPhoto')).opacity") == '0.1', 'background photo: fainter in dark mode')
+    dk = pg.evaluate("""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return [q('#bgPhoto').opacity, q('#bgPhoto').filter.startsWith('grayscale(1)'), q('.inst-1').color, q('.action-icon').color, q('.band-trim').stroke]; }""")
+    check(dk == ['0.24', True, 'rgb(214, 181, 103)', 'rgb(214, 181, 103)', 'rgb(214, 181, 103)'], 'dark mode: warm black-and-white photo and the gold touches: %s' % dk)
     ctx.close()
     ctx, pg, errors = open_page(browser, 390, 844, brand=dict(BRAND, backdrop={'src': 'https://example.org/a.jpg") ; background: red'}))
     check(pg.is_hidden('#bgPhoto'), 'background photo: a link that could break out of the CSS is not used')

@@ -340,9 +340,11 @@ ok(cr.heading === 'Conceptualized and Developed with AI Assistance by:' && cr.pe
   me.additionalAffiliation.join('|') === 'Graduate Student (Ongoing)|College of Professional and Graduate Studies|De La Salle University Dasmariñas' &&
   cr.dateDeveloped === 'November 2026', 'credits in the developer format, with the additional affiliation, reach the page');
 ok(brand.backdrop === null || /^data:image\/(jpeg|png|webp);base64,/.test(brand.backdrop.src), 'the background photo from Logos.gs, if there is one, is a data: image');
-const bd = ctx.backdrop_({ src: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', position: '50% 30%', credit: '  Photo: A. Person  ' });
-ok(bd && bd.position === '50% 30%' && bd.credit === 'Photo: A. Person' && ctx.backdrop_({ src: 'https://example.org/oblation.jpg' }).position === 'center',
-  'background photo: a data: image or an https link reaches the page, with its focus and credit');
+const bd = ctx.backdrop_({ src: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', position: '50% 30%', credit: '  Photo: A. Person  ', creditLink: 'https://example.org/photos/1' });
+ok(bd && bd.position === '50% 30%' && bd.credit === 'Photo: A. Person' && bd.creditLink === 'https://example.org/photos/1' && ctx.backdrop_({ src: 'https://example.org/oblation.jpg' }).position === 'center',
+  'background photo: a data: image or an https link reaches the page, with its focus, credit and the link to the photo');
+ok(ctx.backdrop_({ src: 'https://example.org/a.jpg', creditLink: 'javascript:alert(1)' }).creditLink === '' && ctx.backdrop_({ src: 'https://example.org/a.jpg', creditLink: 'https://x.org/" onclick="x' }).creditLink === '',
+  'background photo: a credit link that is not a plain https link is dropped');
 ok(ctx.backdrop_(null) === null && ctx.backdrop_({ src: 'javascript:alert(1)' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg") ; background: red' }) === null &&
   ctx.backdrop_({ src: 'data:image/svg+xml;base64,PHN2Zz4=' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg', position: 'url(x); color: red' }).position === 'urlx color red',
   'background photo: anything that could break out of the CSS is refused');

@@ -237,7 +237,8 @@ function backdrop_(b) {
   return {
     src: src,
     position: String(b.position || '').replace(/[^0-9a-z%. -]/gi, '').trim().slice(0, 40) || 'center',
-    credit: String(b.credit || '').trim()
+    credit: String(b.credit || '').trim(),
+    creditLink: /^https:\/\/[^\s"'<>\\]+$/.test(String(b.creditLink || '')) ? String(b.creditLink) : ''
   };
 }
 

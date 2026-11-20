@@ -65,10 +65,12 @@ def build_logos():
         js += ('\n/**\n'
                ' * The photo faded behind the woven pattern on every page. Built from assets/backdrop.\n'
                ' * position: the part of the photo kept in view when a screen crops it (CSS background-position).\n'
-               ' * credit: shown in the credits box. Delete this whole BACKDROP to leave the photo out.\n'
+               ' * credit: shown in the credits box; creditLink: the photo\'s page, linked from the credit.\n'
+               ' * Delete this whole BACKDROP to leave the photo out.\n'
                ' */\n'
-               "const BACKDROP = {\n  src: 'data:%s;base64,%s',\n  position: %s,\n  credit: %s\n};\n"
-               % (mime, data, json.dumps(meta.get('position', 'center')), json.dumps(meta.get('credit', ''))))
+               "const BACKDROP = {\n  src: 'data:%s;base64,%s',\n  position: %s,\n  credit: %s,\n  creditLink: %s\n};\n"
+               % (mime, data, json.dumps(meta.get('position', 'center')), json.dumps(meta.get('credit', '')),
+                  json.dumps(meta.get('creditLink', ''))))
     (OUT / 'Logos.gs').write_text(js, encoding='utf-8')
     return len(js)
 
