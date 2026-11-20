@@ -31,7 +31,7 @@ Print or save any of them as a PDF from the browser.
 
 The Google Sheet is the database. Google Apps Script serves the page and writes the rows. Nothing else to host or pay for.
 
-The pages carry a faint half silhouette of the Oblation along the right edge, and a small **(i)** under the home buttons opens the credits.
+Behind the woven pattern the deployed app can show a faded photo (see *Background photo* below), and a small **(i)** under the home buttons opens the credits.
 
 ## What's in this repository
 
@@ -39,7 +39,7 @@ The pages carry a faint half silhouette of the Oblation along the right edge, an
 apps-script/      the three files to paste into Apps Script (Code.gs, Logos.gs, Index.html) and the manifest
 src/app.html      the page source; opened outside Apps Script it runs as a preview with sample data
 assets/logos/     UP, UPRI and NOAH logos, cropped from the GAD attendance template
-assets/figure/    the half Oblation silhouette for the right edge of the pages
+assets/backdrop/  the background photo, with backdrop.json (the file, the part to keep in view, the credit)
 tools/build.py    builds apps-script/Index.html and apps-script/Logos.gs from src/ and assets/
 tests/            back-end tests against a mock Sheet, and browser checks (tests/vendor holds the QR reader they use)
 ```
@@ -130,7 +130,7 @@ All in `Code.gs`, at the top (`CONFIG`):
 
 Logos: replace the files in `assets/logos/` (keep `logos.json` in step) and run `python3 tools/build.py`, or edit `Logos.gs` directly. An entry's `src` can also be an image link.
 
-The Oblation: `assets/figure/oblation.svg` is the half silhouette at the right edge, one path whose right edge is the statue's center line. Replace it and run `python3 tools/build.py`. To leave it out, delete `FIGURE` from `Logos.gs`. It and the logos appear only in the deployed app, not in the preview.
+Background photo: put the photo in `assets/backdrop/` and name it in `backdrop.json`, with `position` (the part of the photo to keep in view when a screen crops it, e.g. `50% 30%`) and `credit` (shown first in the credits box; leave it empty if no credit is needed). Then run `python3 tools/build.py`. The page fades it (`--photo-opacity`) and draws the woven pattern and the two color washes over it. It loads with every page, so keep the file small (about 1600 px wide, under 300 KB). Use a photo you have the rights to. To leave it out, delete `BACKDROP` from `Logos.gs`. Like the logos, it appears only in the deployed app, not in the preview.
 
 ## Keep the data to a few people
 

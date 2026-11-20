@@ -46,8 +46,7 @@
   --paper-bar: #014421;
   --wordmark: #7B1113;
   --wordmark-g: #014421;
-  --fig-top: rgba(123, 17, 19, 0.12);
-  --fig-bottom: rgba(1, 68, 33, 0.11);
+  --photo-opacity: 0.16;
   --ring: rgba(123, 17, 19, 0.32);
   --band-green: #014421;
   --band-maroon: #7B1113;
@@ -87,7 +86,7 @@
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
     --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
-    --fig-top: rgba(240, 163, 166, 0.1); --fig-bottom: rgba(143, 209, 168, 0.08);
+    --photo-opacity: 0.1;
     --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
     --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
     color-scheme: dark;
@@ -100,7 +99,7 @@
     --nav: #1E5E3C; --nav-hover: #247049; --nav-glow: rgba(0, 0, 0, 0.55); --req-glow: rgba(0, 0, 0, 0.55);
     --wash-maroon: rgba(168, 52, 58, 0.24); --wash-green: rgba(44, 122, 78, 0.22); --weave-m: rgba(232, 149, 154, 0.075); --weave-g: rgba(143, 209, 168, 0.075); --card-shadow: rgba(0, 0, 0, 0.65);
   --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
-  --fig-top: rgba(240, 163, 166, 0.1); --fig-bottom: rgba(143, 209, 168, 0.08);
+  --photo-opacity: 0.1;
   --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
   --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
@@ -142,11 +141,9 @@ button { cursor: pointer; }
 .chip-btn:hover { border-color: var(--ink); }
 .chip-btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 
-/* ---------- the Oblation, half of it, at the right edge (comes with the logos, so only in the deployed app) ---------- */
-.figure { position: fixed; top: calc(var(--band-h) + 18px); right: 0; bottom: 0; z-index: -1; pointer-events: none; }
-.figure svg { display: block; height: 100%; width: auto; margin-left: auto; }
-@media (max-width: 600px) { .figure { opacity: 0.75; } }
-.is-report .figure, .is-sheet .figure { display: none; }
+/* ---------- the photo faded behind the woven pattern (comes with the logos, so only in the deployed app) ---------- */
+.bg-photo { position: fixed; inset: 0; z-index: -2; pointer-events: none; background-repeat: no-repeat; background-size: cover; background-position: center; opacity: var(--photo-opacity); }
+.is-report .bg-photo, .is-sheet .bg-photo { display: none; }
 
 /* ---------- QR codes ---------- */
 .qr { display: block; width: 168px; height: 168px; border-radius: 12px; background: #FFFFFF; image-rendering: pixelated; }
@@ -662,7 +659,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 
 @media print {
   html, body { background: #FFFFFF !important; }
-  body::before, .figure { display: none !important; }
+  body::before, .bg-photo { display: none !important; }
   .demo-wrap, .crest, .sheet, .report-chrome, .view:not(.view-report), .measure { display: none !important; }
   .page, .shell, .app, .view-report, .paper-desk { max-width: none !important; margin: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; overflow: visible !important; }
   .paper-stack { display: block !important; zoom: 1 !important; width: auto !important; }
@@ -685,7 +682,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     </div>
   </div>
 </div>
-<div class="figure" id="figure" aria-hidden="true" hidden></div>
+<div class="bg-photo" id="bgPhoto" aria-hidden="true" hidden></div>
 <svg class="crest" viewBox="0 0 1300 106" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polygon class="band-g" points="0,0 795,0 645,20 0,106"></polygon><polygon class="band-m" points="795,0 1300,0 1300,106 645,20"></polygon></svg>
 <div class="page gutter">
   <div class="shell">
@@ -1282,6 +1279,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (!Array.isArray(b.bands) || b.bands.length < 2) b.bands = ['#014421', '#7B1113'];
     if (!b.credits || typeof b.credits !== 'object' || Array.isArray(b.credits)) b.credits = {};
     if (!Array.isArray(b.credits.people)) b.credits.people = [];
+    if (!b.backdrop || typeof b.backdrop !== 'object') b.backdrop = null;
     return b;
   })();
 
@@ -1855,12 +1853,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var exp = acronymHTML(BRAND.projectExpansion, mark), word = esc(BRAND.projectAccent || '');
     if (word && exp.indexOf(word) > -1) exp = exp.replace(word, '<span class="kw">' + word + '</span>');
     $('#projectExp').innerHTML = exp;
-    var fig = BRAND.figure;
-    if (fig && fig.d && fig.viewBox) {
-      $('#figure').innerHTML = '<svg viewBox="' + esc(fig.viewBox) + '" preserveAspectRatio="xMaxYMax meet" focusable="false">' +
-        '<defs><linearGradient id="figFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--fig-top)"></stop>' +
-        '<stop offset="1" style="stop-color:var(--fig-bottom)"></stop></linearGradient></defs><path fill="url(#figFade)" d="' + esc(fig.d) + '"></path></svg>';
-      $('#figure').hidden = false;
+    // The photo behind the woven pattern: only a data: image or a plain https link goes into the CSS.
+    var bd = BRAND.backdrop, bdSrc = bd ? String(bd.src || '') : '';
+    if (/^(data:image\/(jpeg|png|webp);base64,|https:\/\/)/.test(bdSrc) && !/["'\\\s()]/.test(bdSrc)) {
+      $('#bgPhoto').style.backgroundImage = 'url("' + bdSrc + '")';
+      if (bd.position) $('#bgPhoto').style.backgroundPosition = String(bd.position);
+      $('#bgPhoto').hidden = false;
     }
     document.title = BRAND.name + ' Training Registration';
   }
@@ -2502,10 +2500,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var by = creditsByHTML();
     $('#crBy').innerHTML = by;   // drawn fresh each time, so the affiliation starts closed
     $('#crBy').hidden = !by;
-    var lines = [
+    var lines = (BRAND.backdrop && BRAND.backdrop.credit ? [['Background photo', String(BRAND.backdrop.credit)]] : []).concat([
       ['QR codes', 'QR Code Generator by Kazuhiko Arase (MIT License); jsQR (Apache License 2.0) on phones without a built-in reader. QR Code is a registered trademark of DENSO WAVE INCORPORATED.'],
       ['Runs on', 'Google Apps Script and Google Sheets']
-    ];
+    ]);
     $('#crKicker').textContent = BRAND.project + ' · ' + BRAND.name;
     $('#crList').innerHTML = lines.map(function (c) { return '<div><dt>' + esc(c[0]) + '</dt><dd>' + esc(c[1]) + '</dd></div>'; }).join('');
     var d = $('#credits');

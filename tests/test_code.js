@@ -338,7 +338,14 @@ const cr = brand.credits, me = cr.people[0];
 ok(cr.heading === 'Conceptualized and Developed with AI Assistance by:' && cr.people.length === 1 && me.name === 'Edward Andrew A. Dionido' &&
   me.lines.join('|') === 'Science Research Specialist II|Institution Building Division|University of the Philippines Resilience Institute' &&
   me.additionalAffiliation.join('|') === 'Graduate Student (Ongoing)|College of Professional and Graduate Studies|De La Salle University Dasmariñas' &&
-  cr.dateDeveloped === 'November 2026' && brand.figure && /^M/.test(brand.figure.d), 'credits in the developer format with the additional affiliation, and the half Oblation, reach the page');
+  cr.dateDeveloped === 'November 2026', 'credits in the developer format, with the additional affiliation, reach the page');
+ok(brand.backdrop === null || /^data:image\/(jpeg|png|webp);base64,/.test(brand.backdrop.src), 'the background photo from Logos.gs, if there is one, is a data: image');
+const bd = ctx.backdrop_({ src: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', position: '50% 30%', credit: '  Photo: A. Person  ' });
+ok(bd && bd.position === '50% 30%' && bd.credit === 'Photo: A. Person' && ctx.backdrop_({ src: 'https://example.org/oblation.jpg' }).position === 'center',
+  'background photo: a data: image or an https link reaches the page, with its focus and credit');
+ok(ctx.backdrop_(null) === null && ctx.backdrop_({ src: 'javascript:alert(1)' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg") ; background: red' }) === null &&
+  ctx.backdrop_({ src: 'data:image/svg+xml;base64,PHN2Zz4=' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg', position: 'url(x); color: red' }).position === 'urlx color red',
+  'background photo: anything that could break out of the CSS is refused');
 vm.runInContext("var keepCredits = CONFIG.credits; CONFIG.credits = { heading: '  By:  ', people: [{ name: ' ' }, { name: 'A. Person', lines: ['Role', '  '] }, null] }", ctx);
 const cr2 = JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits;
 ok(cr2.heading === 'By:' && cr2.people.length === 1 && cr2.people[0].lines.join() === 'Role' && cr2.people[0].additionalAffiliation.length === 0 && cr2.dateDeveloped === '',

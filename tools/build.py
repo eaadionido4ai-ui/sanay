@@ -3,7 +3,7 @@
 
   src/app.html            ->  apps-script/Index.html   (the page, ready for HtmlService)
   assets/logos/*          ->  apps-script/Logos.gs     (logos as data: URIs)
-  assets/figure/*.svg     ->  apps-script/Logos.gs     (the half Oblation at the right edge of the pages)
+  assets/backdrop/*       ->  apps-script/Logos.gs     (the photo faded behind the woven pattern)
 
 Run from anywhere:  python3 tools/build.py
 """
@@ -11,14 +11,13 @@ import base64
 import json
 import mimetypes
 import pathlib
-import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / 'src' / 'app.html'
 OUT = ROOT / 'apps-script'
 LOGO_DIR = ROOT / 'assets' / 'logos'
-FIGURE = ROOT / 'assets' / 'figure' / 'oblation.svg'
+BACKDROP_DIR = ROOT / 'assets' / 'backdrop'
 
 BODY_MARK = '<!-- sanay:body -->'
 BRAND_MARK = '<!-- sanay:brand -->'
@@ -57,15 +56,19 @@ def build_logos():
           ' * or set src to an image link (https://...). Delete an entry to drop that logo.\n'
           ' */\n'
           'const LOGOS = [\n' + ',\n'.join(items) + '\n];\n')
-    if FIGURE.exists():
-        svg = FIGURE.read_text(encoding='utf-8')
-        box = re.search(r'viewBox="([^"]+)"', svg).group(1)
-        d = re.search(r'<path[^>]*\sd="([^"]+)"', svg).group(1)
+    meta_file = BACKDROP_DIR / 'backdrop.json'
+    if meta_file.exists():
+        meta = json.loads(meta_file.read_text(encoding='utf-8'))
+        photo = BACKDROP_DIR / meta['file']
+        mime = mimetypes.guess_type(photo.name)[0] or 'image/jpeg'
+        data = base64.b64encode(photo.read_bytes()).decode('ascii')
         js += ('\n/**\n'
-               ' * Half silhouette of the Oblation, at the right edge of the pages. Built from assets/figure/oblation.svg.\n'
-               ' * Delete this to leave it out.\n'
+               ' * The photo faded behind the woven pattern on every page. Built from assets/backdrop.\n'
+               ' * position: the part of the photo kept in view when a screen crops it (CSS background-position).\n'
+               ' * credit: shown in the credits box. Delete this whole BACKDROP to leave the photo out.\n'
                ' */\n'
-               'const FIGURE = {\n  viewBox: %s,\n  d: %s\n};\n' % (json.dumps(box), json.dumps(d)))
+               "const BACKDROP = {\n  src: 'data:%s;base64,%s',\n  position: %s,\n  credit: %s\n};\n"
+               % (mime, data, json.dumps(meta.get('position', 'center')), json.dumps(meta.get('credit', ''))))
     (OUT / 'Logos.gs').write_text(js, encoding='utf-8')
     return len(js)
 
