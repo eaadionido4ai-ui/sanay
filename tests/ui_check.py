@@ -12,6 +12,7 @@ import pathlib
 import base64
 import datetime
 import re
+import subprocess
 import sys
 
 from playwright.sync_api import sync_playwright
@@ -27,19 +28,12 @@ SKELETON = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>%s</body></html>')
 (OUT / 'preview.html').write_text(SKELETON.replace('%s', (ROOT / 'src' / 'app.html').read_text(encoding='utf-8')), encoding='utf-8')
 
-LOGOS = json.loads((ROOT / 'assets' / 'logos' / 'logos.json').read_text(encoding='utf-8'))
-BRAND = {   # what Code.gs writes into the deployed page
-    'name': 'SANAY',
-    'expansion': 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY',
-    'project': 'TaTaK Resilience Project', 'projectMark': 'TaTaK', 'projectExpansion': 'TagapagTaguyod ng Kasanayan tungo sa Katatagan', 'projectAccent': 'Katatagan',
-    'institution': ['UNIVERSITY OF THE PHILIPPINES', 'Resilience Institute and NOAH Center'],
-    'address': 'UP Resilience Institute, Magsaysay Avenue corner Apacible Street, University of the Philippines, Diliman, 1101 Quezon City, Philippines.',
-    'contact': 'Tel. +63 (2) 8981-8500 Local 3770, 3771', 'email': 'resilience.institute@up.edu.ph',
-    'bands': ['#014421', '#7B1113'],
-    'logos': [{'alt': l['alt'], 'src': 'data:image/webp;base64,' + base64.b64encode((ROOT / 'assets' / 'logos' / l['file']).read_bytes()).decode()} for l in LOGOS],
-}
-_FIG = (ROOT / 'assets' / 'figure' / 'oblation.svg').read_text(encoding='utf-8')
-BRAND['figure'] = {'viewBox': re.search(r'viewBox="([^"]+)"', _FIG).group(1), 'd': re.search(r'<path[^>]*\sd="([^"]+)"', _FIG).group(1)}
+# What Code.gs writes into the deployed page (CONFIG, the logos, the half Oblation), read from Code.gs and Logos.gs themselves
+BRAND = json.loads(subprocess.run(['node', '-e', '''
+const vm = require("vm"), fs = require("fs"), ctx = vm.createContext({});
+for (const f of ["Code.gs", "Logos.gs"]) vm.runInContext(fs.readFileSync(process.argv[1] + "/" + f, "utf8"), ctx, { filename: f });
+process.stdout.write(vm.runInContext("brandJson_()", ctx));
+''', str(ROOT / 'apps-script')], capture_output=True, text=True, check=True).stdout)
 
 JSQR = ROOT / 'tests' / 'vendor' / 'jsQR.js'   # the same file the scanner loads from the CDN, checked against its integrity hash
 JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
@@ -111,6 +105,14 @@ def read_qr(pg, selector):
         return r ? r.data : null; }''', selector)
 
 
+def open_scanner(pg, pin='246810'):
+    pg.click('#openScanner')
+    pg.wait_for_selector('#scPinForm:not([hidden])')
+    pg.fill('#scPin', pin)
+    pg.click('#scPinGo')
+    pg.wait_for_selector('#scMain:not([hidden])')
+
+
 def no_overflow(pg, label):
     sw, iw = pg.evaluate('[document.documentElement.scrollWidth, window.innerWidth]')
     check(sw <= iw, '%s: no sideways scroll (%d <= %d)' % (label, sw, iw))
@@ -145,9 +147,23 @@ with sync_playwright() as p:
     pg.screenshot(path=str(OUT / '01-phone-home.png'))
     pg.click('#creditsBtn')
     credits = pg.text_content('#crList')
-    check(pg.is_visible('#credits') and 'Developed by' in credits and 'Kazuhiko Arase' in credits and 'Oblation' not in credits,
-          'the (i) under the buttons opens the credits (the preview has no Oblation, so no credit for it)')
+    check(pg.is_visible('#credits') and 'Kazuhiko Arase' in credits and pg.locator('#crList dt').all_text_contents() == ['QR codes', 'Runs on'],
+          'the (i) under the buttons opens the credits; below the developer, only the QR code and Runs on notes')
+    by = pg.inner_text('#crBy')
+    check(by.startswith('Conceptualized and Developed with AI Assistance by:') and 'Developer name' in by and 'Date Developed: November 2026' in by,
+          'credits in the developer format: heading, name and lines, date developed (the preview uses placeholders)')
+    cap = pg.locator('#crBy .cr-aff-btn')
+    check(cap.count() == 1 and cap.get_attribute('aria-expanded') == 'false' and pg.is_hidden('#crAff0') and 'Additional Affiliation' not in by,
+          'the additional affiliation stays behind a small cap beside the name')
+    box = cap.bounding_box()
+    check(box['width'] >= 30 and box['height'] >= 30, 'the cap is big enough to tap (%dx%d)' % (box['width'], box['height']))
+    cap.click()
+    check(cap.get_attribute('aria-expanded') == 'true' and pg.is_visible('#crAff0') and pg.inner_text('#crAff0').startswith('Additional Affiliation:'),
+          'tapping the cap shows the Additional Affiliation')
+    check(pg.evaluate("() => { const d = document.querySelector('#credits'); return d.scrollWidth <= d.clientWidth; }"), 'credits box does not scroll sideways on a phone')
     pg.screenshot(path=str(OUT / '01b-phone-credits.png'))
+    cap.click()
+    check(cap.get_attribute('aria-expanded') == 'false' and pg.is_hidden('#crAff0'), 'tapping it again hides it')
     pg.keyboard.press('Escape')
     check(pg.is_hidden('#credits'), 'Escape closes the credits')
 
@@ -200,29 +216,19 @@ with sync_playwright() as p:
 
     pg.click('#regDone [data-home]')
     go(pg, 'attendance')
+    check(pg.is_visible('#ciDoor') and pg.is_hidden('#ciKey'), 'face-to-face training: no code box, only "show your QR code at the venue", so nobody checks in from home')
     check(pg.is_visible('#ciRegister') and pg.inner_text('#ciRegister') == 'Walk-in registration', 'attendance shows a walk-in button')
     pg.click('#ciRegister')
-    check('Walk-in' in pg.inner_text('#regLead'), 'the walk-in button opens the walk-in form')
-    pg.click('#view-register [data-home] >> nth=0')
-    go(pg, 'attendance')
-    pg.fill('#ciKey', 'K7Q2M'); pg.click('#ciSubmit')
-    pg.wait_for_selector('#ciResult .result')
-    check("You're checked in" in pg.inner_text('#ciResult'), 'check-in with a code works')
-    check(read_qr(pg, '#ciResult img.qr') == 'SANAY:K7Q2M', 'and shows their QR code for next time')
-    pg.fill('#ciKey', 'k7q2m'); pg.click('#ciSubmit')
-    pg.wait_for_function('document.querySelector("#ciResult").innerText.includes("Already")')
-    check(True, 'second check-in the same day says already checked in')
-    pg.fill('#ciKey', 'ZZZZZ'); pg.click('#ciSubmit')
-    pg.wait_for_function('document.querySelector("#ciResult").innerText.includes("couldn")')
-    pg.click('[data-walkin]')
-    check('Walk-in' in pg.inner_text('#regLead'), 'walk-in registration opens with today\'s training')
+    check('show your QR code at the door' in pg.inner_text('#regLead'), 'a walk-in on their own phone is told to show their QR code at the door')
     pg.fill('#firstName', 'Noel'); pg.fill('#lastName', 'Galang'); pg.fill('#agency', 'Malaya City Fire Station'); pg.fill('#email', 'noel.walkin@example.com')
     pg.click('label[for="gadYes"]'); pg.click('label[for="sex-Male"]'); pg.click('label[for="age_range-2559"]'); pg.click('label[for="pwd-No"]'); pg.click('label[for="indigenous_people-No"]')
     pg.click('label[for="photo_consent-Yes"]'); pg.click('label[for="recording_consent-Yes"]'); pg.click('label[for="impact_consent-Yes"]')
     pg.click('#regSubmit')
     pg.wait_for_selector('#regDone:not([hidden])')
-    check(pg.inner_text('#doneTitle') == "You're registered and checked in", 'walk-in is registered and checked in at once')
-    check(pg.is_hidden('#doneCheckIn'), 'no extra check-in button after a walk-in')
+    wcode = pg.inner_text('#doneCode')
+    check(pg.inner_text('#doneTitle') == "You're registered" and 'Show your QR code at the door' in pg.inner_text('#doneLead') and pg.is_hidden('#doneCheckIn'),
+          'the walk-in is registered but not checked in until their QR code is scanned at the venue')
+    check(read_qr(pg, '#doneQr') == 'SANAY:' + wcode, 'and gets the QR code to show')
 
     pg.click('#regDone [data-home]')
     go(pg, 'evaluation')
@@ -293,6 +299,12 @@ with sync_playwright() as p:
     ctx, pg, errors = open_page(browser, 390, 844, dsf=2)
     route_jsqr(pg)
     pg.click('#openScanner')
+    pg.wait_for_selector('#scPinForm:not([hidden])')
+    check(pg.is_hidden('#scMain'), 'the scanner link alone shows nothing: it asks for the PIN')
+    pg.fill('#scPin', '135790'); pg.click('#scPinGo')
+    pg.wait_for_function('!document.querySelector("#scPinErr").hidden')
+    check('Wrong scanner PIN' in pg.inner_text('#scPinErr') and pg.is_hidden('#scMain'), 'a wrong PIN keeps it shut')
+    pg.fill('#scPin', '246810'); pg.click('#scPinGo')
     pg.wait_for_selector('#scMain:not([hidden])')
     check('Batch 4' in pg.inner_text('#scTitle') and 'Day 2 of 3' in pg.inner_text('#scLead'), 'scanner opens on the training happening today: ' + pg.inner_text('#scLead'))
     n0 = int(pg.inner_text('#scIn'))
@@ -351,6 +363,22 @@ with sync_playwright() as p:
     pg.click('#scMain .seg [data-mode="list"]')
     pg.fill('#scSearch', 'Benjie Villanueva')
     check('In ·' in pg.inner_text('#scPeople'), 'and reaches the Sheet, checked in, when the signal is back')
+    # a check-in station at the entrance: participants scan their own QR codes
+    pg.click('#scMain .seg [data-mode="scan"]')
+    pg.click('#scStation')
+    check(pg.evaluate("document.querySelector('#view-scan').classList.contains('station')") and pg.is_hidden('#scMain .seg') and pg.is_hidden('#scRecent')
+          and pg.is_hidden('#scAdd') and pg.is_hidden('#scType') and pg.is_visible('#scStationHead'),
+          'check-in station: only the camera and each result; no list, no latest names, no typing, no Add a device')
+    pg.click('#scDemoCodes [data-scan] >> nth=2')
+    pg.wait_for_function('(document.querySelector("#scResult .st") || {}).textContent && document.querySelector("#scResult .st").textContent.startsWith("You")')
+    check(True, 'a participant scanning their own QR code sees: ' + pg.inner_text('#scResult .st'))
+    pg.screenshot(path=str(OUT / '15b-phone-check-in-station.png'), full_page=True)
+    pg.click('#scExitBtn'); pg.fill('#scExitPin', '000000'); pg.press('#scExitPin', 'Enter')
+    check(pg.evaluate("document.querySelector('#view-scan').classList.contains('station')"), 'leaving the station needs the PIN')
+    pg.fill('#scExitPin', '246810'); pg.press('#scExitPin', 'Enter')
+    check(not pg.evaluate("document.querySelector('#view-scan').classList.contains('station')") and pg.is_visible('#scMain .seg'), 'the right PIN brings back the organizer view')
+    pg.click('#scCamOff') if pg.is_visible('#scCamOff') else None
+
     # no signal across days: the scanner keeps track of the date on its own
     pg.click('#scMain .seg [data-mode="scan"]')
     pg.click('#scSignal')
@@ -389,8 +417,7 @@ with sync_playwright() as p:
     cam_browser = p.chromium.launch(args=['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--use-file-for-fake-video-capture=' + str(cam)])
     ctx, pg, errors = open_page(cam_browser, 390, 844)
     route_jsqr(pg)
-    pg.click('#openScanner')
-    pg.wait_for_selector('#scMain:not([hidden])')
+    open_scanner(pg)
     pg.click('#scStart')
     try:
         pg.wait_for_function('(document.querySelector("#scResult .nm") || {}).textContent === "Ana L. Reyes"', timeout=20000)
@@ -404,8 +431,7 @@ with sync_playwright() as p:
     cam_browser.close()
 
     ctx, pg, errors = open_page(browser, 1360, 900, dsf=1)
-    pg.click('#openScanner')
-    pg.wait_for_selector('#scMain:not([hidden])')
+    open_scanner(pg)
     pg.click('#scDemoCodes [data-scan] >> nth=0')
     pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")')
     pg.screenshot(path=str(OUT / '17-desktop-scanner.png'))
@@ -510,16 +536,56 @@ with sync_playwright() as p:
     check(pg.locator('#logos img').count() == 3, 'deployed look: three logos')
     check(pg.is_visible('#figure svg path'), 'deployed look: the half Oblation at the right edge')
     pg.click('#creditsBtn')
-    check("Guillermo E. Tolentino's Oblation" in pg.inner_text('#crList') and 'NOAH Center logo' in pg.inner_text('#crList'), 'credits name the Oblation and the logos')
+    notes = pg.locator('#crList dt').all_text_contents()
+    check(notes == ['QR codes', 'Runs on'] and not any(w in pg.inner_text('#credits') for w in ('Oblation', 'Logos', 'NOAH', 'Garamond')),
+          'deployed credits: no Oblation, logo or font notes, only QR codes and Runs on: %s' % notes)
+    by = [l.strip() for l in pg.inner_text('#crBy').split('\n') if l.strip()]
+    check(by == ['Conceptualized and Developed with AI Assistance by:', 'Edward Andrew A. Dionido', 'Science Research Specialist II',
+                 'Institution Building Division', 'University of the Philippines Resilience Institute', 'Date Developed: November 2026'],
+          'deployed credits read exactly as given: %s' % by)
     pg.screenshot(path=str(OUT / '09b-branded-phone-credits.png'))
+    pg.click('#crBy .cr-aff-btn')
+    aff = [l.strip() for l in pg.inner_text('#crAff0').split('\n') if l.strip()]
+    check(aff == ['Additional Affiliation:', 'Graduate Student (Ongoing)', 'College of Professional and Graduate Studies', 'De La Salle University Dasmariñas'],
+          'the cap opens the additional affiliation: %s' % aff)
+    pg.screenshot(path=str(OUT / '09c-branded-phone-credits-affiliation.png'))
+    close_box = pg.locator('#crClose').bounding_box()
+    check(close_box['y'] + close_box['height'] <= 844 and not pg.evaluate("() => document.querySelector('#credits').classList.contains('scrolls')"),
+          'opened, the credits fit a phone screen, Close included')
+    pg.set_viewport_size({'width': 390, 'height': 560})
+    pg.wait_for_timeout(150)
+    close_box = pg.locator('#crClose').bounding_box()
+    check(close_box['y'] >= 0 and close_box['y'] + close_box['height'] <= 560, 'on a short screen, Close stays in view while the credits scroll')
+    end = pg.evaluate('''() => { const d = document.querySelector('#credits'); d.scrollTop = d.scrollHeight;
+        const last = [...document.querySelectorAll('#crList dd')].pop().getBoundingClientRect(), foot = document.querySelector('.cr-foot').getBoundingClientRect();
+        return [d.classList.contains('scrolls'), last.bottom <= foot.top + 0.5]; }''')
+    check(end == [True, True], 'scrolled to the end on a short screen, the last note sits above Close (a line marks the edge): %s' % end)
+    pg.set_viewport_size({'width': 390, 'height': 844})
+    pg.wait_for_timeout(150)
+    name, cap = pg.locator('#crBy .cr-name span').bounding_box(), pg.locator('#crBy .cr-aff-btn').bounding_box()
+    mid = pg.evaluate("() => { const r = document.querySelector('#crBy').getBoundingClientRect(); return r.left + r.width / 2; }")
+    check(abs((name['x'] + cap['x'] + cap['width']) / 2 - mid) < 2, 'the name and its cap sit centered like the lines under them')
+    pg.click('#crClose')
+    pg.click('#creditsBtn')
+    check(pg.is_hidden('#crAff0'), 'the affiliation is closed again the next time the credits open')
     pg.click('#crClose')
     pg.screenshot(path=str(OUT / '09-branded-phone-home.png'))
     ctx.close()
     ctx, pg, errors = open_page(browser, 1360, 900, brand=BRAND, dsf=2)
     pg.screenshot(path=str(OUT / '10-branded-desktop-home.png'))
+    pg.click('#creditsBtn'); pg.click('#crBy .cr-aff-btn')
+    check(pg.evaluate("() => document.querySelectorAll('#crBy .cr-line')[2].getClientRects().length === 1"), 'desktop: the institute fits on one line')
+    check(not pg.evaluate("() => document.querySelector('#credits').classList.contains('scrolls')"), 'desktop: everything fits, so no line above Close')
+    name, cap = pg.locator('#crBy .cr-name span').bounding_box(), pg.locator('#crBy .cr-aff-btn').bounding_box()
+    mid = pg.evaluate("() => { const r = document.querySelector('#crBy').getBoundingClientRect(); return r.left + r.width / 2; }")
+    check(abs((name['x'] + cap['x'] + cap['width']) / 2 - mid) < 2, 'desktop: the name and its cap are centered')
+    pg.screenshot(path=str(OUT / '10b-branded-desktop-credits.png'))
     ctx.close()
     ctx, pg, errors = open_page(browser, 390, 844, dark=True, brand=BRAND, dsf=2)
     pg.screenshot(path=str(OUT / '11-branded-phone-dark.png'))
+    pg.click('#creditsBtn'); pg.click('#crBy .cr-aff-btn')
+    pg.screenshot(path=str(OUT / '11b-branded-phone-dark-credits.png'))
+    check(not errors or all('fonts.g' in e for e in errors), 'no script errors in the deployed look: %s' % errors[:3])
     ctx.close()
 
     ctx, pg, errors = open_page(browser, 1360, 900, brand=BRAND)

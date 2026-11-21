@@ -10,7 +10,7 @@ A web app for the UP Resilience Institute's trainings. The home screen shows the
 | Button | When | What it does |
 |---|---|---|
 | **Register** | Before the training | The GAD attendance sheet as a form. The Data Privacy Statement is shown word for word. The GAD questions (sex, age range, senior citizen, PWD, indigenous people and tribe) appear only if the person consents. It also asks whether they may be photographed and recorded, and whether staff may contact them later for an impact-monitoring interview. The time of submission stands in for the signature. Each person gets a **QR code** to show at the door. |
-| **Attendance** | Each training day | At the door, the organizers **scan the person's QR code** (see [Check-in with QR codes](#check-in-with-qr-codes)). People can also check themselves in here with their code or email, once per day, unless you turn that off. A **Walk-in registration** button is there for anyone who didn't register. |
+| **Attendance** | Each training day | At the venue, the organizers **scan the person's QR code**, or participants scan it themselves at a **check-in station** (see [Check-in with QR codes](#check-in-with-qr-codes)). For online trainings, people check themselves in here with their code or email, once per day. A **Walk-in registration** button is there for anyone who didn't register. |
 | **Evaluation** | During and up to 14 days after | 16 statements, each answered from 1 (strongly disagree) to 5 (strongly agree), in six parts: objectives and content, resource persons, methods and materials, venue and arrangements (these two may be answered N/A), learning and use, and overall. Then two optional questions: what they will use in their work and what to improve. Saved without the person's name. |
 | **Request a training** | Any time | Offices tell you the topics they need, the number of participants and their preferred dates, mode and venue. |
 | **Training partnership** | Any time | Organizations offer to co-organize, send trainers, host, fund, send participants or develop materials. Over time the Partnerships tab becomes your list of potential training partners. |
@@ -82,10 +82,11 @@ Every registration comes with a QR code. People see it as soon as they register 
 
 **Set up the door** (a few minutes before people arrive):
 
-1. In the Sheet, click the training's row in the Trainings tab, then **SANAY › Open the check-in scanner**. Click **Open the scanner**.
+1. In the Sheet, click the training's row in the Trainings tab, then **SANAY › Open the check-in scanner**. The dialog shows the scanner link and a 6-digit **scanner PIN**. Click **Open the scanner** and enter the PIN.
 2. On the scanner, tap **Start the camera** and allow the camera. Point it at a QR code: the name and office appear in large text with **Checked in** and the time, or **Already checked in at 7:58**. The scan time stands in for the signature.
-3. **More devices:** tap **Add a device** and scan the QR code it shows with each phone or tablet at the door. They all save to the same Sheet. If two devices scan the same person, the Sheet keeps one row, with the earlier time.
+3. **More devices:** tap **Add a device** and scan the QR code it shows with each phone or tablet at the door, then enter the PIN on it. They all save to the same Sheet. If two devices scan the same person, the Sheet keeps one row, with the earlier time.
 4. One device can sit at a **walk-in desk**: tap **Walk-in** for the registration form. Walk-ins are checked in when the form is submitted, and get their QR code for the next days.
+5. Or set up a **check-in station**: a phone or tablet at the entrance where participants scan their own QR codes. Tap **Make this a check-in station**. It then shows only the camera and each person's result, for a few seconds; no list, no names of others, no typing. To leave it, tap **Organizers** and enter the PIN.
 
 On the scanner:
 
@@ -97,7 +98,15 @@ On the scanner:
 
 **Test the camera on your phones before the first training.** The camera runs inside the Google page, which most phones allow; if one won't open it, use a handheld scanner, type the codes, or use the List. Android phones read QR codes on their own; iPhones and Windows laptops load a small QR reader (jsQR) from the jsDelivr CDN the first time.
 
-To have **only the scanner check people in**, set `selfCheckIn: false` in `Code.gs`. The Attendance screen then tells people to show their QR code at the door, and walk-ins who register on their own phones are checked in at the door too.
+### Who can check people in
+
+The aim is that nobody can check in from somewhere else, with or without internet.
+
+- **Participants can't check themselves in to a face-to-face or blended training.** The Attendance screen only tells them to show their QR code at the venue, and walk-ins who register on their own phones are checked in at the door. Their QR code does nothing by itself: only an organizer's scanner or a check-in station at the venue can use it. Self check-in by code or email stays only for **online** trainings, which have no door (`selfCheckIn: 'online'` in `Code.gs`; `false` turns it off for those too, `true` allows it for every training).
+- **Only organizers can run the scanner.** It needs both the link and the PIN, which only the data stewards see in the Sheet. Someone who photographs the link, or the **Add a device** code, still can't use it. Five wrong PINs lock the link for 10 minutes. If the link or PIN reaches the wrong person, choose **Make a new link and PIN** in the Sheet dialog.
+- **With internet,** the PIN is checked when a device opens the scanner and again every time it sends scans.
+- **Without internet,** each device must be set up while it has signal: open the link and enter the PIN before you go. After that it scans with no signal, and the check-in station still asks for the PIN to be left, checked on the device itself. When the device is online again, its saved scans go to the Sheet, and the PIN is checked again then.
+- **What it can't stop:** someone at the venue holding up a friend's QR code. The scanner shows the name in large letters, so the person at the door, or near the station, can notice.
 
 **Requests** land in the Requests tab. Update its `status` column as you go: New, Contacted, Scheduled, Done or Declined. **Partnership requests** land in the Partnerships tab, with the statuses New, Contacted, In talks, Partner or Declined.
 
@@ -116,8 +125,8 @@ All in `Code.gs`, at the top (`CONFIG`):
 - `dataStewards`: the UP emails of the people, besides the Sheet's owner, who may open the report page, run `setup` and edit the data tabs. See below.
 - `evaluationItems`: the evaluation statements, in parts. Each has a `key`, which is its column in the Evaluations tab, and the `text` people see. A part with `na: true` adds *Not applicable*. To change a statement's meaning, add a new one with a new key rather than editing an old key, or old answers would be counted under the new wording. Run `setup` after adding statements so their columns appear.
 - `evaluationScale`: the five labels, from 1 to 5.
-- `selfCheckIn`: `true` lets people check themselves in on the Attendance screen as well as at the door; `false` leaves check-in to the scanner.
-- `credits`: the lines in the credits box, as `['label', 'who or what']`. Put the team's names in `Team`. The app adds the credits for the Oblation, the logos, the QR code libraries and the fonts itself.
+- `selfCheckIn`: `'online'` (the default) lets people check themselves in by code or email only for online trainings; `false` never; `true` for every training, which means anyone with a code could check in from anywhere.
+- `credits`: the credits box. `heading` (*Conceptualized and Developed with AI Assistance by:*), then `people`: each with a `name`, the `lines` under it (position, division, institute) and an `additionalAffiliation`, which stays behind a small cap icon beside the name until someone taps it (leave it `[]` for no icon). Then `dateDeveloped`. Add another `{ name, lines, additionalAffiliation }` to `people` to credit more people. Below these the app adds a short note on the QR code libraries and what it runs on. The preview shows placeholders here; the deployed app shows these.
 
 Logos: replace the files in `assets/logos/` (keep `logos.json` in step) and run `python3 tools/build.py`, or edit `Logos.gs` directly. An entry's `src` can also be an image link.
 
@@ -149,7 +158,7 @@ Good to know:
 - Evaluations have no name or code, and new rows go in at random positions so the order doesn't reveal who answered.
 - The impact-interview list shows only people who said yes. Saying yes doesn't oblige anyone to take part later.
 - The report page needs a fresh link from the Sheet menu, valid for at most 6 hours, because the web app itself is open to anyone.
-- The scanner link shows only names, offices and codes, works only for its training until the last day, and can be replaced from the Sheet. QR codes hold only the registration code.
+- The scanner needs its link and a PIN, shows only names, offices and codes, works only for its training, and can be replaced from the Sheet. QR codes hold only the registration code. A check-in station shows each result for a few seconds and never lists other people.
 - Never commit exported data or a filled-in attendance sheet to this repository. **The repository is public.**
 
 ## Open questions
