@@ -203,7 +203,13 @@ with sync_playwright() as p:
     check(len(code) == 5, 'registration code shown: ' + code)
     check(read_qr(pg, '#doneQr') == 'SANAY:' + code, 'the confirmation has a QR code that reads SANAY:' + code)
     check('Submitted' in pg.inner_text('#doneFacts'), 'submission time shown in place of a signature')
+    toast = pg.locator('#toasts .toast').last
+    check(pg.get_attribute('#toasts', 'role') == 'status' and pg.get_attribute('#toasts', 'aria-live') == 'polite', 'success notes are announced to screen readers')
+    check('ok' in toast.get_attribute('class') and toast.locator('.t-title').inner_text() == 'Registration successful'
+          and toast.locator('.t-detail').inner_text() == 'Liza B. Soriano · RDANA Orientation for LGU Responders · code ' + code, 'a success note after registering: ' + toast.inner_text())
     pg.screenshot(path=str(OUT / '03-phone-registered.png'))
+    toast.locator('.t-close').click()
+    check(pg.locator('#toasts .toast').count() == 0, 'the note can be dismissed')
 
     pg.click('#doneAnother')
     pg.fill('#firstName', 'Ramon'); pg.fill('#lastName', 'Aquino'); pg.fill('#agency', 'MSWDO Dalisay'); pg.fill('#email', 'ramon.aquino@example.com')
@@ -247,9 +253,12 @@ with sync_playwright() as p:
     pg.screenshot(path=str(OUT / '03d-phone-evaluation-full.png'), full_page=True)
     pg.click('#evSubmit')
     pg.wait_for_selector('#evDone:not([hidden])')
-    check(True, 'evaluation submitted')
+    check(pg.locator('#toasts .toast.ok .t-title').last.inner_text() == 'Evaluation submitted', 'a success note after the evaluation')
+    pg.click('#evAgain')
+    check(pg.input_value('#evTraining') == 'ICS-4' and pg.input_value('#evKey') == '' and pg.evaluate('document.activeElement.id') == 'evKey'
+          and pg.locator('#evLikert input:checked').count() == 0, 'Another evaluation: same training, empty code and answers, ready for the next participant on this device')
 
-    pg.click('#evDone [data-home]')
+    pg.click('#view-evaluation [data-home] >> nth=0')
     go(pg, 'request')
     pg.click('#rqSubmit')
     check(pg.is_visible('#err-rq-topics') and pg.is_visible('#err-rq-date') and pg.is_visible('#err-rq-consent'), 'empty request shows its errors')
@@ -269,6 +278,7 @@ with sync_playwright() as p:
     pg.click('#rqSubmit')
     pg.wait_for_selector('#rqDone:not([hidden])')
     check(len(pg.inner_text('#rqCode')) == 5 and 'Evacuation center management' in pg.inner_text('#rqFacts'), 'request received with a request number')
+    check(pg.locator('#toasts .toast.ok .t-title').last.inner_text() == 'Request sent' and pg.inner_text('#rqCode') in pg.locator('#toasts .toast').last.inner_text(), 'a success note with the request number')
 
     pg.click('#rqDone [data-home]')
     go(pg, 'partner')
@@ -285,6 +295,7 @@ with sync_playwright() as p:
     pg.click('#ptSubmit')
     pg.wait_for_selector('#ptDone:not([hidden])')
     check(len(pg.inner_text('#ptCode')) == 5 and 'Host the venue' in pg.inner_text('#ptFacts'), 'partnership request received with a request number')
+    check(pg.locator('#toasts .toast.ok .t-title').last.inner_text() == 'Partnership request sent', 'a success note after the partnership request')
     for view in ('register', 'attendance', 'evaluation'):
         pg.click('#view-%s [data-home] >> nth=0' % view) if pg.is_visible('#view-%s' % view) else None
     pg.click('[data-home]:visible') if pg.locator('[data-home]:visible').count() else None
@@ -293,6 +304,51 @@ with sync_playwright() as p:
         no_overflow(pg, view + ' (phone)')
         pg.click('#view-%s [data-home] >> nth=0' % view)
     check(not errors or all('fonts.g' in e for e in errors), 'no script errors on the phone: %s' % errors[:3])
+    ctx.close()
+
+    # ---------------- one device, many people; duplicates and spam flagged in the Sheet ----------------
+    ctx, pg, errors = open_page(browser, 1360, 900)
+    def quick_register(first, last, email, training='RDANA-1', bot=''):
+        if pg.is_visible('#regDone'):
+            pg.click('#doneAnother')
+        elif not pg.is_visible('#regForm'):
+            go(pg, 'register')
+        pg.select_option('#regTraining', training)
+        if bot:
+            pg.evaluate('v => { document.querySelector("#regHp").value = v; }', bot)   # what a bot does: fill in every field
+        pg.fill('#firstName', first); pg.fill('#lastName', last); pg.fill('#agency', 'CDRRMO Kalinaw'); pg.fill('#email', email)
+        pg.click('label[for="gadNo"]'); pg.click('label[for="photo_consent-Yes"]'); pg.click('label[for="recording_consent-No"]'); pg.click('label[for="impact_consent-No"]')
+        pg.click('#regSubmit')
+        pg.wait_for_selector('#regDone:not([hidden])')
+        return pg.locator('#toasts .toast').last
+    t1 = quick_register('Luz', 'Villanueva', 'luz.v@example.com')
+    check(t1.locator('.t-title').inner_text() == 'Registration successful', 'first person registered')
+    pg.click('#doneAnother')
+    check(pg.input_value('#firstName') == '' and pg.input_value('#email') == '' and pg.input_value('#regTraining') == 'RDANA-1' and pg.is_hidden('#regDone'),
+          'Register another person: an empty form, same training, and the last person\'s code and QR code are gone')
+    hp = pg.evaluate("() => { const i = document.querySelector('#regHp'), r = i.getBoundingClientRect(); return [r.right < 0, i.tabIndex, i.closest('[aria-hidden=true]') !== null, i.autocomplete]; }")
+    check(hp == [True, -1, True, 'off'], 'the hidden field is off screen, skipped by Tab and screen readers: %s' % hp)
+    t2 = quick_register('LUZ ', ' villanueva', 'luz.personal@example.com')
+    check(t2.locator('.t-title').inner_text() == 'Registration successful', 'the same name with another email is still registered (flagged, not blocked)')
+    t3 = quick_register('Luz', 'Villanueva', 'luz.v@example.com')
+    check('ok' not in t3.get_attribute('class') and t3.locator('.t-title').inner_text() == 'Already registered', 'the same email again: an "already registered" note')
+    quick_register('Marco', 'Dizon', 'marco.d@example.com', bot='http://spam.example')
+    pg.click('#toggleSheet')
+    pg.click('#sheetTabs [data-tab="Registrations"]')
+    rows = pg.evaluate("""() => [...document.querySelectorAll('#grid tbody tr')].filter(r => r.cells.length > 2).map(r => ({
+        num: r.cells[0].textContent, name: r.cells[4].textContent, flag: r.cells[r.cells.length - 1].textContent, amber: r.classList.contains('flagged') }))""")
+    luz = [r for r in rows if r['name'] == 'Luz Villanueva']
+    marco = [r for r in rows if r['name'] == 'Marco Dizon']
+    check(len(luz) >= 1 and luz[0]['amber'] and luz[0]['flag'].startswith('Registered again with the same email on '), 'registering again with the same email flags the first row: %s' % (luz[:1],))
+    second = [r for r in rows if r['name'].lower().split() == ['luz', 'villanueva'] and r['num'] != luz[0]['num']]
+    check(len(second) == 1 and second[0]['amber'] and second[0]['flag'] == 'Possible duplicate of row %s (same name, another email)' % luz[0]['num'],
+          'same name with another email: flagged with the first row number: %s' % (second,))
+    check(len(marco) == 1 and marco[0]['amber'] and marco[0]['flag'] == 'Possible bot: the hidden field was filled in', 'a filled-in hidden field flags a likely bot: %s' % (marco,))
+    check(pg.inner_text('#sheetNotice').startswith('5 entries look like duplicates or spam (4 in Registrations, 1 in Requests).'), 'the note counts the new flags: ' + pg.inner_text('#sheetNotice')[:70])
+    pg.screenshot(path=str(OUT / '19-desktop-sheet-flags.png'))
+    pg.locator('#toasts .toast').last.wait_for(state='detached', timeout=9000)
+    check(pg.locator('#toasts .toast').count() == 0, 'success notes close by themselves after a few seconds')
+    check(not errors or all('fonts.g' in e for e in errors), 'no script errors while flagging: %s' % errors[:3])
     ctx.close()
 
     # ---------------- check-in scanner at the door ----------------
@@ -350,6 +406,7 @@ with sync_playwright() as p:
     wcode = pg.inner_text('#doneCode')
     check(pg.inner_text('#doneTitle') == 'Registered and checked in' and read_qr(pg, '#doneQr') == 'SANAY:' + wcode and pg.is_visible('#doneScan') and pg.is_hidden('#doneHome'),
           'walk-in at the door: registered, checked in and given a QR code; next is back to scanning')
+    check(pg.locator('#toasts .toast.ok .t-title').last.inner_text() == 'Walk-in registered and checked in', 'a success note at the walk-in desk')
     pg.screenshot(path=str(OUT / '14-phone-scanner-walkin.png'), full_page=True)
     pg.click('#doneScan')
     check('Arnel' in pg.inner_text('#scRecent'), 'the walk-in shows in the latest list')
@@ -357,6 +414,8 @@ with sync_playwright() as p:
     pg.click('#scMain .seg [data-mode="walkin"]')
     desk_walkin('Benjie', 'benjie.desk@example.com')
     check(pg.inner_text('#doneTitle') == 'Saved on this device' and pg.is_hidden('#doneCard'), 'with no signal, a walk-in is saved on the device')
+    last = pg.locator('#toasts .toast').last
+    check('ok' not in last.get_attribute('class') and last.locator('.t-title').inner_text() == 'Saved on this device', 'and the note says it is saved, not sent')
     pg.click('#doneScan')
     pg.click('#scSignal')
     pg.wait_for_function('document.querySelector("#scNet").textContent.includes("all sent")', timeout=20000)
@@ -443,9 +502,13 @@ with sync_playwright() as p:
     pg.click('#toggleSheet')
     check(pg.is_visible('#sheet') and pg.locator('#grid tr').count() > 5, 'Google Sheet panel opens')
     pg.click('#sheetTabs [data-tab="Registrations"]')
-    check(pg.locator('#grid thead th').count() == 18, 'Registrations tab shows 17 columns')
+    check(pg.locator('#grid thead th').count() == 19, 'Registrations tab shows 18 columns, the flag last')
+    check(pg.is_visible('#sheetNotice') and pg.inner_text('#sheetNotice').startswith('2 entries look like duplicates or spam (1 in Registrations, 1 in Requests).'),
+          'the Sheet says how many entries to review: ' + pg.inner_text('#sheetNotice')[:90])
     pg.click('#sheetTabs [data-tab="Requests"]')
     check(pg.locator('#grid tbody tr').count() >= 12, 'Requests tab lists the sample requests')
+    flagged = pg.locator('#grid tbody tr.flagged')
+    check(flagged.count() == 1 and flagged.locator('td.flag').inner_text() == 'Looks like a test or junk entry ("Test")', 'the test request is flagged and highlighted')
     pg.click('#sheetTabs [data-tab="Partnerships"]')
     check(pg.locator('#grid tbody tr').count() >= 6, 'Partnerships tab lists the sample partnership requests')
     pg.click('#toggleSheet')
