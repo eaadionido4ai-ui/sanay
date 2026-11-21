@@ -158,7 +158,7 @@ button { cursor: pointer; }
 .qr-row .hint { flex: 1 1 180px; min-width: 0; }
 
 /* ---------- check-in scanner (organizers at the door) ---------- */
-body[data-view="scan"] .shell { max-width: 560px; }
+body[data-view="scan"]:not(.is-sheet) .shell { max-width: 560px; }
 .sc-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px 2px; }
 .sc-kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green-text); }
 .sc-net { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; background: var(--sunken); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
@@ -175,6 +175,7 @@ body[data-view="scan"] .shell { max-width: 560px; }
 .sc-frame { position: absolute; inset: 12% 24%; display: none; border: 3px solid rgba(255, 255, 255, 0.92); border-radius: 18px; box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.3); }
 .sc-cam.on .sc-frame { display: block; }
 .sc-cam .btn-primary { position: relative; width: auto; background: var(--green-fill); }
+.sc-cam .btn-primary:hover { background: var(--nav-hover); }
 .sc-cam-msg { position: relative; max-width: 34ch; padding: 0 16px; color: #FFFFFF; font-size: 14.5px; text-align: center; }
 .sc-cam-box { display: grid; gap: 12px; justify-items: center; }
 .sc-off { position: absolute; top: 10px; right: 10px; min-height: 36px; padding: 6px 12px; border: 0; border-radius: 999px; background: rgba(0, 0, 0, 0.55); color: #FFFFFF; font-size: 13px; font-weight: 700; }
@@ -222,6 +223,48 @@ body[data-view="scan"] .shell { max-width: 560px; }
 .sc-exit-form input { width: 10ch; font-family: var(--mono); letter-spacing: 0.25em; text-align: center; }
 .sc-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 10px 4px 4px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); font-size: 13px; font-weight: 600; }
 .sc-chip svg { width: 28px; height: 28px; }
+/* opened from admin mode: a way back instead of the name (not on a check-in station) */
+#view-scan .sc-admin { display: none; }
+#view-scan.from-admin:not(.station) .sc-admin { display: inline-flex; }
+#view-scan.from-admin:not(.station) .sc-top > .mini-mark { display: none; }
+
+/* ---------- admin mode: the owner and the data stewards, on a phone ---------- */
+body[data-view="admin"]:not(.is-sheet) .shell { max-width: 560px; }
+.ad-form { display: grid; gap: 14px; }
+.ad-sent { font-size: 15px; }
+.ad-code input { max-width: 12ch; font-family: var(--mono); font-size: 24px; letter-spacing: 0.3em; text-align: center; }
+.ad-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14.5px; }
+.ad-who { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 10px 10px 14px; border-radius: 14px; background: var(--sunken); font-size: 14.5px; }
+.ad-who p { min-width: 0; }
+.ad-who b { overflow-wrap: anywhere; }
+.ad-until { display: block; font-size: 13px; color: var(--muted); }
+.ad-who .btn-quiet { min-height: 40px; padding: 6px 14px; }
+#adMain > .err-box { margin-top: 14px; }
+.ad-pick { margin-top: 18px; }
+.ad-card { display: grid; gap: 14px; margin-top: 18px; padding: 18px 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+@media (max-width: 440px) { .ad-card { padding: 16px 14px 18px; } }
+.ad-h { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.ad-status { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 10px; font-size: 15px; }
+.ad-status .badge { margin-top: 1px; }
+.ad-status small { display: block; margin-top: 2px; font-size: 13.5px; color: var(--muted); }
+.ad-card .sc-count { margin-top: 0; }
+.ad-toggle { justify-self: start; }
+.ad-toggle.sure { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
+.ad-btns { display: grid; gap: 10px; }
+.ad-btns .btn-quiet.sure { border-color: var(--green-fill); background: var(--green-fill); color: var(--on-fill); }
+.btn-primary.ad-green { background: var(--green-fill); }
+.btn-primary.ad-green:hover { background: var(--nav-hover); }
+.ad-add { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 14px; border-radius: 14px; background: var(--sunken); }
+.ad-add .qr { width: 156px; height: 156px; }
+.ad-add-side { display: grid; flex: 1 1 200px; justify-items: start; gap: 6px; min-width: 0; }
+.ad-pin { font-family: var(--mono); font-size: 30px; font-weight: 600; line-height: 1.1; letter-spacing: 0.2em; }
+.ad-days, .ad-filter { margin-top: 0; }
+.ad-right { display: grid; justify-items: end; gap: 3px; text-align: right; }
+.ad-how { font-size: 12.5px; color: var(--muted); }
+.ad-undo { font-size: 13.5px; }
+.ad-undo.sure { color: var(--bad); }
+.ad-flag { color: var(--warn); font-weight: 700; }
+.ad-foot { margin-top: 18px; text-align: center; }
 
 /* ---------- the template's corner bands ---------- */
 .crest { display: block; width: 100%; height: var(--band-h); }
@@ -279,7 +322,7 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .asks { display: grid; gap: 12px; }
 
 /* ---------- credits: a small (i) under the home buttons ---------- */
-.credits-row { display: flex; justify-content: center; margin-top: 26px; }
+.credits-row { display: flex; justify-content: center; gap: 10px; margin-top: 26px; }
 .credits-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); cursor: pointer; opacity: 0.85; }
 .credits-btn:hover { border-color: var(--line-strong); color: var(--ink); opacity: 1; }
 .credits { width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--ink); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28); }
@@ -703,6 +746,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
     <div class="demo-actions">
       <button type="button" class="chip-btn" id="fillSample">Fill in a sample registration</button>
       <button type="button" class="chip-btn" id="openScanner">Check-in scanner</button>
+      <button type="button" class="chip-btn" id="openAdmin">Admin mode</button>
       <button type="button" class="chip-btn" id="openReport">Organizer report</button>
       <button type="button" class="chip-btn" id="toggleSheet" aria-pressed="false">Show the Google Sheet</button>
       <button type="button" class="chip-btn" id="resetDemo">Reset</button>
@@ -766,6 +810,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           </div>
         </nav>
         <div class="credits-row">
+          <button type="button" class="credits-btn" id="adminBtn" aria-label="Admin mode, for the data stewards" title="Admin mode">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.2"></rect><path d="M8.5 10.5V7.6a3.5 3.5 0 0 1 7 0v2.9"></path></svg>
+          </button>
           <button type="button" class="credits-btn" id="creditsBtn" aria-haspopup="dialog" aria-label="Credits" title="Credits">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 11v6"></path><path d="M12 7.4v.1"></path></svg>
           </button>
@@ -1086,7 +1133,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       <!-- ===================== ORGANIZER REPORT ===================== -->
       <!-- ===================== CHECK-IN SCANNER (organizers at the door) ===================== -->
       <section class="view view-card" id="view-scan" aria-labelledby="scTitle" hidden>
-        <div class="sc-top"><span class="mini-mark" data-brand-name>SANAY</span><span class="sc-net" id="scNet" role="status">Connecting…</span></div>
+        <div class="sc-top"><button type="button" class="back sc-admin" id="scAdmin"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg><span>Admin mode</span></button><span class="mini-mark" data-brand-name>SANAY</span><span class="sc-net" id="scNet" role="status">Connecting…</span></div>
         <header class="view-head">
           <p class="sc-kicker">Check-in scanner</p>
           <h2 class="title" id="scTitle" tabindex="-1">Opening the scanner…</h2>
@@ -1159,6 +1206,74 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
         </div>
       </section>
 
+      <!-- ===================== ADMIN MODE (the owner and the data stewards) ===================== -->
+      <section class="view view-card" id="view-admin" aria-labelledby="adTitle" hidden>
+        <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg><span>Home</span></button><span class="mini-mark" data-brand-name>SANAY</span></div>
+        <header class="view-head">
+          <p class="sc-kicker">Admin mode</p>
+          <h2 class="title" id="adTitle" tabindex="-1">Sign in</h2>
+          <p class="lead" id="adLead">For the owner of the Google Sheet and the data stewards. Enter your email and we'll send you a 6-digit code.</p>
+        </header>
+        <form class="ad-form" id="adEmailForm" novalidate>
+          <div class="field"><label for="adEmail">Your email</label><input type="email" id="adEmail" autocomplete="email" inputmode="email" spellcheck="false" autocapitalize="off"></div>
+          <p class="err-box" id="adEmailErr" role="alert" hidden></p>
+          <button type="submit" class="btn-primary" id="adSend">Send me a code</button>
+        </form>
+        <form class="ad-form" id="adCodeForm" novalidate hidden>
+          <p class="ad-sent" id="adSentTo"></p>
+          <div class="field ad-code"><label for="adCode">6-digit code</label><input type="text" id="adCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" spellcheck="false"></div>
+          <p class="err-box" id="adCodeErr" role="alert" hidden></p>
+          <button type="submit" class="btn-primary" id="adGo">Sign in</button>
+          <p class="ad-links"><button type="button" class="link-btn" id="adResend">Send a new code</button><button type="button" class="link-btn" id="adOther">Use another email</button></p>
+          <p class="demo-note" id="adDemo" hidden>Preview: no email is sent, and any email works. The code is 135790.</p>
+        </form>
+        <div id="adMain" hidden>
+          <div class="ad-who"><p>Signed in as <b id="adWho"></b><span class="ad-until" id="adUntil"></span></p><button type="button" class="btn-quiet" id="adOut">Sign out</button></div>
+          <p class="err-box" id="adErr" role="alert" hidden></p>
+          <div class="field ad-pick"><label for="adTraining">Training</label><div class="select"><select id="adTraining"></select></div></div>
+          <section class="ad-card" aria-labelledby="adCiH">
+            <h3 class="ad-h" id="adCiH">Check-in</h3>
+            <div class="ad-status" id="adStatus"></div>
+            <div class="sc-count" id="adCount"><p><b id="adIn">0</b> of <span id="adOf">0</span> checked in <span id="adOn">today</span></p><div class="sc-bar"><i id="adBar" style="width:0"></i></div></div>
+            <button type="button" class="btn-quiet ad-toggle" id="adToggle" hidden>Close check-in for today</button>
+            <p class="hint" id="adToggleHint" hidden></p>
+          </section>
+          <section class="ad-card" id="adDevices" aria-labelledby="adDevH">
+            <h3 class="ad-h" id="adDevH">Scanner and devices</h3>
+            <div class="ad-btns">
+              <button type="button" class="btn-primary ad-green" id="adScan">Open the scanner on this device</button>
+              <button type="button" class="btn-quiet" id="adStation">Make this device a check-in station</button>
+              <button type="button" class="btn-quiet" id="adAdd" aria-expanded="false">Add a device</button>
+            </div>
+            <p class="hint">For phones you hand to the door staff, use <b>Add a device</b>: they get the scanner, not admin mode.</p>
+            <div class="ad-add" id="adAddBox" hidden>
+              <div id="adAddQr"></div>
+              <div class="ad-add-side">
+                <p class="code-label">Scanner PIN</p>
+                <p class="ad-pin" id="adPin"></p>
+                <p class="hint">Scan the QR code with the camera of another phone or tablet, then enter the PIN there. Tell the PIN to the door staff; never show it where participants can see it.</p>
+                <button type="button" class="link-btn" id="adRenew">Make a new link and PIN</button>
+              </div>
+            </div>
+            <p class="hint" id="adDevMsg" aria-live="polite"></p>
+          </section>
+          <section class="ad-card" aria-labelledby="adPeopleH">
+            <h3 class="ad-h" id="adPeopleH">Who's in</h3>
+            <div class="seg ad-days" id="adDays" role="group" aria-label="Training day"></div>
+            <div class="field"><label class="sr-only" for="adSearch">Find a person</label><input type="text" id="adSearch" placeholder="Find a name, office or code" autocomplete="off"></div>
+            <div class="seg ad-filter" id="adFilter" role="group" aria-label="Show">
+              <button type="button" data-f="all" aria-pressed="true">Everyone</button>
+              <button type="button" data-f="in" aria-pressed="false">Checked in</button>
+              <button type="button" data-f="out" aria-pressed="false">Not yet</button>
+            </div>
+            <p class="hint" id="adSum"></p>
+            <ul class="sc-list" id="adPeople"></ul>
+          </section>
+          <p class="hint ad-foot">Everything done here goes into the Changelog tab of the Google Sheet, with your email.</p>
+          <p class="demo-note" id="adSheetNote" hidden style="margin-top:12px">Preview: <button type="button" class="link-btn" data-see="Changelog">see the Changelog tab</button> and <button type="button" class="link-btn" data-see="Attendance">the Attendance tab</button>.</p>
+        </div>
+      </section>
+
       <section class="view view-report" id="view-report" aria-labelledby="rpTitle" hidden>
         <div class="report-chrome view-card">
           <div class="topbar"><button type="button" class="back" data-home><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg>Home</button><span class="mini-mark" data-brand-name>SANAY</span></div>
@@ -1218,6 +1333,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <button type="button" role="tab" data-tab="Evaluations" aria-selected="false">Evaluations</button>
           <button type="button" role="tab" data-tab="Requests" aria-selected="false">Requests</button>
           <button type="button" role="tab" data-tab="Partnerships" aria-selected="false">Partnerships</button>
+          <button type="button" role="tab" data-tab="Changelog" aria-selected="false">Changelog</button>
         </div>
       </div>
       <div class="sheet-legend" id="sheetLegend"></div>
@@ -1328,7 +1444,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var S = {
     data: null, today: '', view: 'home', params: {}, walkIn: null, lastReg: null, desk: null, demoOffline: false,
     sheetOpen: false, sheetTab: 'Trainings', flash: null,
-    report: null, rpTraining: '', rpList: '', rpSection: 'sheet', rpShow: 'all', rpBusy: false
+    report: null, rpTraining: '', rpList: '', rpSection: 'sheet', rpShow: 'all', rpBusy: false,
+    scanPin: '', scanStation: false, scanFromAdmin: false
   };
 
   function $(sel, root) { return (root || document).querySelector(sel); }
@@ -1474,7 +1591,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         { training_id: 'CP-1', title: 'Contingency Planning Orientation', start_date: D(-40), end_date: D(-40), venue: 'Online (Zoom)', mode: 'Online', show_in_list: true, max_participants: '', registration_closes: '', notes: '' },
         { training_id: 'EWS-1', title: 'Early Warning Systems Workshop', start_date: D(45), end_date: D(46), venue: 'To be announced', mode: 'Face-to-face', show_in_list: false, max_participants: 40, registration_closes: '', notes: 'Draft. Not announced yet.' }
       ],
-      registrations: [], attendance: [], evaluations: []
+      registrations: [], attendance: [], evaluations: [], changelog: [], checkin: {}
     };
     var used = {};
     function newCode() {
@@ -1729,6 +1846,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     function checkInNow(t, r, method) {
       var prev = db.attendance.filter(function (a) { return a.training_id === t.id && a.reg_code === r.reg_code && a.date === today; })[0];
       if (prev) return { status: 'already', name: r.full_name, time: stampTime(prev.timestamp), day: dayNumber(t.start, today), days: dayNumber(t.start, t.end) };
+      if (demoClosed(t.id, Date.now())) return { status: 'closed', name: r.full_name, code: r.reg_code, day: dayNumber(t.start, today), days: dayNumber(t.start, t.end) };
       var ts = manilaStamp();
       db.attendance.push({ timestamp: ts, date: today, training_id: t.id, reg_code: r.reg_code, full_name: r.full_name, sex: r.sex, agency: r.agency, method: method });
       S.flash = { tab: 'Attendance', id: r.reg_code + today };
@@ -1742,9 +1860,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       db.attendance.forEach(function (a) {
         if (a.training_id === t.training_id && a.date === today && (!first[a.reg_code] || a.timestamp < first[a.reg_code])) first[a.reg_code] = a.timestamp;
       });
+      var ck = demoState(t.training_id, today);
       var st = {
         training: { id: t.training_id, title: t.title, start: t.start_date, end: t.end_date, venue: t.venue }, today: today, now: Date.now(),
         trainingDay: t.start_date <= today && today <= t.end_date, day: dayNumber(t.start_date, today), days: dayNumber(t.start_date, t.end_date),
+        checkin: ck.open ? { open: true } : { open: false, day: today, at: ck.at, time: timeAt(ck.at) },
         registered: regs.length, checkedIn: Object.keys(first).map(function (c) { return { code: c, time: stampTime(first[c]) }; })
       };
       if (withRoster) {
@@ -1762,14 +1882,142 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         out.status = 'already'; out.time = stampTime(prev.timestamp);
         return out;
       }
+      if (method !== 'Admin' && demoClosed(t.training_id, ms)) { out.status = 'closed'; return out; }
       db.attendance.push({ timestamp: stamp, date: date, training_id: t.training_id, reg_code: r.reg_code, full_name: r.full_name, sex: r.sex, agency: r.agency, method: method });
       db.attendance.sort(byStamp);
       S.flash = { tab: 'Attendance', id: r.reg_code + date };
       out.status = 'ok'; out.time = stampTime(stamp);
       return out;
     }
+    // Admin mode and the Changelog: the same rules as Code.gs (adminSendCode and the functions after it)
+    var demoSession = '', demoAdminEmail = '', logSeq = 0;
+    function logLine(e) {
+      var row = { _id: 'l' + (++logSeq), timestamp: manilaStamp() + ':' + pad(new Date().getSeconds()), who: '', action: '', tab: '', row: '', record: '', column: '', old_value: '', new_value: '' };
+      Object.keys(e).forEach(function (k) { row[k] = e[k]; });
+      db.changelog.push(row);
+      S.flash = { tab: 'Changelog', id: row._id };
+      return row;
+    }
+    function demoState(id, day) { var c = db.checkin[id]; return c && c.day === day ? { open: false, at: c.at, by: c.by } : { open: true, at: 0, by: '' }; }
+    function demoClosed(id, ms) { var c = demoState(id, stampAt(ms).slice(0, 10)); return !c.open && ms >= c.at; }
+    function demoAdmin(d) {
+      if (!demoSession || !d || d.token !== demoSession) throw new Error('You are signed out of admin mode. Sign in again with your email.');
+      return demoAdminEmail;
+    }
+    function trainingRow(id) { var r = training(id); if (!r) throw new Error('That training is no longer in the Trainings tab.'); return r; }
+    function adminDetail(r, date) {
+      var start = r.start_date, end = r.end_date || start, days = [];
+      for (var x = start; x && x <= end && days.length < 31; x = addDays(x, 1)) days.push(x);
+      var sofar = days.filter(function (y) { return y <= today; });
+      var day = sofar.indexOf(date) > -1 ? date : sofar.length ? sofar[sofar.length - 1] : '';
+      var first = {}, per = {}, c = demoState(r.training_id, today);
+      db.attendance.forEach(function (a) {
+        if (a.training_id !== r.training_id) return;
+        (per[a.date] = per[a.date] || {})[a.reg_code] = 1;
+        if (a.date === day && (!first[a.reg_code] || a.timestamp < first[a.reg_code].timestamp)) first[a.reg_code] = a;
+      });
+      return {
+        training: { id: r.training_id, title: r.title, start: start, end: end, venue: r.venue, mode: r.mode },
+        today: today, day: day, trainingDay: !!start && start <= today && today <= end,
+        days: days.map(function (y) { return { date: y, n: per[y] ? Object.keys(per[y]).length : 0 }; }),
+        checkin: c.open ? { open: true } : { open: false, time: timeAt(c.at), by: c.by },
+        people: db.registrations.filter(function (g) { return g.training_id === r.training_id; }).map(function (g) {
+          return { code: g.reg_code, name: g.full_name, agency: g.agency, walkIn: g.registered_as === 'Walk-in', flagged: !!g.flag && String(g.flag).toUpperCase() !== 'OK' };
+        }),
+        checkedIn: Object.keys(first).map(function (k) { return { code: k, time: stampTime(first[k].timestamp), method: first[k].method }; })
+      };
+    }
+    // A few lines the Changelog would already have: a setup run, the scanner dialog, and two edits made in the Sheet
+    var fixReg = db.registrations.filter(function (r) { return r.training_id === 'ICS-4'; })[6], fixReq = db.requests[1];
+    fixReq.status = 'Contacted';
+    db.changelog.push(
+      { _id: 'l-a', timestamp: D(-3) + ' 16:02:11', who: 'you@example.org', action: 'Ran Set up or repair tabs', tab: '', row: '', record: '', column: '', old_value: '', new_value: '' },
+      { _id: 'l-b', timestamp: D(-1) + ' 07:12:40', who: 'you@example.org', action: 'Opened the scanner link and PIN (Sheet menu)', tab: 'Trainings', row: '', record: 'ICS-4', column: '', old_value: '', new_value: '' },
+      { _id: 'l-c', timestamp: D(-1) + ' 10:26:05', who: 'data.steward@example.org', action: 'Edited a cell', tab: 'Registrations', row: db.registrations.indexOf(fixReg) + 2,
+        record: fixReg.reg_code, column: 'agency', old_value: fixReg.agency.toLowerCase(), new_value: fixReg.agency },
+      { _id: 'l-d', timestamp: D(-1) + ' 15:48:30', who: 'data.steward@example.org', action: 'Edited a cell', tab: 'Requests', row: db.requests.indexOf(fixReq) + 2,
+        record: fixReq.request_code, column: 'status', old_value: 'New', new_value: 'Contacted' }
+    );
     return {
       db: db, today: today, counts: counts, list: list,
+      adminSendCode: function (d) {
+        var email = String(d.email || '').trim().toLowerCase();
+        if (!EMAIL_RE.test(email)) throw new Error('Enter a valid email, like name@example.com.');
+        return { email: email, minutes: 10 };
+      },
+      adminSignIn: function (d) {
+        if (String(d.code || '').replace(/\D/g, '') !== '135790') throw new Error('That code is not right. In the preview, the code is 135790.');
+        demoSession = 'preview-' + Date.now().toString(36);
+        demoAdminEmail = String(d.email || 'you@example.org').toLowerCase();
+        logLine({ who: demoAdminEmail, action: 'Signed in to admin mode' });
+        return { token: demoSession, email: demoAdminEmail, until: Date.now() + 12 * 3600000 };
+      },
+      adminSignOut: function (d) {
+        if (demoSession && d && d.token === demoSession) {
+          logLine({ who: demoAdminEmail, action: 'Signed out of admin mode' + (d.station ? ' to make the device a check-in station' : '') });
+          demoSession = '';
+        }
+        return { ok: true };
+      },
+      adminHome: function (d) {
+        var email = demoAdmin(d);
+        var when = function (r) { var e = r.end_date || r.start_date; return r.start_date <= today && today <= e ? 0 : r.start_date > today ? 1 : 2; };
+        var rows = db.trainings.filter(function (r) { return r.start_date; }).slice().sort(function (a, b) {
+          var wa = when(a), wb = when(b);
+          if (wa !== wb) return wa - wb;
+          if (wa === 2) return a.end_date < b.end_date ? 1 : a.end_date > b.end_date ? -1 : 0;
+          return a.start_date < b.start_date ? -1 : a.start_date > b.start_date ? 1 : 0;
+        });
+        var pick = rows.filter(function (r) { return r.training_id === d.training_id; })[0] || rows[0];
+        return {
+          email: email, today: today,
+          trainings: rows.map(function (r) { return { id: r.training_id, title: r.title, start: r.start_date, end: r.end_date || r.start_date, mode: r.mode, when: ['now', 'next', 'past'][when(r)] }; }),
+          detail: pick ? adminDetail(pick, d.date) : null
+        };
+      },
+      adminTraining: function (d) { demoAdmin(d); return adminDetail(trainingRow(d.training_id), d.date); },
+      adminSetCheckIn: function (d) {
+        var email = demoAdmin(d), r = trainingRow(d.training_id), end = r.end_date || r.start_date, c = demoState(r.training_id, today);
+        if (!(r.start_date <= today && today <= end)) throw new Error('Check-in can be closed or reopened only on a training day.');
+        if (d.open === true && !c.open) {
+          delete db.checkin[r.training_id];
+          logLine({ who: email, action: 'Reopened check-in', tab: 'Trainings', record: r.training_id, new_value: 'Open again from ' + timeAt(Date.now()) });
+        } else if (d.open === false && c.open) {
+          db.checkin[r.training_id] = { day: today, at: Date.now(), by: email };
+          logLine({ who: email, action: 'Closed check-in for the rest of today', tab: 'Trainings', record: r.training_id, new_value: 'Closed from ' + timeAt(Date.now()) });
+        }
+        return adminDetail(r, d.date);
+      },
+      adminCheckIn: function (d) {
+        var email = demoAdmin(d), r = trainingRow(d.training_id), end = r.end_date || r.start_date, code = String(d.code || '').toUpperCase();
+        if (!(r.start_date <= today && today <= end)) throw new Error('People can be checked in only on the training days.');
+        var reg = db.registrations.filter(function (x) { return x.training_id === r.training_id && x.reg_code === code; })[0];
+        if (!reg) throw new Error('No one with that code is registered for this training.');
+        var closed = !demoState(r.training_id, today).open, res = checkInAt(r, reg, 'Admin', Date.now());
+        if (res.status === 'ok') logLine({ who: email, action: 'Checked someone in by hand' + (closed ? ' after check-in closed' : ''), tab: 'Attendance', record: code, new_value: reg.full_name + ' · ' + res.time });
+        var out = adminDetail(r, today);
+        out.result = res;
+        return out;
+      },
+      adminUndoCheckIn: function (d) {
+        var email = demoAdmin(d), r = trainingRow(d.training_id), code = String(d.code || '').toUpperCase(), date = String(d.date || '');
+        if (!date || date < r.start_date || date > (r.end_date || r.start_date) || date > today) throw new Error('Choose a training day up to today.');
+        var gone = db.attendance.filter(function (a) { return a.training_id === r.training_id && a.reg_code === code && a.date === date; });
+        if (!gone.length) throw new Error('That person is not checked in on that day.');
+        gone.forEach(function (a) {
+          logLine({ who: email, action: 'Undid a check-in', tab: 'Attendance', row: db.attendance.indexOf(a) + 2, record: code, old_value: [a.full_name, date, stampTime(a.timestamp), a.method].join(' · ') });
+        });
+        db.attendance = db.attendance.filter(function (a) { return gone.indexOf(a) < 0; });
+        return adminDetail(r, date);
+      },
+      adminScanner: function (d) {
+        var email = demoAdmin(d), r = trainingRow(d.training_id);
+        if (!r.start_date) throw new Error('Give this training a start date in the Trainings tab first.');
+        if ((r.end_date || r.start_date) < today) throw new Error('This training has ended, so it has no scanner.');
+        if (r.training_id !== 'ICS-4') throw new Error('In the preview, the scanner works only for ICS-4, the training happening now.');
+        logLine({ who: email, action: d.renew ? 'Made a new scanner link and PIN (the old ones stopped working)' : 'Opened the scanner link and PIN (admin mode)', tab: 'Trainings', record: r.training_id });
+        return { key: 'preview', pin: '246810', link: 'https://script.google.com/macros/s/your-web-app/exec?page=scan&k=preview' };
+      },
       getScanner: function (d) { demoPin(d); return scanState(true); },
       scanSync: function (d) {
         demoPin(d);
@@ -1879,6 +2127,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         var t = list().filter(function (x) { return x.id === d.training_id; })[0];
         if (!t || !t.happening) throw new Error('Check-in is open only on the training days.');
         if (t.mode !== 'Online') throw new Error('Check-in for this training is at the door: show your QR code to the organizers.');
+        if (demoClosed(t.id, Date.now())) throw new Error('Check-in for this training is closed for today. Please see the organizers.');
         var r = findReg(d.training_id, d.key);
         if (!r) return { status: 'not-found' };
         return checkInNow(t, r, String(d.key).indexOf('@') > -1 ? 'Email' : 'Code');
@@ -2130,7 +2379,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   }
 
   /* ---------------- views ---------------- */
-  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'partner', 'report', 'scan'];
+  var VIEWS = ['home', 'register', 'attendance', 'evaluation', 'request', 'partner', 'report', 'scan', 'admin'];
   function show(view, opts) {
     opts = opts || {};
     if (VIEWS.indexOf(view) === -1) view = 'home';
@@ -2149,6 +2398,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }
     if (view === 'report') openReportView();
     if (view === 'scan') startScanner();
+    if (view === 'admin') openAdmin(); else clearInterval(AD.timer);
     if (changed && !opts.keepScroll) {
       try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
       var head = view === 'home' ? $('#brandName') : $('#view-' + view + ' .title');
@@ -2236,14 +2486,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }).then(function () { busy(btn, false); });
   }
   function showRegDone(res) {
-    var t = res.training, ci = res.checkIn;
+    var t = res.training, ci = res.checkIn, closed = !!ci && ci.status === 'closed';
+    if (closed) ci = null;   // check-in was closed for today in admin mode: registered, not checked in
     S.lastReg = { code: res.code, trainingId: t.id };
     $('#doneTitle').textContent = ci && ci.status === 'already' ? "You're already checked in today"
       : ci ? (res.already ? "You're checked in" : "You're registered and checked in")
       : res.already ? "You're already registered" : "You're registered";
     $('#doneLead').textContent = (res.already
       ? 'This email was already registered for ' + t.title + '. Here is the same code.'
-      : res.name + ' is registered for ' + t.title + '.') + (res.atDoor ? ' Show your QR code at the door to check in.' : '');
+      : res.name + ' is registered for ' + t.title + '.') +
+      (closed ? ' Check-in is closed for today, so you are not checked in. Please see the organizers.' : res.atDoor ? ' Show your QR code at the door to check in.' : '');
     $('#doneCard').hidden = false;
     $('#doneCode').textContent = res.code;
     setQR($('#doneQr'), res.code);
@@ -2256,13 +2508,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       '<div><dt>Submitted</dt><dd>' + esc(fmtStamp(res.stamp)) + '</dd></div>';
     if (ci) facts += '<div><dt>Checked in</dt><dd>' + esc(ci.time + ' · Day ' + ci.day + ' of ' + ci.days) + '</dd></div>';
     $('#doneFacts').innerHTML = facts;
-    $('#doneCheckIn').hidden = !t.happening || !!ci || !selfOK(t);
+    $('#doneCheckIn').hidden = !t.happening || !!ci || !selfOK(t) || closed;
     $('#regDemoNote').hidden = LIVE || res.already;
     $('#regFormWrap').hidden = true;
     $('#regDone').hidden = false;
     try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
     $('#regDone').focus();
-    if (ci && ci.status === 'already') notify('info', 'Already checked in today', res.name + ' checked in at ' + ci.time + '.');
+    if (closed) notify('info', res.already ? 'Already registered' : 'Registered, not checked in', 'Check-in is closed for today. Please see the organizers.');
+    else if (ci && ci.status === 'already') notify('info', 'Already checked in today', res.name + ' checked in at ' + ci.time + '.');
     else if (ci) notify('ok', res.already ? 'Check-in successful' : 'Registered and checked in', res.name + ' · ' + ci.time + ' · Day ' + ci.day + ' of ' + ci.days);
     else if (res.already) notify('info', 'Already registered', 'This email was already registered for ' + t.title + '.');
     else notify('ok', 'Registration successful', res.name + ' · ' + t.title + ' · code ' + res.code);
@@ -2719,14 +2972,14 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     started: false, key: '', link: '', state: null, roster: {}, inToday: {}, queue: [], recent: [], shown: null, waiters: {},
     offset: 0, busy: false, seq: 0, timer: null, fails: 0, syncedAt: 0, rosterAt: 0, offline: false, inDay: '',
     mode: 'scan', stream: null, decode: null, looping: false, lastCode: '', lastAt: 0, audio: null, confirm: '', confirmTimer: null,
-    pin: '', pinOk: false, station: false, clearTimer: null
+    pin: '', pinOk: false, station: false, clearTimer: null, listening: false
   };
   var JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
   var JSQR_SRI = 'sha384-b5Ya4Bq3qCyz39m2ISh+4DxjAIljdeFwK/BsXLuj9gugaNwAcj/ia15fxNZL9Nlx';
   var SC_STATUS = {
     ok: 'Checked in', dup: 'Already checked in', wait: 'Checking…', 'not-found': 'Not registered for this training',
     'other-training': 'Registered for another training', 'not-a-training-day': "Today isn't a training day",
-    'not-sanay': "That isn't a " + 'SANAY' + ' QR code', error: 'Not saved'
+    'not-sanay': "That isn't a " + 'SANAY' + ' QR code', closed: 'Check-in is closed', error: 'Not saved'
   };
   function scKeep(name, value) {
     if (!LIVE) return null;   // the preview starts fresh each time
@@ -2795,12 +3048,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     SC.started = true;
     SC.key = LIVE ? String(S.params.k || '').replace(/[^0-9a-f]/gi, '') : 'preview';
     $('#scDemo').hidden = LIVE;
-    if (!SC.key) { scLock('Open the scanner from the Google Sheet: ' + BRAND.name + ' › Open the check-in scanner.'); return; }
-    window.addEventListener('online', function () { if (S.view === 'scan' && SC.pinOk) scSync(true); });
-    window.addEventListener('offline', function () { scNet(); });
-    document.addEventListener('visibilitychange', function () { if (!document.hidden && SC.started && SC.pinOk) scSync(true); });
+    $('#view-scan').classList.toggle('from-admin', !!S.scanFromAdmin);
+    if (!SC.key) { scLock('Open the scanner from admin mode, or from the Google Sheet: ' + BRAND.name + ' › Open the check-in scanner.'); return; }
+    if (!SC.listening) {
+      SC.listening = true;
+      window.addEventListener('online', function () { if (S.view === 'scan' && SC.pinOk) scSync(true); });
+      window.addEventListener('offline', function () { scNet(); });
+      document.addEventListener('visibilitychange', function () { if (!document.hidden && SC.started && SC.pinOk) scSync(true); });
+    }
     SC.queue = scKeep('queue') || [];
-    SC.pin = scKeep('pin') || '';
+    SC.pin = scKeep('pin') || S.scanPin || '';   // opened from admin mode: the PIN came with it
     SC.pinOk = !!SC.pin;
     if (!SC.pin) { scAskPin(''); return; }   // the link alone is not enough
     var saved = scKeep('state');
@@ -2808,7 +3065,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       SC.link = saved.link || '';
       SC.offset = Number(saved.offset) || 0;
       scApply({ training: saved.state.training, today: saved.state.today, trainingDay: saved.state.trainingDay, day: saved.state.day, days: saved.state.days,
-        registered: saved.state.registered, checkedIn: saved.state.checkedIn, roster: saved.roster }, true, true);
+        checkin: saved.state.checkin, registered: saved.state.registered, checkedIn: saved.state.checkedIn, roster: saved.roster }, true, true);
       scRender();
       if (scKeep('station')) scStationOn(false);
     }
@@ -2866,7 +3123,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       settle();
       SC.fails = 0; SC.offline = false;
       if (!SC.pinOk) { SC.pinOk = true; scKeep('pin', SC.pin); $('#scPinForm').hidden = true; $('#scPin').value = ''; }
-      if (scKeep('station') && !SC.station) scStationOn(false);
+      if ((scKeep('station') || S.scanStation) && !SC.station) { S.scanStation = false; scStationOn(false); }
       if (st.link) SC.link = st.link;
       scApply(st, !!st.roster);
       (st.results || []).forEach(function (r) { scDrop(r.id); scResult(r); });
@@ -2903,7 +3160,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (!cached) SC.rosterAt = Date.now();
     }
     SC.state = { training: st.training, today: st.today, trainingDay: st.trainingDay, day: st.day, days: st.days, registered: st.registered,
-      checkedIn: (st.checkedIn || []).slice() };
+      checkin: st.checkin || { open: true }, checkedIn: (st.checkedIn || []).slice() };
     scRoll();
     if (st.today === SC.inDay) {   // the Sheet's list of who is in, for the same day as this device
       var next = {};
@@ -2951,6 +3208,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       scShow({ id: '', status: 'dup', name: p.name, agency: p.agency, time: have.time }, true);
       return;
     }
+    if (scClosedAt(at)) {   // closed in admin mode for the rest of the day: nobody new, even with no signal
+      scFeedback('bad');
+      scShow({ id: '', status: 'closed', name: p ? p.name : code, agency: p ? p.agency : '' }, true);
+      return;
+    }
     var item = { id: uid(), kind: 'scan', code: code, at: at, how: how };
     SC.queue.push(item);
     scKeep('queue', SC.queue);
@@ -2962,6 +3224,36 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     scShow(rec, true);
     scRender();
     scSync(true);
+  }
+  /* Has check-in been closed (in admin mode) since before this moment of the day? */
+  function scClosedAt(ms) {
+    var ck = SC.state && SC.state.checkin;
+    return !!ck && ck.open === false && ck.day === stampAt(ms).slice(0, 10) && ms >= ck.at;
+  }
+  /* Opens the scanner from admin mode on this device: no link to copy and no PIN to type. */
+  function scStart(key, pin, station) {
+    if (SC.started && SC.key !== key) scResetState();
+    if (LIVE) {
+      try {
+        localStorage.setItem('sanay.scanner.pin.' + key, JSON.stringify(pin));
+        localStorage.setItem('sanay.scanner.station.' + key, JSON.stringify(!!station));
+      } catch (e) { /* storage blocked: the PIN is used for this visit only */ }
+    }
+    S.params.k = key;
+    S.scanPin = pin;
+    S.scanStation = !!station;
+    S.scanFromAdmin = !station;
+    show('scan');
+    if (SC.started && SC.pinOk && station && !SC.station) { S.scanStation = false; scStationOn(false); }
+  }
+  /* Forgets the scanner on this page (another training, or the preview's Reset); what is saved on the device stays. */
+  function scResetState() {
+    scStopCamera();
+    clearTimeout(SC.timer);
+    SC.started = false; SC.state = null; SC.roster = {}; SC.inToday = {}; SC.queue = []; SC.recent = []; SC.shown = null; SC.offline = false; SC.seq++; SC.busy = false;
+    SC.pin = ''; SC.pinOk = false; SC.station = false; SC.inDay = ''; SC.link = ''; SC.key = '';
+    $('#view-scan').classList.remove('station'); $('#scPinForm').hidden = true; $('#scMain').hidden = true; $('#scLocked').hidden = true;
+    $('#scDemoCodes').innerHTML = ''; $('#scResult').innerHTML = ''; $('#scAddBox').hidden = true;
   }
   /* Check-in station: a phone or tablet at the entrance where participants scan their own QR codes.
      It shows only the camera and each person's result; leaving it needs the PIN (checked on the device, so it works offline). */
@@ -2996,16 +3288,16 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       var say = {
         ok: "You're checked in · " + rec.time, dup: "You're already checked in, since " + rec.time, wait: SC.offline ? 'Saved' : 'Checking your QR code…',
         'not-found': "We can't find this QR code", 'other-training': 'This QR code is for another training',
-        'not-a-training-day': "Check-in isn't open today", 'not-sanay': "That isn't a check-in QR code", error: 'Not saved'
+        'not-a-training-day': "Check-in isn't open today", 'not-sanay': "That isn't a check-in QR code", closed: 'Check-in is closed', error: 'Not saved'
       }[rec.status] || rec.status;
       var help = rec.status === 'ok' || rec.status === 'dup' ? rec.agency : rec.status === 'wait' && SC.offline ? "If your name doesn't appear, please see the organizers." : 'Please see the organizers.';
-      var kind = { ok: 'ok', dup: '', wait: '', 'not-a-training-day': 'warn' }[rec.status];
+      var kind = { ok: 'ok', dup: '', wait: '', 'not-a-training-day': 'warn', closed: 'warn' }[rec.status];
       $('#scResult').innerHTML = '<div class="sc-res ' + (kind === undefined ? 'bad' : kind) + '"><p class="st">' + esc(say) + '</p>' +
         (rec.name ? '<p class="nm">' + esc(rec.name) + '</p>' : '') + (help ? '<p class="ag">' + esc(help) + '</p>' : '') + '</div>';
       return;
     }
     var waiting = rec.id && SC.queue.some(function (q) { return q.id === rec.id; });
-    var cls = { ok: 'ok', dup: '', wait: '', error: 'bad', 'not-found': 'bad', 'other-training': 'bad', 'not-sanay': 'bad', 'not-a-training-day': 'warn' }[rec.status] || '';
+    var cls = { ok: 'ok', dup: '', wait: '', error: 'bad', 'not-found': 'bad', 'other-training': 'bad', 'not-sanay': 'bad', 'not-a-training-day': 'warn', closed: 'warn' }[rec.status] || '';
     var st = SC_STATUS[rec.status] || rec.status;
     if (rec.status === 'ok') st += ' · ' + rec.time;
     if (rec.status === 'dup') st += ' at ' + rec.time;
@@ -3013,6 +3305,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var line = rec.note || rec.agency || '';
     if (rec.status === 'wait' && SC.offline) line = 'Saved. It will be checked when the signal is back.';
     if (rec.status === 'not-found') line = 'Send them to the walk-in desk.';
+    if (rec.status === 'closed') line = 'Closed in admin mode' + (SC.state && SC.state.checkin && SC.state.checkin.time ? ' at ' + SC.state.checkin.time : '') + '. An admin can still check them in by hand.';
     if (rec.status === 'ok' && waiting) line += (line ? ' · ' : '') + 'waiting to send';
     $('#scResult').innerHTML = '<div class="sc-res ' + cls + '"><p class="st">' + esc(st) + '</p>' +
       (rec.name ? '<p class="nm">' + esc(rec.name) + '</p>' : '') + (line ? '<p class="ag">' + esc(line) + '</p>' : '') + '</div>';
@@ -3046,9 +3339,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     scRoll();
     var t = SC.state.training, d = scDay();
     $('#scTitle').textContent = t.title;
-    $('#scLead').textContent = d.open ? 'Day ' + d.day + ' of ' + d.days + ' · ' + fmtLong(d.today)
+    var ck = SC.state.checkin, closed = !!ck && ck.open === false && ck.day === d.today;
+    $('#scLead').textContent = d.open ? 'Day ' + d.day + ' of ' + d.days + ' · ' + fmtLong(d.today) + (closed ? ' · Check-in closed at ' + ck.time : '')
       : d.before ? 'The training starts on ' + fmtLong(t.start) + '. Scans count from then.'
       : 'The training ended on ' + fmtLong(t.end) + '. Anything still saved on this device is sent when it is online.';
+    $('#view-scan').classList.toggle('from-admin', !!S.scanFromAdmin);
     var codes = Object.keys(SC.roster), inN = codes.filter(function (c) { return SC.inToday[c]; }).length;
     $('#scIn').textContent = inN;
     $('#scOf').textContent = codes.length;
@@ -3118,11 +3413,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     scSync(true);
   }
   function showDeskDone(item, res) {
-    var ci = res && res.checkIn;
-    $('#doneTitle').textContent = !res ? 'Saved on this device' : ci && ci.status === 'already' ? 'Already checked in today' : res.already ? 'Already registered, now checked in' : 'Registered and checked in';
-    $('#doneLead').textContent = res
-      ? res.name + (ci && ci.status === 'already' ? ' checked in at ' + ci.time + '.' : ' is checked in for today.') + ' Give them their QR code for the next days.'
-      : item.name + ' counts as checked in from ' + timeAt(item.at) + ". The form goes to the Sheet when the signal is back; their QR code appears on the scanner's list then.";
+    var ci = res && res.checkIn, closed = !!ci && ci.status === 'closed';
+    $('#doneTitle').textContent = !res ? 'Saved on this device' : closed ? 'Registered, not checked in' : ci && ci.status === 'already' ? 'Already checked in today' : res.already ? 'Already registered, now checked in' : 'Registered and checked in';
+    $('#doneLead').textContent = !res
+      ? item.name + ' counts as checked in from ' + timeAt(item.at) + ". The form goes to the Sheet when the signal is back; their QR code appears on the scanner's list then."
+      : closed ? res.name + ' is registered, but check-in is closed for today, so they are not checked in. An admin can still check them in by hand.'
+      : res.name + (ci && ci.status === 'already' ? ' checked in at ' + ci.time + '.' : ' is checked in for today.') + ' Give them their QR code for the next days.';
     $('#doneCard').hidden = !res;
     if (res) {
       $('#doneCode').textContent = res.code;
@@ -3131,7 +3427,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('#copyNote').textContent = '';
     }
     $('#doneFacts').innerHTML = '<div><dt>Training</dt><dd>' + esc(S.desk ? S.desk.title : '') + '</dd></div>' +
-      '<div><dt>Checked in</dt><dd>' + esc(ci ? ci.time + ' · Day ' + ci.day + ' of ' + ci.days : timeAt(item.at) + ' · waiting to send') + '</dd></div>';
+      '<div><dt>Checked in</dt><dd>' + esc(closed ? 'No: check-in is closed for today' : ci ? ci.time + ' · Day ' + ci.day + ' of ' + ci.days : timeAt(item.at) + ' · waiting to send') + '</dd></div>';
     $('#doneCheckIn').hidden = true;
     $('#regDemoNote').hidden = LIVE || !res;
     deskButtons(true);
@@ -3140,6 +3436,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
     $('#regDone').focus();
     if (!res) notify('info', 'Saved on this device', item.name + ' · sent to the Sheet when the signal is back');
+    else if (closed) notify('info', 'Registered, not checked in', res.name + ' · check-in is closed for today');
     else if (ci && ci.status === 'already') notify('info', 'Already checked in today', res.name + ' checked in at ' + ci.time + '.');
     else notify('ok', res.already ? 'Check-in successful' : 'Walk-in registered and checked in', res.name + ' · code ' + res.code);
   }
@@ -3281,6 +3578,346 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     }).join('');
   }
 
+  /* ------------------------------------------------------------------
+   * Admin mode: the owner and the data stewards sign in with their email and a code
+   * sent to it, then run check-in for a training from a phone.
+   * To add a part later: put another .ad-card in #adMain (the ADMIN MODE section of the
+   * page), draw it from AD.detail in a function like adStatus, and call that from adRender.
+   * Its server side goes in Code.gs next to adminTraining, starting with adminAccess_(req).
+   * ------------------------------------------------------------------ */
+  var AD = {
+    token: '', email: '', until: 0, sentTo: '', home: null, detail: null, tid: '', day: '', filter: 'all',
+    confirm: '', confirmTimer: null, busy: false, scanner: null, timer: null
+  };
+  var AD_METHODS = { QR: 'QR code', 'Name search': 'From the list', 'Typed code': 'Typed code', 'Walk-in': 'Walk-in', Code: 'Self check-in', Email: 'Self check-in', Admin: 'By an admin' };
+  function adKeep(v) {
+    if (!LIVE) return null;   // the preview starts signed out each time
+    try {
+      if (v === undefined) return JSON.parse(localStorage.getItem('sanay.admin') || 'null');
+      if (v === null) localStorage.removeItem('sanay.admin');
+      else localStorage.setItem('sanay.admin', JSON.stringify(v));
+    } catch (e) { /* storage blocked: signed in for this visit only */ }
+    return null;
+  }
+  function isSignedOut(e) { return /signed out of admin mode|session ended/i.test((e && e.message) || ''); }
+  function adForget() {
+    clearInterval(AD.timer);
+    AD.token = ''; AD.email = ''; AD.until = 0; AD.home = null; AD.detail = null; AD.scanner = null; AD.confirm = '';
+    adKeep(null);
+  }
+  function adErr(sel, msg) { var b = $(sel); b.textContent = msg || ''; b.hidden = !msg; }
+  function adMsg(msg) { $('#adDevMsg').textContent = msg || ''; }
+  function openAdmin() {
+    if (!AD.token) {
+      var k = adKeep();
+      if (k && k.token && k.until > Date.now()) { AD.token = k.token; AD.email = k.email; AD.until = k.until; }
+    }
+    if (AD.token && AD.until > Date.now()) {
+      if (AD.home) { adStage('main'); adRender(); adTimer(); adRefresh(); }   // what was on screen, then the latest
+      else { adStage('main', true); adLoad(); }
+    } else {
+      adForget();
+      adStage(AD.sentTo ? 'code' : 'email');
+    }
+  }
+  function adStage(stage, loading) {
+    $('#adEmailForm').hidden = stage !== 'email';
+    $('#adCodeForm').hidden = stage !== 'code';
+    $('#adMain').hidden = stage !== 'main';
+    $('#adDemo').hidden = LIVE;
+    $('#adSheetNote').hidden = LIVE;
+    $('#adTitle').textContent = stage === 'main' ? 'Check-in' : 'Admin sign-in';
+    $('#adLead').textContent = stage === 'main' ? (loading ? 'Loading…' : 'Open or close check-in, see who is in, and set up the scanners. Everything saves to the Google Sheet at once.')
+      : stage === 'code' ? 'Check your email for the code.'
+      : "For the owner of the Google Sheet and the data stewards. Enter your email and we'll send you a 6-digit code.";
+  }
+  function adSendCode(e) {
+    if (e) e.preventDefault();
+    var email = val('#adEmail').toLowerCase(), btn = $('#adSend');
+    adErr('#adEmailErr', '');
+    if (!EMAIL_RE.test(email)) { adErr('#adEmailErr', 'Enter a valid email, like name@example.com.'); $('#adEmail').focus(); return; }
+    busy(btn, true, 'Sending…');
+    call('adminSendCode', { email: email }).then(function (r) {
+      AD.sentTo = r.email;
+      $('#adSentTo').innerHTML = 'If <b>' + esc(r.email) + '</b> can use admin mode, a 6-digit code is on its way. It works for ' + esc(r.minutes) + ' minutes. Look in the spam folder too.';
+      adErr('#adCodeErr', '');
+      $('#adCode').value = '';
+      adStage('code');
+      $('#adCode').focus();
+    }).catch(function (err) { adErr('#adEmailErr', err.message); }).then(function () { busy(btn, false); });
+  }
+  function adResend() {
+    var btn = $('#adResend');
+    btn.disabled = true;
+    adErr('#adCodeErr', '');
+    call('adminSendCode', { email: AD.sentTo }).then(function (r) {
+      $('#adSentTo').innerHTML = 'A new code is on its way to <b>' + esc(r.email) + '</b>, if it can use admin mode. Use the newest email: the code before it no longer works.';
+      $('#adCode').value = '';
+      $('#adCode').focus();
+    }).catch(function (err) { adErr('#adCodeErr', err.message); }).then(function () { btn.disabled = false; });
+  }
+  function adSignIn(e) {
+    if (e) e.preventDefault();
+    var code = $('#adCode').value.replace(/\D/g, ''), btn = $('#adGo');
+    adErr('#adCodeErr', '');
+    if (code.length !== 6) { adErr('#adCodeErr', 'Enter the 6-digit code from the email.'); $('#adCode').focus(); return; }
+    busy(btn, true, 'Signing in…');
+    call('adminSignIn', { email: AD.sentTo, code: code }).then(function (r) {
+      AD.token = r.token; AD.email = r.email; AD.until = r.until; AD.sentTo = '';
+      adKeep({ token: r.token, email: r.email, until: r.until });
+      $('#adCode').value = '';
+      notify('ok', 'Signed in to admin mode', r.email);
+      adStage('main', true);
+      adLoad();
+    }).catch(function (err) { adErr('#adCodeErr', err.message); try { $('#adCode').select(); } catch (x) { /* ignore */ } })
+      .then(function () { busy(btn, false); });
+  }
+  function adLoad() {
+    AD.busy = true;
+    call('adminHome', { token: AD.token, training_id: AD.tid, date: AD.day }).then(function (h) {
+      AD.home = h;
+      AD.email = h.email;
+      adStage('main');
+      adShow(h.detail);
+      adTimer();
+    }).catch(adFailed).then(function () { AD.busy = false; });
+  }
+  function adFailed(e) {
+    if (isSignedOut(e)) {
+      adForget();
+      adStage('email');
+      adErr('#adEmailErr', e.message);
+      return;
+    }
+    adStage('main');
+    adErr('#adErr', (e && e.message) || 'Something went wrong. Try again.');
+    adTimer();   // tries again by itself
+  }
+  function adShow(d) {
+    AD.detail = d || null;
+    AD.tid = d ? d.training.id : '';
+    AD.day = d ? d.day : '';
+    adErr('#adErr', '');
+    adRender();
+  }
+  function adRender() {
+    var h = AD.home, d = AD.detail, list = h ? h.trainings : [];
+    $('#adWho').textContent = AD.email;
+    $('#adUntil').textContent = AD.until ? 'On this device until ' + timeAt(AD.until) + (stampAt(AD.until).slice(0, 10) !== manilaToday() ? ' tomorrow' : '') : '';
+    var sel = $('#adTraining'), key = list.map(function (t) { return t.id + ':' + t.when; }).join('|');
+    if (sel.getAttribute('data-key') !== key) {
+      sel.innerHTML = list.length ? [['now', 'Today'], ['next', 'Coming up'], ['past', 'Ended']].map(function (g) {
+        var ts = list.filter(function (t) { return t.when === g[0]; });
+        return ts.length ? '<optgroup label="' + g[1] + '">' + ts.map(function (t) {
+          return '<option value="' + esc(t.id) + '">' + esc(t.title + ' · ' + fmtRange(t.start, t.end)) + '</option>';
+        }).join('') + '</optgroup>' : '';
+      }).join('') : '<option value="">No trainings with dates yet</option>';
+      sel.setAttribute('data-key', key);
+    }
+    if (d) sel.value = d.training.id;
+    $$('#adMain .ad-card').forEach(function (c) { c.hidden = !d; });
+    if (!d) return;
+    adStatus(d);
+    adDevices(d);
+    adDays(d);
+    adPeople();
+  }
+  function adStatus(d) {
+    var t = d.training, ck = d.checkin, before = d.today < t.start, html;
+    if (!d.trainingDay) {
+      html = '<span class="badge plain">' + (before ? 'Not yet' : 'Ended') + '</span><p>' +
+        esc(before ? 'Check-in opens on ' + fmtLong(t.start) + ', the first training day.' : 'The training ended on ' + fmtLong(t.end) + '.') +
+        '<small>' + esc(before ? 'On the training days you can close and reopen it here.' : 'You can still see who came, and undo a check-in made by mistake.') + '</small></p>';
+    } else if (ck.open) {
+      html = '<span class="badge ok">Open</span><p>Day ' + dayNumber(t.start, d.today) + ' of ' + dayNumber(t.start, t.end) + ' · ' + esc(fmtLong(d.today)) +
+        '<small>The scanners, the check-in station and the walk-in desk' + (S.data && selfOK(t) ? ', and self check-in on the Attendance screen,' : '') + ' are checking people in.</small></p>';
+    } else {
+      html = '<span class="badge warn">Closed</span><p>Since ' + esc(ck.time) + ' today' + (ck.by ? ', by ' + esc(ck.by) : '') +
+        '<small>Nobody new is checked in, except by hand below. It opens again by itself tomorrow.</small></p>';
+    }
+    $('#adStatus').innerHTML = html;
+    var tog = $('#adToggle'), sure = AD.confirm === 'close';
+    tog.hidden = !d.trainingDay;
+    tog.classList.toggle('sure', sure && ck.open);
+    if (!tog.disabled) tog.textContent = !ck.open ? 'Reopen check-in' : sure ? 'Tap again to close check-in' : 'Close check-in for today';
+    $('#adToggleHint').hidden = !d.trainingDay || !ck.open;
+    $('#adToggleHint').textContent = 'Closing stops the scanners, the check-in station, the walk-in desk and self check-in for the rest of today. Scans made before then still count.';
+    var inN = d.checkedIn.length, of = d.people.length;
+    $('#adCount').hidden = !d.day;
+    $('#adIn').textContent = inN;
+    $('#adOf').textContent = of;
+    $('#adOn').textContent = d.day === d.today ? 'today' : d.day ? 'on Day ' + dayNumber(t.start, d.day) + ', ' + fmtDay(d.day) : '';
+    $('#adBar').style.width = (of ? Math.round(Math.min(inN, of) / of * 100) : 0) + '%';
+  }
+  function adDevices(d) {
+    $('#adDevices').hidden = !d.training.start || d.training.end < d.today;
+    var station = $('#adStation');
+    station.classList.toggle('sure', AD.confirm === 'station');
+    if (!station.disabled) station.textContent = AD.confirm === 'station' ? 'Tap again: this signs you out on this device' : 'Make this device a check-in station';
+    $('#adRenew').textContent = AD.confirm === 'renew' ? 'Tap again: the old link and PIN stop working' : 'Make a new link and PIN';
+    if (AD.scanner && AD.scanner.tid !== d.training.id) {
+      AD.scanner = null;
+      $('#adAddBox').hidden = true;
+      $('#adAdd').setAttribute('aria-expanded', 'false');
+    }
+  }
+  function adDays(d) {
+    var box = $('#adDays'), t = d.training, past = d.days.filter(function (x) { return x.date <= d.today; });
+    box.hidden = d.days.length < 2 || !past.length;
+    box.innerHTML = past.map(function (x) {
+      return '<button type="button" data-day="' + esc(x.date) + '" aria-pressed="' + (x.date === d.day ? 'true' : 'false') + '">Day ' + dayNumber(t.start, x.date) + ' · ' + esc(fmtDay(x.date)) + '</button>';
+    }).join('');
+  }
+  function adPeople() {
+    var d = AD.detail;
+    if (!d) return;
+    $$('#adFilter button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.f === AD.filter ? 'true' : 'false'); });
+    var q = $('#adSearch').value.trim().toLowerCase(), inMap = {};
+    d.checkedIn.forEach(function (c) { inMap[c.code] = c; });
+    var all = d.people.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var shown = all.filter(function (p) {
+      if (q && (p.name + ' ' + p.agency + ' ' + p.code).toLowerCase().indexOf(q) < 0) return false;
+      return AD.filter === 'all' || (AD.filter === 'in') === !!inMap[p.code];
+    });
+    var today = d.trainingDay && d.day === d.today, inN = all.filter(function (p) { return inMap[p.code]; }).length;
+    $('#adSum').textContent = !d.day ? all.length + ' registered so far. Check-in starts on the first training day.'
+      : (q || AD.filter !== 'all' ? shown.length + (shown.length === 1 ? ' person' : ' people') + ' shown · ' : '') + inN + ' of ' + all.length + ' checked in ' +
+        (today ? 'today. Tap Check in twice for someone without their QR code.' : 'on ' + fmtDay(d.day) + '.');
+    $('#adPeople').innerHTML = shown.slice(0, 500).map(function (p) {
+      var c = inMap[p.code], sure = AD.confirm === (c ? 'undo:' : 'in:') + p.code;
+      var meta = [p.agency, p.code, p.walkIn ? 'walk-in' : ''].filter(Boolean).map(esc).join(' · ') + (p.flagged ? ' · <span class="ad-flag">flagged</span>' : '');
+      var right = c
+        ? '<span class="ad-right"><span class="sc-tag ok">In · ' + esc(c.time) + '</span><span class="ad-how">' + esc(AD_METHODS[c.method] || c.method) + '</span>' +
+          '<button type="button" class="link-btn ad-undo' + (sure ? ' sure' : '') + '" data-undo="' + esc(p.code) + '">' + (sure ? 'Tap again to undo' : 'Undo') + '</button></span>'
+        : today ? '<button type="button" class="btn-quiet sc-pick' + (sure ? ' sure' : '') + '" data-in="' + esc(p.code) + '">' + (sure ? 'Tap again to confirm' : 'Check in') + '</button>'
+        : '<span class="sc-tag info">' + (d.day ? 'Not in' : '') + '</span>';
+      return '<li><span class="sc-who"><b>' + esc(p.name) + '</b><span>' + meta + '</span></span>' + right + '</li>';
+    }).join('') || '<li class="sc-none">' + (q ? 'No one matches.' : AD.filter === 'in' ? 'No one is checked in yet.' : AD.filter === 'out' ? 'Everyone is in.' : 'No one has registered yet.') + '</li>';
+  }
+  /* Two taps for anything that changes the Sheet: the first one asks, the second one does it. */
+  function adConfirm(what) {
+    clearTimeout(AD.confirmTimer);
+    AD.confirm = what;
+    if (what) AD.confirmTimer = setTimeout(function () { AD.confirm = ''; if (AD.detail) adRender(); }, 4000);
+    if (AD.detail) adRender();
+  }
+  function adPick(tid, day) {
+    if (AD.busy || !tid) return;
+    AD.tid = tid; AD.day = day || '';
+    adErr('#adErr', '');
+    adMsg('');
+    $('#adSum').textContent = 'Loading…';
+    AD.busy = true;
+    call('adminTraining', { token: AD.token, training_id: tid, date: AD.day }).then(adShow).catch(adQuiet).then(function () { AD.busy = false; });
+  }
+  function adQuiet(e) {
+    if (isSignedOut(e)) { adFailed(e); return; }
+    adErr('#adErr', (e && e.message) || 'Something went wrong. Try again.');
+    if (AD.detail) adRender();
+  }
+  function adToggle() {
+    var d = AD.detail;
+    if (!d || AD.busy) return;
+    var closing = d.checkin.open, btn = $('#adToggle');
+    if (closing && AD.confirm !== 'close') { adConfirm('close'); return; }
+    adConfirm('');
+    AD.busy = true;
+    busy(btn, true, closing ? 'Closing…' : 'Opening…');
+    call('adminSetCheckIn', { token: AD.token, training_id: d.training.id, open: !closing, date: AD.day }).then(function (nd) {
+      busy(btn, false);
+      adShow(nd);
+      notify(closing ? 'info' : 'ok', closing ? 'Check-in closed for today' : 'Check-in reopened', nd.training.title + (closing && !nd.checkin.open ? ' · since ' + nd.checkin.time : ''));
+    }).catch(function (e) { busy(btn, false); adQuiet(e); }).then(function () { AD.busy = false; });
+  }
+  function adPerson(code, undo) {
+    var d = AD.detail;
+    if (!d || AD.busy) return;
+    var p = d.people.filter(function (x) { return x.code === code; })[0], name = p ? p.name : code;
+    AD.busy = true;
+    call(undo ? 'adminUndoCheckIn' : 'adminCheckIn', { token: AD.token, training_id: d.training.id, code: code, date: AD.day }).then(function (nd) {
+      adShow(nd);
+      if (undo) notify('info', 'Check-in undone', name + ' · ' + fmtDay(nd.day));
+      else if (nd.result && nd.result.status === 'already') notify('info', 'Already checked in today', name + ' checked in at ' + nd.result.time + '.');
+      else notify('ok', 'Checked in by hand', name + (nd.result ? ' · ' + nd.result.time : ''));
+    }).catch(adQuiet).then(function () { AD.busy = false; });
+  }
+  function adGetScanner(renew) {
+    var d = AD.detail;
+    if (!renew && AD.scanner && AD.scanner.tid === d.training.id) return Promise.resolve(AD.scanner);
+    return call('adminScanner', { token: AD.token, training_id: d.training.id, renew: !!renew }).then(function (sc) {
+      AD.scanner = { tid: d.training.id, key: sc.key, pin: sc.pin, link: sc.link };
+      return AD.scanner;
+    });
+  }
+  function adOpenScanner(station) {
+    if (!AD.detail || AD.busy) return;
+    var btn = station ? $('#adStation') : $('#adScan');
+    adMsg('');
+    AD.busy = true;
+    busy(btn, true, 'Opening…');
+    adGetScanner(false).then(function (sc) {
+      if (!station) { scStart(sc.key, sc.pin, false); return null; }
+      // a check-in station stands where participants are, so this device leaves admin mode first
+      return call('adminSignOut', { token: AD.token, station: true }).catch(function () { return null; }).then(function () {
+        adForget();
+        AD.sentTo = '';
+        scStart(sc.key, sc.pin, true);
+      });
+    }).catch(function (e) { if (isSignedOut(e)) adFailed(e); else adMsg(e.message); })
+      .then(function () { busy(btn, false); AD.busy = false; if (AD.detail) adRender(); });
+  }
+  function adShowAdd(sc) {
+    $('#adAddQr').innerHTML = qrSVG(sc.link, 'qr');
+    $('#adPin').textContent = sc.pin;
+    $('#adAddBox').hidden = false;
+    $('#adAdd').setAttribute('aria-expanded', 'true');
+  }
+  function adAddDevice() {
+    if (!$('#adAddBox').hidden) { $('#adAddBox').hidden = true; $('#adAdd').setAttribute('aria-expanded', 'false'); return; }
+    if (!AD.detail || AD.busy) return;
+    adMsg('');
+    AD.busy = true;
+    adGetScanner(false).then(adShowAdd).catch(function (e) { if (isSignedOut(e)) adFailed(e); else adMsg(e.message); })
+      .then(function () { AD.busy = false; });
+  }
+  function adRenew() {
+    if (!AD.detail || AD.busy) return;
+    if (AD.confirm !== 'renew') { adConfirm('renew'); return; }
+    adConfirm('');
+    AD.busy = true;
+    adGetScanner(true).then(function (sc) {
+      adShowAdd(sc);
+      notify('ok', 'New scanner link and PIN', 'Open the new link on every door device. The old link and PIN stopped working.');
+    }).catch(function (e) { if (isSignedOut(e)) adFailed(e); else adMsg(e.message); }).then(function () { AD.busy = false; });
+  }
+  function adSignOut() {
+    var btn = $('#adOut');
+    busy(btn, true, 'Signing out…');
+    call('adminSignOut', { token: AD.token }).catch(function () { return null; }).then(function () {
+      busy(btn, false);
+      adForget();
+      AD.sentTo = '';
+      $('#adEmail').value = '';
+      $('#adSearch').value = '';
+      adStage('email');
+      notify('info', 'Signed out of admin mode', 'Sign in again with your email.');
+    });
+  }
+  /* New check-ins from the scanners show up by themselves */
+  function adTimer() {
+    clearInterval(AD.timer);
+    AD.timer = setInterval(adRefresh, 30000);
+  }
+  function adRefresh() {
+    if (S.view !== 'admin' || document.hidden || !AD.token || AD.busy) return;
+    if (AD.until && Date.now() > AD.until) { adForget(); adStage('email'); adErr('#adEmailErr', 'Your admin session ended. Sign in again with your email.'); return; }
+    if (!AD.home) { adLoad(); return; }
+    var tid = AD.tid;
+    call('adminTraining', { token: AD.token, training_id: tid, date: AD.day }).then(function (nd) {
+      if (!AD.busy && S.view === 'admin' && nd.training.id === AD.tid) adShow(nd);
+    }).catch(function (e) { if (isSignedOut(e)) adFailed(e); });
+  }
+
   /* ---------------- evaluation ---------------- */
   function onEvaluate(e) {
     e.preventDefault();
@@ -3404,7 +4041,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('#rpShowField').hidden = sec !== 'certs';
     $('#rpCopy').hidden = sec !== 'certs';
     $('#rpCopyNote').textContent = '';
-    $$('.seg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.section === sec ? 'true' : 'false'); });
+    $$('#rpMain .seg button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.section === sec ? 'true' : 'false'); });
   }
   function rpRows(rp, listId) {
     var byCode = {};
@@ -3928,6 +4565,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var ATT_HEAD = ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'];
   var EVAL_HEAD = ['date', 'training_id'].concat(evalKeys(EVAL_ITEMS), ['will_apply', 'comments', 'flag']);
   var EVAL_SHOWN = ['date', 'training_id', 'obj_clear', 'obj_met', 'rp_knowledge', 'time_enough', 'venue_ok', 'overall', 'will_apply', 'comments', 'flag'];
+  var LOG_HEAD = ['timestamp', 'who', 'action', 'tab', 'row', 'record', 'column', 'old_value', 'new_value'];
   var SHOW_LAST = 14;
   var CAPTIONS = {
     Trainings: '<strong>Organizers add one row per training.</strong> The app reads this tab to build the dropdowns. Try it: untick a show_in_list box, or move an end date into the past, and watch the Register dropdown change.',
@@ -3935,7 +4573,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     Attendance: '<strong>One row per person per training day</strong>, added at check-in. The organizer report turns these into the attendance sheet.',
     Evaluations: '<strong>No names here on purpose.</strong> Each new row goes in at a random position, so the order doesn’t show who answered when.',
     Partnerships: '<strong>One row per partnership request.</strong> Organizers update the status column. Over time this tab doubles as your directory of potential training partners.',
-    Requests: '<strong>One row per training request.</strong> Organizers update the status column: New, Contacted, Scheduled, Done or Declined. The report page tallies the topics and preferred months.'
+    Requests: '<strong>One row per training request.</strong> Organizers update the status column: New, Contacted, Scheduled, Done or Declined. The report page tallies the topics and preferred months.',
+    Changelog: '<strong>SANAY writes here, one line per change:</strong> each edit made in the Sheet (who, which row, the old and the new value), everything done in admin mode, and each report or scanner link. Evaluations are never tied to a person.'
   };
   function appShows(r, t) {
     if (r.show_in_list !== true) return '<span class="chip muted">Hidden</span>';
@@ -4013,6 +4652,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     } else if (tab === 'Requests') {
       html = gridRows(tab, REQ_HEAD, REQ_SHOWN, db.requests, flashId, function (r) { return r.request_code; });
       fx = db.requests.length + ' requests. The status column is for organizers.';
+    } else if (tab === 'Changelog') {
+      html = gridRows(tab, LOG_HEAD, LOG_HEAD, db.changelog, flashId, function (r) { return r._id; });
+      fx = db.changelog.length + ' lines, newest at the bottom. Only the owner and the data stewards can edit this tab.';
     } else {
       html = gridRows(tab, EVAL_HEAD, EVAL_SHOWN, db.evaluations, flashId, function (r) { return r._id; });
       fx = 'Likert answers, 1 (strongly disagree) to 5 (strongly agree). Showing 10 of ' + EVAL_HEAD.length + ' columns. No code, no name, date only.';
@@ -4152,6 +4794,34 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('#ciKey').addEventListener('input', function () { if ($('#ciResult').innerHTML) $('#ciResult').innerHTML = ''; });   // the next person on a shared device
     $('#doneScan').addEventListener('click', function () { show('scan'); });
     $('#creditsBtn').addEventListener('click', openCredits);
+    $('#adminBtn').addEventListener('click', function () { show('admin'); });
+    $('#scAdmin').addEventListener('click', function () { show('admin'); });
+    $('#adEmailForm').addEventListener('submit', adSendCode);
+    $('#adCodeForm').addEventListener('submit', adSignIn);
+    $('#adResend').addEventListener('click', adResend);
+    $('#adOther').addEventListener('click', function () { AD.sentTo = ''; adErr('#adCodeErr', ''); adStage('email'); $('#adEmail').focus(); });
+    $('#adOut').addEventListener('click', adSignOut);
+    $('#adTraining').addEventListener('change', function () { adPick(this.value, ''); });
+    $('#adToggle').addEventListener('click', adToggle);
+    $('#adScan').addEventListener('click', function () { adOpenScanner(false); });
+    $('#adStation').addEventListener('click', function () {
+      if (AD.confirm !== 'station') { adConfirm('station'); return; }
+      adConfirm('');
+      adOpenScanner(true);
+    });
+    $('#adAdd').addEventListener('click', adAddDevice);
+    $('#adRenew').addEventListener('click', adRenew);
+    $('#adDays').addEventListener('click', function (e) { var b = e.target.closest('button[data-day]'); if (b) adPick(AD.tid, b.getAttribute('data-day')); });
+    $('#adFilter').addEventListener('click', function (e) { var b = e.target.closest('button[data-f]'); if (b) { AD.filter = b.dataset.f; adPeople(); } });
+    $('#adSearch').addEventListener('input', adPeople);
+    $('#adPeople').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-in],[data-undo]');
+      if (!b) return;
+      var undo = b.hasAttribute('data-undo'), code = b.getAttribute(undo ? 'data-undo' : 'data-in');
+      if (AD.confirm !== (undo ? 'undo:' : 'in:') + code) { adConfirm((undo ? 'undo:' : 'in:') + code); return; }
+      adConfirm('');
+      adPerson(code, undo);
+    });
     $('#crBy').addEventListener('click', toggleAffiliation);
     window.addEventListener('resize', function () { if ($('#credits').open) creditsFit(); });
     $('#crClose').addEventListener('click', closeCredits);
@@ -4227,7 +4897,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     });
     $('#rpTraining').addEventListener('change', function () { S.rpTraining = this.value; loadReport(this.value); });
     $('#rpList').addEventListener('change', function () { S.rpList = this.value; renderReport(); });
-    $$('.seg button').forEach(function (b) {
+    $$('#rpMain .seg button').forEach(function (b) {
       b.addEventListener('click', function () {
         S.rpSection = b.dataset.section;
         syncReportControls();
@@ -4255,6 +4925,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('#fillSample').addEventListener('click', fillSample);
       $('#openReport').addEventListener('click', function () { show('report'); });
       $('#openScanner').addEventListener('click', function () { show('scan'); });
+      $('#openAdmin').addEventListener('click', function () { show('admin'); });
       $('#scSignal').addEventListener('click', function () {
         S.demoOffline = !S.demoOffline;
         this.textContent = S.demoOffline ? 'Turn the signal back on' : 'Turn the signal off';
@@ -4264,12 +4935,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('#resetDemo').addEventListener('click', function () {
         Demo = makeDemo();
         S.flash = null; S.lastReg = null; S.walkIn = null; S.desk = null; S.sheetTab = 'Trainings'; S.report = null; S.demoOffline = false;
-        scStopCamera();
-        clearTimeout(SC.timer);
-        SC.started = false; SC.state = null; SC.roster = {}; SC.inToday = {}; SC.queue = []; SC.recent = []; SC.shown = null; SC.offline = false; SC.seq++; SC.busy = false;
-        SC.pin = ''; SC.pinOk = false; SC.station = false; SC.inDay = '';
-        $('#view-scan').classList.remove('station'); $('#scPinForm').hidden = true; $('#scMain').hidden = true;
-        $('#scDemoCodes').innerHTML = ''; $('#scResult').innerHTML = ''; $('#scSignal').textContent = 'Turn the signal off'; $('#scAddBox').hidden = true;
+        S.scanPin = ''; S.scanStation = false; S.scanFromAdmin = false;
+        scResetState();
+        $('#scSignal').textContent = 'Turn the signal off';
+        adForget(); AD.sentTo = ''; AD.tid = ''; AD.day = ''; AD.filter = 'all';
+        $('#adEmail').value = ''; $('#adSearch').value = ''; $('#adAddBox').hidden = true; $('#adAdd').setAttribute('aria-expanded', 'false');
+        adErr('#adEmailErr', ''); adErr('#adCodeErr', ''); adErr('#adErr', ''); adMsg(''); adStage('email');
         $('#regDone').hidden = true; $('#regFormWrap').hidden = false;
         $('#evDone').hidden = true; $('#evFormWrap').hidden = false;
         $('#ciResult').innerHTML = ''; $('#evResult').innerHTML = '';
@@ -4296,7 +4967,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     readParams().then(function (p) {
       S.params = p || {};
       var page = String(S.params.page || '').toLowerCase();
-      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request', partnership: 'partner', partners: 'partner', scanner: 'scan' }[page] || page;
+      page = { checkin: 'attendance', 'check-in': 'attendance', evaluate: 'evaluation', registration: 'register', requests: 'request', partnership: 'partner', partners: 'partner', scanner: 'scan',
+        organizer: 'admin', organizers: 'admin', steward: 'admin' }[page] || page;
       var hashView = LIVE ? '' : location.hash.replace('#', '');
       show(VIEWS.indexOf(page) > -1 ? page : VIEWS.indexOf(hashView) > -1 ? hashView : 'home', { focus: false });
       return load();

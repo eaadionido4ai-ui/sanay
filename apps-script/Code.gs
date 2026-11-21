@@ -12,6 +12,10 @@
  * impact interviews, training requests, partnership requests).
  * Data stewards: entries that look like duplicates or spam are flagged and highlighted in the Sheet,
  * a message says how many when the Sheet opens, and SANAY › Review flagged entries lists them.
+ * Admin mode (the web app link + ?page=admin, or the small lock on the home screen): the owner and the
+ * data stewards sign in with their email and a 6-digit code sent to it, then run check-in from a phone:
+ * close or reopen it for the day, check people in by hand or undo a mistake, and open the scanner.
+ * Changelog tab: who changed what in the Sheet (old and new value) and everything done in admin mode.
  *
  * Files in this Apps Script project:
  *   Code.gs     this file
@@ -176,7 +180,9 @@ const TABS = {
     'alternative_date', 'mode', 'location', 'status', 'notes', 'flag'],
   Partnerships: ['timestamp', 'request_code', 'organization', 'org_type', 'location', 'website', 'partnership_types',
     'other_partnership', 'topics', 'other_topics', 'proposal', 'preferred_start', 'first_name', 'last_name',
-    'full_name', 'position', 'email', 'contact_no', 'status', 'notes', 'flag']
+    'full_name', 'position', 'email', 'contact_no', 'status', 'notes', 'flag'],
+  // Written only by SANAY: one line per change. See "Changelog" further down.
+  Changelog: ['timestamp', 'who', 'action', 'tab', 'row', 'record', 'column', 'old_value', 'new_value']
 };
 
 const AGE_RANGES = ['0-9', '10-19', '15-24', '25-59', '60+'];   // as printed in the GAD template
@@ -208,6 +214,22 @@ const THROWAWAY_DOMAINS = ['mailinator.com', 'guerrillamail.com', 'sharklasers.c
 // Many entries in a few minutes: [this many, within this many minutes, what to call them]
 const BURSTS = { Registrations: [20, 2, 'registrations'], Requests: [5, 10, 'requests'], Partnerships: [5, 10, 'partnership requests'] };
 const AGAIN = 'Registered again with the same email';
+
+// Admin mode. Who may sign in: the data stewards (dataStewards), the Sheet's owner and the account that
+// deployed the web app. A code goes to the email; nobody gets in by typing an email alone.
+const ADMIN_CODE_MINUTES = 10;     // a sign-in code works this long
+const ADMIN_SESSION_HOURS = 12;    // then sign in again (long enough for a training day)
+const ADMIN_SIGNED_OUT = 'You are signed out of admin mode. Sign in again with your email.';
+const ADMIN_LOCKED = 'Too many wrong codes. Wait 10 minutes, then ask for a new code.';
+const ADMIN_LOCKED_LONG = 'Too many wrong codes for this email. Sign-in is locked for 6 hours.';
+const CHECKIN_CLOSED = 'Check-in for this training is closed for today. Please see the organizers.';
+
+// Changelog: the column that names the entry on each row, so a line in the log says whose row it was.
+// Evaluations are named only by training: they stay anonymous here too.
+const RECORD_KEYS = { Trainings: 'training_id', Registrations: 'reg_code', Attendance: 'reg_code', Evaluations: 'training_id',
+  Requests: 'request_code', Partnerships: 'request_code' };
+const CHANGELOG_NOTE = 'SANAY adds a line here for each edit in its tabs (with the old and the new value), each action in admin mode ' +
+  'and each report or scanner link. Leave it as it is: it is your record of who changed what. File › Version history has the rest.';
 
 /* ===================================================================
  * Web app
@@ -406,6 +428,7 @@ function checkIn(data) {
     const t = listTrainings_(today).filter(function (x) { return x.id === trainingId; })[0];
     if (!t || !t.happening) throw new Error('Check-in is open only on the training days.');
     if (!selfCheckInFor_(t)) throw new Error('Check-in for this training is at the door: show your QR code to the organizers.');
+    if (checkInClosed_(t.id, new Date())) throw new Error(CHECKIN_CLOSED);
     const reg = findRegistration_(trainingId, key);
     if (!reg) return { status: 'not-found' };
     return recordCheckIn_(t, reg, key.indexOf('@') > -1 ? 'Email' : 'Code', new Date());
@@ -592,6 +615,7 @@ function openReport() {
   CacheService.getScriptCache().put('report:' + key, '1', hours * 3600);
 
   const trainingId = activeTrainingId_();
+  log_({ who: menuUser_(), action: 'Made a report link (works ' + hours + ' hours)', tab: trainingId ? 'Trainings' : '', record: trainingId });
   const link = url + (url.indexOf('?') > -1 ? '&' : '?') + 'page=report&key=' + key +
     (trainingId ? '&t=' + encodeURIComponent(trainingId) : '');
   const html = HtmlService.createHtmlOutput(
@@ -727,6 +751,7 @@ function openScanner() {
   }
   const sc = scannerFor_(t, false);
   const link = scannerLink_(url, sc.key);
+  log_({ who: menuUser_(), action: 'Opened the scanner link and PIN (Sheet menu)', tab: 'Trainings', record: t.id });
   const dates = t.start === t.end ? t.start : t.start + ' to ' + t.end;
   const button = 'display:inline-block;padding:10px 18px;border-radius:10px;background:#014421;color:#FFFFFF;font-weight:bold;text-decoration:none';
   const html = HtmlService.createHtmlOutput(
@@ -758,6 +783,7 @@ function renewScanner(trainingId) {
   const t = allTrainings_().filter(function (x) { return x.id === clean_(trainingId, 60); })[0];
   if (!t) throw new Error('That training is no longer in the Trainings tab.');
   const sc = scannerFor_(t, true);
+  log_({ who: menuUser_(), action: 'Made a new scanner link and PIN (the old ones stopped working)', tab: 'Trainings', record: t.id });
   return { link: scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), sc.key), pin: sc.pin };
 }
 
@@ -783,12 +809,13 @@ function scanSync(req) {
     withLock_(function () {
       const regs = readTable_('Registrations');
       const att = readTable_('Attendance');
+      const states = {};   // whether check-in is closed, read once per day for the whole batch
       items.forEach(function (it) {
         it = it || {};
         const id = clean_(it.id, 40).replace(/[^\w-]/g, '');
         const seen = id ? cache.get('scan:' + id) : null;
         if (seen) { results.push(JSON.parse(seen)); return; }
-        const res = scanOne_(t, it, regs, att);
+        const res = scanOne_(t, it, regs, att, states);
         res.id = id;
         if (id) cache.put('scan:' + id, JSON.stringify(res), 21600);
         results.push(res);
@@ -822,7 +849,7 @@ function scanWalkIn(req) {
   return out;
 }
 
-function scanOne_(t, it, regs, att) {
+function scanOne_(t, it, regs, att, states) {
   const code = scanCode_(it.code);
   const when = scanTime_(it.at);
   const date = ymd_(when);
@@ -833,7 +860,7 @@ function scanOne_(t, it, regs, att) {
   if (String(reg.training_id) !== t.id) {
     return { status: 'other-training', code: code, name: String(reg.full_name), training: String(reg.training_title || reg.training_id) };
   }
-  return recordCheckIn_(t, reg, oneOf_(it.how, ['QR', 'Name search', 'Typed code']) || 'QR', when, att);
+  return recordCheckIn_(t, reg, oneOf_(it.how, ['QR', 'Name search', 'Typed code']) || 'QR', when, att, states);
 }
 
 /** "SANAY:K7Q2M", "k7q2m" → "K7Q2M" */
@@ -857,10 +884,13 @@ function scannerState_(t, withRoster) {
     const c = String(a.reg_code);
     if (!first[c] || a.timestamp < first[c]) first[c] = a.timestamp;
   });
+  const closed = checkinState_(t.id, today);
   const state = {
     training: { id: t.id, title: t.title, start: t.start, end: t.end, venue: t.venue },
     today: today, now: Date.now(), trainingDay: !!t.start && t.start <= today && today <= t.end,
     day: t.start ? dayNumber_(t.start, today) : 0, days: t.start ? dayNumber_(t.start, t.end) : 0,
+    // closed from admin mode for the rest of today: the device refuses new scans at once, even offline
+    checkin: closed.open ? { open: true } : { open: false, day: today, at: closed.at, time: timeOf_(new Date(closed.at)) },
     registered: regs.length,
     checkedIn: Object.keys(first).map(function (c) { return { code: c, time: timeOf_(first[c]), at: first[c].getTime() }; })
   };
@@ -1078,12 +1108,17 @@ function setup() {
     flagRule_(sh);
   });
 
-  // Data tabs: only the owner and the data stewards can edit them (the web app writes as the owner).
+  // Changelog: a note on the header and the time with seconds
+  const log = ss.getSheetByName('Changelog');
+  log.getRange(1, 1).setNote(CHANGELOG_NOTE);
+  log.getRange(2, 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm:ss am/pm');
+
+  // Data tabs and the Changelog: only the owner and the data stewards can edit them (the web app writes as the owner).
   const me = Session.getEffectiveUser();
-  DATA_TABS.forEach(function (name) {
+  DATA_TABS.concat(['Changelog']).forEach(function (name) {
     const sh = ss.getSheetByName(name);
     const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)[0] || sh.protect();
-    p.setDescription(CONFIG.name + ' data: only the owner and the data stewards can edit this tab');
+    p.setDescription(CONFIG.name + (name === 'Changelog' ? ' changelog' : ' data') + ': only the owner and the data stewards can edit this tab');
     p.addEditor(me);
     const keep = stewards_().concat([String(me.getEmail()).toLowerCase()]);
     p.removeEditors(p.getEditors().filter(function (u) { return keep.indexOf(String(u.getEmail()).toLowerCase()) < 0; }));
@@ -1093,7 +1128,11 @@ function setup() {
 
   const blank = ss.getSheetByName('Sheet1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
-  try { ss.toast('The ' + CONFIG.name + ' tabs are ready.', CONFIG.name, 5); } catch (e) { /* toast only works with the Sheet open */ }
+  const logOn = changelogTriggers_(ss);
+  log_({ who: menuUser_(), action: 'Ran Set up or repair tabs' });
+  try {
+    ss.toast('The ' + CONFIG.name + ' tabs are ready.' + (logOn ? '' : ' To record edits in the Changelog tab, the owner of this Sheet runs Set up or repair tabs once.'), CONFIG.name, 8);
+  } catch (e) { /* toast only works with the Sheet open */ }
 }
 
 /* ===================================================================
@@ -1303,6 +1342,408 @@ function showFlagged(tab, row) {
 }
 
 /* ===================================================================
+ * Admin mode, on the web app: the owner and the data stewards sign in with their email and a code
+ * sent to it, then run check-in from a phone without opening the Sheet. Everything goes to the Changelog.
+ * =================================================================== */
+
+/**
+ * Signing in, step 1: emails a 6-digit code if the email may use admin mode. The answer is the same
+ * for any email, so the page never tells who the admins are.
+ */
+function adminSendCode(req) {
+  req = req || {};
+  const email = clean_(req.email, 120).toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new Error('Enter a valid email, like name@example.com.');
+  const cache = CacheService.getScriptCache();
+  const h = hash_(email);
+  adminLocked_(cache, h);
+  const sent = Number(cache.get('adminsent:' + h) || 0), all = Number(cache.get('adminsent:all') || 0);
+  if (sent >= 3) throw new Error('A code was already sent 3 times. Use the latest email, or wait 15 minutes and ask again.');
+  if (all >= 30) throw new Error('Too many sign-in codes were asked for. Try again in an hour.');
+  cache.put('adminsent:' + h, String(sent + 1), 900);
+  cache.put('adminsent:all', String(all + 1), 3600);
+  if (admins_().indexOf(email) > -1) {
+    const code = String(parseInt(Utilities.getUuid().replace(/-/g, '').slice(0, 12), 16) % 1000000).padStart(6, '0');
+    cache.put('admincode:' + h, JSON.stringify({ c: hash_(email + ':' + code), n: 0, x: Date.now() + ADMIN_CODE_MINUTES * 60000 }), ADMIN_CODE_MINUTES * 60);
+    MailApp.sendEmail({
+      to: email,
+      name: CONFIG.name,
+      subject: CONFIG.name + ' admin sign-in code',
+      body: 'Your ' + CONFIG.name + ' admin code is ' + code + '.\n\nType it on the ' + CONFIG.name + ' sign-in screen within ' +
+        ADMIN_CODE_MINUTES + ' minutes.\n\nIf you did not ask for it, ignore this email: nobody can sign in without the code.',
+      htmlBody: '<div style="font:15px/1.5 Arial,sans-serif;color:#1A1F1C"><p>Your ' + esc_(CONFIG.name) + ' admin code is</p>' +
+        '<p style="margin:6px 0 14px;font:700 30px/1.2 monospace;letter-spacing:0.18em">' + code + '</p>' +
+        '<p>Type it on the ' + esc_(CONFIG.name) + ' sign-in screen within ' + ADMIN_CODE_MINUTES + ' minutes.</p>' +
+        '<p style="color:#59625C">If you did not ask for it, ignore this email: nobody can sign in without the code.</p></div>'
+    });
+  }
+  return { email: email, minutes: ADMIN_CODE_MINUTES };
+}
+
+/** Signing in, step 2: the code from the email. Returns a key for this device, good for ADMIN_SESSION_HOURS. */
+function adminSignIn(req) {
+  req = req || {};
+  const email = clean_(req.email, 120).toLowerCase();
+  const code = String(req.code || '').replace(/\D/g, '');
+  if (!EMAIL_RE.test(email) || code.length !== 6) throw new Error('Enter the 6-digit code from the email.');
+  const cache = CacheService.getScriptCache();
+  const h = hash_(email);
+  adminLocked_(cache, h);
+  let saved = null;
+  try { saved = JSON.parse(cache.get('admincode:' + h) || 'null'); } catch (e) { saved = null; }
+  const left = saved ? Math.floor((Number(saved.x) - Date.now()) / 1000) : 0;
+  if (!saved || left < 1) throw new Error('That code has expired. Ask for a new one.');
+  if (saved.c !== hash_(email + ':' + code)) {
+    // Five wrong tries end a code and lock sign-in for 10 minutes; ten wrong tries within 6 hours, over any
+    // number of codes, lock it for 6 hours. So guessing a code is hopeless, and every try emails the owner of the address.
+    saved.n = (Number(saved.n) || 0) + 1;
+    const fails = Number(cache.get('adminfail:' + h) || 0) + 1;
+    cache.put('adminfail:' + h, String(fails), 21600);
+    if (fails >= 10 || saved.n >= 5) {
+      const long = fails >= 10;
+      cache.remove('admincode:' + h);
+      cache.put('adminlock:' + h, long ? 'long' : 'short', long ? 21600 : 600);
+      log_({ who: email, action: long ? 'Admin sign-in locked for 6 hours after 10 wrong codes' : 'Admin sign-in locked for 10 minutes after 5 wrong codes' });
+      throw new Error(long ? ADMIN_LOCKED_LONG : ADMIN_LOCKED);
+    }
+    cache.put('admincode:' + h, JSON.stringify(saved), left);
+    throw new Error('That code is not right. Check the latest email from ' + CONFIG.name + ' and try again.');
+  }
+  cache.remove('admincode:' + h);
+  cache.remove('adminfail:' + h);
+  if (admins_().indexOf(email) < 0) throw new Error(ADMIN_SIGNED_OUT);   // removed from the list meanwhile
+  const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+  const until = Date.now() + ADMIN_SESSION_HOURS * 3600000;
+  const props = PropertiesService.getScriptProperties();
+  tidyAdminProps_(props);
+  props.setProperty('admin:' + hash_(token), JSON.stringify({ e: email, x: until }));   // only a hash of the key is kept
+  log_({ who: email, action: 'Signed in to admin mode' });
+  return { token: token, email: email, until: until };
+}
+
+/** Ends this device's admin session (also before it becomes a check-in station). */
+function adminSignOut(req) {
+  let email = '';
+  try { email = adminAccess_(req); } catch (e) { return { ok: true }; }
+  PropertiesService.getScriptProperties().deleteProperty('admin:' + hash_(adminToken_(req)));
+  log_({ who: email, action: 'Signed out of admin mode' + (req.station === true ? ' to make the device a check-in station' : '') });
+  return { ok: true };
+}
+
+/** What admin mode opens with: the trainings (today's, then upcoming, then past) and one of them in detail. */
+function adminHome(req) {
+  req = req || {};
+  const email = adminAccess_(req);
+  const today = today_();
+  const when = function (t) { return t.start <= today && today <= t.end ? 0 : t.start > today ? 1 : 2; };
+  const all = allTrainings_().filter(function (t) { return t.start; }).sort(function (a, b) {
+    const wa = when(a), wb = when(b);
+    if (wa !== wb) return wa - wb;
+    if (wa === 2) return a.end < b.end ? 1 : a.end > b.end ? -1 : 0;   // past ones: the latest first
+    return a.start < b.start ? -1 : a.start > b.start ? 1 : 0;
+  }).slice(0, 60);
+  const pick = clean_(req.training_id, 60);
+  const t = all.filter(function (x) { return x.id === pick; })[0] || all[0];
+  return {
+    email: email, today: today,
+    trainings: all.map(function (x) { return { id: x.id, title: x.title, start: x.start, end: x.end, mode: x.mode, when: ['now', 'next', 'past'][when(x)] }; }),
+    detail: t ? adminDetail_(t, isoDate_(req.date), today) : null
+  };
+}
+
+/** One training in admin mode, for one of its days (today, or the last one so far). */
+function adminTraining(req) {
+  req = req || {};
+  adminAccess_(req);
+  return adminDetail_(trainingOrThrow_(req.training_id), isoDate_(req.date), today_());
+}
+
+/** Closes check-in for the rest of today, or opens it again. Tomorrow it opens by itself. */
+function adminSetCheckIn(req) {
+  req = req || {};
+  const email = adminAccess_(req);
+  const today = today_();
+  const t = trainingOrThrow_(req.training_id);
+  if (!(t.start && t.start <= today && today <= t.end)) throw new Error('Check-in can be closed or reopened only on a training day.');
+  const props = PropertiesService.getScriptProperties();
+  const was = checkinState_(t.id, today), now = new Date();
+  if (req.open === true && !was.open) {
+    props.deleteProperty('checkin:' + t.id);
+    log_({ who: email, action: 'Reopened check-in', tab: 'Trainings', record: t.id, new_value: 'Open again from ' + timeOf_(now) });
+  } else if (req.open === false && was.open) {
+    tidyAdminProps_(props);
+    props.setProperty('checkin:' + t.id, JSON.stringify({ day: today, at: now.getTime(), by: email }));
+    log_({ who: email, action: 'Closed check-in for the rest of today', tab: 'Trainings', record: t.id, new_value: 'Closed from ' + timeOf_(now) });
+  }
+  return adminDetail_(t, isoDate_(req.date), today);
+}
+
+/** Checks someone in by hand, today. Works after check-in was closed too: an admin decides. */
+function adminCheckIn(req) {
+  req = req || {};
+  const email = adminAccess_(req);
+  const code = scanCode_(req.code);
+  const t = trainingOrThrow_(req.training_id);
+  const today = today_();
+  if (!(t.start && t.start <= today && today <= t.end)) throw new Error('People can be checked in only on the training days.');
+  const result = withLock_(function () {
+    const reg = readTable_('Registrations').filter(function (r) {
+      return String(r.training_id) === t.id && String(r.reg_code).toUpperCase() === code;
+    })[0];
+    if (!code || !reg) throw new Error('No one with that code is registered for this training.');
+    const closed = !checkinState_(t.id, today).open;
+    const r = recordCheckIn_(t, reg, 'Admin', new Date());
+    if (r.status === 'ok') {
+      log_({ who: email, action: 'Checked someone in by hand' + (closed ? ' after check-in closed' : ''), tab: 'Attendance', record: code, new_value: r.name + ' · ' + r.time });
+    }
+    return r;
+  });
+  const detail = adminDetail_(t, today, today);
+  detail.result = result;
+  return detail;
+}
+
+/** Removes a check-in made by mistake, today or on an earlier training day. The Changelog keeps what it was. */
+function adminUndoCheckIn(req) {
+  req = req || {};
+  const email = adminAccess_(req);
+  const code = scanCode_(req.code);
+  const date = isoDate_(req.date);
+  const today = today_();
+  const t = trainingOrThrow_(req.training_id);
+  if (!code || !date || !t.start || date < t.start || date > t.end || date > today) throw new Error('Choose a training day up to today.');
+  const removed = withLock_(function () {
+    const rows = readTable_('Attendance').filter(function (a) {
+      return String(a.training_id) === t.id && String(a.reg_code).toUpperCase() === code && ymd_(a.date) === date;
+    });
+    const sh = sheet_('Attendance');
+    rows.slice().sort(function (a, b) { return b.__row - a.__row; }).forEach(function (a) { sh.deleteRow(a.__row); });
+    rows.forEach(function (a) {
+      log_({ who: email, action: 'Undid a check-in', tab: 'Attendance', row: a.__row, record: code,
+        old_value: [String(a.full_name || ''), date, timeOf_(a.timestamp), String(a.method || '')].filter(String).join(' · ') });
+    });
+    return rows.length;
+  });
+  if (!removed) throw new Error('That person is not checked in on that day.');
+  return adminDetail_(t, date, today);
+}
+
+/** The scanner's link and PIN, to open the scanner on this device or to add another one. */
+function adminScanner(req) {
+  req = req || {};
+  const email = adminAccess_(req);
+  const t = trainingOrThrow_(req.training_id);
+  if (!t.start) throw new Error('Give this training a start date in the Trainings tab first.');
+  if (t.end < today_()) throw new Error('This training has ended, so it has no scanner.');
+  const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
+  const sc = scannerFor_(t, req.renew === true);
+  log_({ who: email, action: req.renew === true ? 'Made a new scanner link and PIN (the old ones stopped working)' : 'Opened the scanner link and PIN (admin mode)',
+    tab: 'Trainings', record: t.id });
+  return { key: sc.key, pin: sc.pin, link: scannerLink_(url, sc.key) };
+}
+
+function adminDetail_(t, date, today) {
+  const days = [];
+  for (let d = t.start; d && d <= t.end && days.length < 31; d = addDays_(d, 1)) days.push(d);
+  const sofar = days.filter(function (d) { return d <= today; });
+  const day = sofar.indexOf(date) > -1 ? date : sofar.length ? sofar[sofar.length - 1] : '';
+  const regs = readTable_('Registrations').filter(function (r) { return String(r.training_id) === t.id && String(r.reg_code).trim(); });
+  const first = {}, perDay = {};
+  readTable_('Attendance').forEach(function (a) {
+    if (String(a.training_id) !== t.id || !(a.timestamp instanceof Date)) return;
+    const d = ymd_(a.date), c = String(a.reg_code).toUpperCase();
+    (perDay[d] = perDay[d] || {})[c] = true;
+    if (d === day && (!first[c] || a.timestamp < first[c].at)) first[c] = { at: a.timestamp, method: String(a.method || '') };
+  });
+  const st = checkinState_(t.id, today);
+  return {
+    training: { id: t.id, title: t.title, start: t.start, end: t.end, venue: t.venue, mode: t.mode },
+    today: today, day: day, trainingDay: !!t.start && t.start <= today && today <= t.end,
+    days: days.map(function (d) { return { date: d, n: perDay[d] ? Object.keys(perDay[d]).length : 0 }; }),
+    checkin: st.open ? { open: true } : { open: false, time: timeOf_(new Date(st.at)), by: st.by },
+    people: regs.map(function (r) {
+      const f = String(r.flag || '').trim();
+      return { code: String(r.reg_code).toUpperCase(), name: String(r.full_name), agency: String(r.agency || ''),
+        walkIn: String(r.registered_as) === 'Walk-in', flagged: !!f && f.toUpperCase() !== 'OK' };
+    }),
+    checkedIn: Object.keys(first).map(function (c) { return { code: c, time: timeOf_(first[c].at), method: first[c].method }; })
+  };
+}
+
+/** Whether check-in was closed in admin mode for a day: { open, at, by }. It opens again by itself the next day. */
+function checkinState_(id, day) {
+  let s = null;
+  try { s = JSON.parse(PropertiesService.getScriptProperties().getProperty('checkin:' + id) || 'null'); } catch (e) { s = null; }
+  return s && s.day === day ? { open: false, at: Number(s.at) || 0, by: String(s.by || '') } : { open: true, at: 0, by: '' };
+}
+
+/** True when check-in was closed before this moment of that day. states: what was read already, by training and day. */
+function checkInClosed_(id, when, states) {
+  const k = id + '|' + ymd_(when);
+  const st = (states && states[k]) || checkinState_(id, ymd_(when));
+  if (states) states[k] = st;
+  return !st.open && when.getTime() >= st.at;
+}
+
+/** The email of the admin a request comes from. Throws when the session has ended or the person is no longer an admin. */
+function adminAccess_(req) {
+  const token = adminToken_(req);
+  if (token.length !== 64) throw new Error(ADMIN_SIGNED_OUT);
+  const props = PropertiesService.getScriptProperties();
+  const name = 'admin:' + hash_(token);
+  let s = null;
+  try { s = JSON.parse(props.getProperty(name) || 'null'); } catch (e) { s = null; }
+  if (!s || !(Number(s.x) > Date.now()) || admins_().indexOf(String(s.e)) < 0) {
+    if (s) props.deleteProperty(name);
+    throw new Error(ADMIN_SIGNED_OUT);
+  }
+  return String(s.e);
+}
+
+/** Throws while sign-in is locked for this email (by its hash) after wrong codes. */
+function adminLocked_(cache, h) {
+  const lock = cache.get('adminlock:' + h);
+  if (lock) throw new Error(lock === 'long' ? ADMIN_LOCKED_LONG : ADMIN_LOCKED);
+}
+
+function adminToken_(req) {
+  return String((req && req.token) || '').replace(/[^0-9a-f]/gi, '').slice(0, 64).toLowerCase();
+}
+
+/** Drops admin sessions that have ended and check-in closings of earlier days. */
+function tidyAdminProps_(props) {
+  const all = props.getProperties(), now = Date.now(), today = today_();
+  Object.keys(all).forEach(function (k) {
+    const admin = k.indexOf('admin:') === 0;
+    if (!admin && k.indexOf('checkin:') !== 0) return;
+    try {
+      const v = JSON.parse(all[k]);
+      if (admin ? !(Number(v.x) > now) : !(v.day >= today)) props.deleteProperty(k);
+    } catch (e) { props.deleteProperty(k); }
+  });
+}
+
+/** Who may use admin mode: the data stewards, the Sheet's owner and the account that deployed the web app. */
+function admins_() {
+  const list = stewards_().slice();
+  [ownerEmail_(), deployerEmail_()].forEach(function (e) { if (e && list.indexOf(e) < 0) list.push(e); });
+  return list;
+}
+
+/** In the web app, the account that deployed it (the app runs as that account); in the Sheet, the person using it. */
+function deployerEmail_() {
+  try { return String(Session.getEffectiveUser().getEmail() || '').toLowerCase(); } catch (e) { return ''; }
+}
+
+function trainingOrThrow_(id) {
+  const t = allTrainings_().filter(function (x) { return x.id === clean_(id, 60); })[0];
+  if (!t) throw new Error('That training is no longer in the Trainings tab.');
+  return t;
+}
+
+/** SHA-256 of a text, as hex. */
+function hash_(s) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(s), Utilities.Charset.UTF_8)
+    .map(function (b) { return ((b + 256) % 256).toString(16).padStart(2, '0'); }).join('');
+}
+
+/* ===================================================================
+ * Changelog: a tab where SANAY writes who changed what. Edits in the Sheet come from two triggers
+ * that setup installs; admin mode and the Sheet menu write their own lines. Evaluations are never
+ * tied to a person here.
+ * =================================================================== */
+
+/** Adds a line to the Changelog tab. A problem here never stops the work it records. */
+function log_(entry) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sh = ss.getSheetByName('Changelog');
+    if (!sh) {   // a Sheet set up before this version: the tab appears with the first line
+      sh = ss.insertSheet('Changelog');
+      sh.getRange(1, 1, 1, TABS.Changelog.length).setValues([TABS.Changelog]);
+      sh.setFrozenRows(1);
+    }
+    const rec = Object.assign({ timestamp: new Date() }, entry);
+    sh.appendRow(headers_(sh).map(function (h) { return toCell_(rec[h]); }));
+  } catch (e) { /* the log never blocks a check-in or an edit */ }
+}
+
+/**
+ * Installed by setup, so it runs as the owner. Writes each edit made by hand in a SANAY tab to the
+ * Changelog, with the old and the new value. SANAY's own writes are not edits, so they don't come here.
+ * Google gives the editor's email only for accounts in the owner's organization (UP accounts).
+ */
+function logSheetEdit(e) {
+  if (!e || !e.range || typeof e.range.getSheet !== 'function') return;   // a real edit only, never a call from the web page
+  const r = e.range, sh = r.getSheet(), tab = sh.getName();
+  if (!RECORD_KEYS[tab]) return;   // the six SANAY tabs; not the Changelog itself, nor tabs of your own
+  const head = headers_(sh), row = r.getRow(), rows = r.getNumRows(), cols = r.getNumColumns();
+  const rec = { who: editorOf_(e), tab: tab, row: rows > 1 ? row + '–' + (row + rows - 1) : row };
+  if (rows === 1 && cols === 1) {
+    rec.action = row === 1 ? 'Renamed a column' : 'Edited a cell';
+    rec.column = head[r.getColumn() - 1] || columnLetter_(r.getColumn());
+    rec.record = row > 1 ? recordOf_(sh, tab, head, row) : '';
+    rec.old_value = e.oldValue === undefined || e.oldValue === null ? '' : e.oldValue;
+    rec.new_value = r.getValue();
+  } else {
+    rec.action = 'Changed ' + rows * cols + ' cells at once (pasted, filled or cleared)';
+    rec.column = columnLetter_(r.getColumn()) + row + ':' + columnLetter_(r.getColumn() + cols - 1) + (row + rows - 1);
+    rec.record = rows === 1 && row > 1 ? recordOf_(sh, tab, head, row) : '';
+  }
+  log_(rec);
+}
+
+/** Installed by setup: deleted rows, columns and tabs. Google doesn't say which rows, so the line says where. */
+function logSheetChange(e) {
+  if (!e || !e.source || typeof e.source.getActiveSheet !== 'function') return;
+  const what = { REMOVE_ROW: 'Deleted rows', REMOVE_COLUMN: 'Deleted columns', REMOVE_GRID: 'Deleted a tab' }[e.changeType];
+  if (!what) return;
+  let tab = '';
+  if (e.changeType !== 'REMOVE_GRID') { try { tab = e.source.getActiveSheet().getName(); } catch (err) { tab = ''; } }
+  if (tab && !RECORD_KEYS[tab] && tab !== 'Changelog') return;   // a tab of your own
+  log_({ who: editorOf_(e), action: what, tab: tab,
+    new_value: 'Google does not say which ' + (e.changeType === 'REMOVE_GRID' ? 'tab' : 'ones') + '. File › Version history shows them.' });
+}
+
+/**
+ * Turns on logSheetEdit and logSheetChange. They run as one account, the owner's (in a shared drive, whoever
+ * turns them on first), so each edit is logged once. Returns whether the edit log is on.
+ */
+function changelogTriggers_(ss) {
+  const props = PropertiesService.getScriptProperties();
+  const me = deployerEmail_(), owner = ownerEmail_(), by = props.getProperty('changelog:by') || '';
+  if (owner ? me !== owner : (by && by !== me)) return !!by;
+  const mine = ScriptApp.getProjectTriggers().map(function (t) { return t.getHandlerFunction(); });
+  if (mine.indexOf('logSheetEdit') < 0) ScriptApp.newTrigger('logSheetEdit').forSpreadsheet(ss).onEdit().create();
+  if (mine.indexOf('logSheetChange') < 0) ScriptApp.newTrigger('logSheetChange').forSpreadsheet(ss).onChange().create();
+  props.setProperty('changelog:by', me);
+  return true;
+}
+
+function editorOf_(e) {
+  try {
+    const m = e.user && typeof e.user.getEmail === 'function' ? e.user.getEmail() : '';
+    if (m) return String(m).toLowerCase();
+  } catch (err) { /* not shared */ }
+  return 'A Sheet editor (Google did not share the email)';
+}
+
+/** The person using a Sheet menu item, for the Changelog. */
+function menuUser_() {
+  try {
+    const m = Session.getActiveUser().getEmail();
+    if (m) return String(m).toLowerCase();
+  } catch (err) { /* not shared */ }
+  return 'A Sheet editor (Google did not share the email)';
+}
+
+/** The code or training id of an edited row, so a line in the Changelog says whose row it was. */
+function recordOf_(sh, tab, head, row) {
+  const c = head.indexOf(RECORD_KEYS[tab]) + 1;
+  return c > 0 ? String(sh.getRange(row, c).getValue() || '') : '';
+}
+
+/* ===================================================================
  * Helpers
  * =================================================================== */
 
@@ -1350,8 +1791,10 @@ function listTrainings_(today) {
 /**
  * Checks a registration in at a given time (the caller holds the lock). One row per person per day:
  * if there is one already, it keeps the earlier of the two times. att: the Attendance rows, if already read.
+ * After check-in was closed for the day in admin mode, nobody new is checked in (status 'closed'), except
+ * by an admin (method 'Admin'). A scan made before the closing time and sent later still counts.
  */
-function recordCheckIn_(t, reg, method, when, att) {
+function recordCheckIn_(t, reg, method, when, att, states) {
   att = att || readTable_('Attendance');
   const code = String(reg.reg_code);
   const date = ymd_(when);
@@ -1366,6 +1809,7 @@ function recordCheckIn_(t, reg, method, when, att) {
     }
     return Object.assign(out, { status: 'already', time: timeOf_(prev.timestamp) });
   }
+  if (method !== 'Admin' && checkInClosed_(t.id, when, states)) return Object.assign(out, { status: 'closed' });
   const rec = {
     timestamp: when, date: date, training_id: t.id, reg_code: code, full_name: out.name,
     sex: reg.sex, agency: reg.agency, method: method
