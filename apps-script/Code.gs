@@ -10,6 +10,8 @@
  * and keeps working through a weak signal), and SANAY › Open the report page (attendance sheet,
  * certificates, participant profile, evaluation results, QR name tags, photo and recording,
  * impact interviews, training requests, partnership requests).
+ * Data stewards: entries that look like duplicates or spam are flagged and highlighted in the Sheet,
+ * a message says how many when the Sheet opens, and SANAY › Review flagged entries lists them.
  *
  * Files in this Apps Script project:
  *   Code.gs     this file
@@ -166,15 +168,15 @@ const TABS = {
   Registrations: ['timestamp', 'reg_code', 'training_id', 'training_title', 'last_name', 'first_name',
     'middle_initial', 'suffix', 'full_name', 'position', 'agency', 'email', 'contact_no', 'gad_consent',
     'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent',
-    'recording_consent', 'impact_consent', 'privacy_version', 'registered_as', 'evaluated_on'],
+    'recording_consent', 'impact_consent', 'privacy_version', 'registered_as', 'evaluated_on', 'flag'],
   Attendance: ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'],
-  Evaluations: ['date', 'training_id'].concat(evalKeys_(), ['will_apply', 'comments']),
+  Evaluations: ['date', 'training_id'].concat(evalKeys_(), ['will_apply', 'comments', 'flag']),
   Requests: ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email',
     'contact_no', 'topics', 'other_topics', 'need', 'participants', 'participant_types', 'preferred_date',
-    'alternative_date', 'mode', 'location', 'status', 'notes'],
+    'alternative_date', 'mode', 'location', 'status', 'notes', 'flag'],
   Partnerships: ['timestamp', 'request_code', 'organization', 'org_type', 'location', 'website', 'partnership_types',
     'other_partnership', 'topics', 'other_topics', 'proposal', 'preferred_start', 'first_name', 'last_name',
-    'full_name', 'position', 'email', 'contact_no', 'status', 'notes']
+    'full_name', 'position', 'email', 'contact_no', 'status', 'notes', 'flag']
 };
 
 const AGE_RANGES = ['0-9', '10-19', '15-24', '25-59', '60+'];   // as printed in the GAD template
@@ -190,6 +192,22 @@ const STATE_MESSAGES = {
 const DATA_TABS = ['Registrations', 'Attendance', 'Evaluations', 'Requests', 'Partnerships'];
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';  // no 0/O, 1/I/L
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Duplicates and spam. Nothing is blocked: a new entry that looks like a duplicate or spam gets a short
+// note in its "flag" column and an amber highlight, and the data stewards decide. To clear a flag, type OK
+// in it (or delete the row if it is junk).
+const FLAG_TABS = ['Registrations', 'Evaluations', 'Requests', 'Partnerships'];
+const FLAG_NOTE = 'SANAY writes here when an entry looks like a duplicate or spam, and highlights the row. ' +
+  'Check the entry: delete it if it is junk, or type OK here once it is fine. SANAY › Review flagged entries lists them all.';
+const JUNK_RE = /^(test(ing|er)?|sample|dummy|fake|asdf|asd|qwe(rty)?|zxcv?|abcd?|x{3,}|xyz|null|undefined|lorem|ipsum|blah)$/i;
+const KEYMASH_RE = /asdf|qwer|zxcv|hjkl|sdfg|ghjk/i;
+const LINK_RE = /https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|info|biz|xyz|top|site|online|ru|cn|io|me|ly)\b/i;
+const THROWAWAY_DOMAINS = ['mailinator.com', 'guerrillamail.com', 'sharklasers.com', 'grr.la', '10minutemail.com', 'temp-mail.org',
+  'tempmail.com', 'tempmail.net', 'yopmail.com', 'trashmail.com', 'getnada.com', 'dispostable.com', 'maildrop.cc',
+  'throwawaymail.com', 'fakeinbox.com', 'mintemail.com', 'emailondeck.com'];
+// Many entries in a few minutes: [this many, within this many minutes, what to call them]
+const BURSTS = { Registrations: [20, 2, 'registrations'], Requests: [5, 10, 'requests'], Partnerships: [5, 10, 'partnership requests'] };
+const AGAIN = 'Registered again with the same email';
 
 /* ===================================================================
  * Web app
@@ -282,7 +300,7 @@ function register(form) {
     const canWalkIn = walkIn && t.happening;
     if (!(t.listed && t.state === 'open') && !canWalkIn) throw new Error(STATE_MESSAGES[t.state] || STATE_MESSAGES.closed);
     const now = new Date();
-    const saved = saveRegistration_(t, f, gad, now, today >= t.start ? 'Walk-in' : 'Pre-registered');
+    const saved = saveRegistration_(t, f, gad, now, today >= t.start ? 'Walk-in' : 'Pre-registered', { again: true, hp: clean_(form.hp, 200) });
     const result = {
       already: saved.already, code: String(saved.reg.reg_code), name: String(saved.reg.full_name), training: t,
       stamp: stamp_(saved.already ? saved.reg.timestamp : now)
@@ -347,13 +365,21 @@ function readRegistration_(form) {
   return { f: f, gad: gad };
 }
 
-/** Adds a registration, or finds the one with the same email for this training (the caller holds the lock). */
-function saveRegistration_(t, f, gad, when, registeredAs) {
+/**
+ * Adds a registration, or finds the one with the same email for this training (the caller holds the lock).
+ * opts.again: note on that row that it was registered again (the Register form; not the walk-in desk).
+ * opts.hp: the hidden field people never see, which only bots fill in.
+ */
+function saveRegistration_(t, f, gad, when, registeredAs, opts) {
+  opts = opts || {};
   const regs = readTable_('Registrations');
   const dup = regs.filter(function (r) {
     return String(r.training_id) === t.id && String(r.email).toLowerCase() === f.email;
   })[0];
-  if (dup) return { reg: dup, already: true };
+  if (dup) {
+    if (opts.again) setFlag_('Registrations', dup.__row, addFlag_(dup.flag, AGAIN + ' on ' + stamp_(when), AGAIN));
+    return { reg: dup, already: true };
+  }
   const reg = Object.assign({}, f, gad, {
     timestamp: when,
     reg_code: newCode_(regs.map(function (r) { return String(r.reg_code); })),
@@ -361,7 +387,8 @@ function saveRegistration_(t, f, gad, when, registeredAs) {
     full_name: fullName_(f),
     privacy_version: CONFIG.privacyVersion,
     registered_as: registeredAs,
-    evaluated_on: ''
+    evaluated_on: '',
+    flag: registrationFlags_(f, regs, t, when, opts.hp).join(' · ')
   });
   appendRecord_('Registrations', reg);
   return { reg: reg, already: false };
@@ -415,9 +442,10 @@ function submitEvaluation(data) {
     // 1) Note that this person has evaluated (so they can't send twice)…
     setValue_('Registrations', reg.__row, 'evaluated_on', today);
     // 2) …and keep the answers in a separate tab with no name or code.
+    const text = { will_apply: clean_(a.will_apply, 1000), comments: clean_(a.comments, 1000) };
     insertAnonymous_('Evaluations', Object.assign({
-      date: today, training_id: trainingId,
-      will_apply: clean_(a.will_apply, 1000), comments: clean_(a.comments, 1000)
+      date: today, training_id: trainingId, will_apply: text.will_apply, comments: text.comments,
+      flag: evaluationFlags_(text).join(' · ')
     }, ratings));
     return { status: 'ok' };
   });
@@ -463,11 +491,14 @@ function submitRequest(form) {
   if (f.contact_no && (digits.length < 7 || digits.length > 15)) throw new Error('Enter a contact number with 7 to 15 digits.');
   if (form.consent !== true) throw new Error('Tick the box so we can contact you about this request.');
 
+  const hp = clean_(form.hp, 200);
   return withLock_(function () {
     const now = new Date();
-    const code = newCode_(readTable_('Requests').map(function (r) { return String(r.request_code); }));
+    const rows = readTable_('Requests');
+    const code = newCode_(rows.map(function (r) { return String(r.request_code); }));
     appendRecord_('Requests', Object.assign({}, f, {
-      timestamp: now, request_code: code, full_name: [f.first_name, f.last_name].join(' '), status: 'New', notes: ''
+      timestamp: now, request_code: code, full_name: [f.first_name, f.last_name].join(' '), status: 'New', notes: '',
+      flag: requestFlags_(f, rows, now, hp).join(' · ')
     }));
     return {
       code: code, stamp: stamp_(now), topics: topics.concat(f.other_topics ? [f.other_topics] : []).join('; '),
@@ -518,11 +549,14 @@ function submitPartnership(form) {
   if (f.contact_no && (digits.length < 7 || digits.length > 15)) throw new Error('Enter a contact number with 7 to 15 digits.');
   if (form.consent !== true) throw new Error('Tick the box so we can contact you about this partnership.');
 
+  const hp = clean_(form.hp, 200);
   return withLock_(function () {
     const now = new Date();
-    const code = newCode_(readTable_('Partnerships').map(function (r) { return String(r.request_code); }));
+    const rows = readTable_('Partnerships');
+    const code = newCode_(rows.map(function (r) { return String(r.request_code); }));
     appendRecord_('Partnerships', Object.assign({}, f, {
-      timestamp: now, request_code: code, full_name: [f.first_name, f.last_name].join(' '), status: 'New', notes: ''
+      timestamp: now, request_code: code, full_name: [f.first_name, f.last_name].join(' '), status: 'New', notes: '',
+      flag: partnershipFlags_(f, rows, now, hp).join(' · ')
     }));
     return {
       code: code, stamp: stamp_(now), organization: f.organization,
@@ -911,10 +945,16 @@ function onOpen() {
     .createMenu(CONFIG.name)
     .addItem('Open the check-in scanner', 'openScanner')
     .addItem('Open the report page', 'openReport')
+    .addItem('Review flagged entries', 'reviewFlags')
     .addItem('Check who can see the data', 'checkAccess')
     .addSeparator()
     .addItem('Set up or repair tabs', 'setup')
     .addToUi();
+  // Tell whoever opens the Sheet how many entries look like duplicates or spam.
+  try {
+    const list = flagged_();
+    if (list.length) SpreadsheetApp.getActiveSpreadsheet().toast(flagSummary_(list) + ' See ' + CONFIG.name + ' › Review flagged entries.', 'Entries to review', 20);
+  } catch (e) { /* the menu matters more than the count */ }
 }
 
 /**
@@ -1031,6 +1071,13 @@ function setup() {
     SpreadsheetApp.newDataValidation().requireValueInList(PARTNER_STATUSES, true).build());
   pt.getRange(1, PT.indexOf('status') + 1).setNote('For organizers: New, Contacted, In talks, Partner or Declined. This tab is also your list of potential training partners.');
 
+  // Flag columns: a note on the header, and an amber highlight on flagged rows
+  FLAG_TABS.forEach(function (name) {
+    const sh = ss.getSheetByName(name);
+    sh.getRange(1, headers_(sh).indexOf('flag') + 1).setNote(FLAG_NOTE);
+    flagRule_(sh);
+  });
+
   // Data tabs: only the owner and the data stewards can edit them (the web app writes as the owner).
   const me = Session.getEffectiveUser();
   DATA_TABS.forEach(function (name) {
@@ -1047,6 +1094,212 @@ function setup() {
   const blank = ss.getSheetByName('Sheet1');
   if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
   try { ss.toast('The ' + CONFIG.name + ' tabs are ready.', CONFIG.name, 5); } catch (e) { /* toast only works with the Sheet open */ }
+}
+
+/* ===================================================================
+ * Duplicates and spam: flags for the data stewards
+ * =================================================================== */
+
+/** Why a new registration looks like a duplicate or spam: short reasons, [] when it looks fine. */
+function registrationFlags_(f, regs, t, now, hp) {
+  const why = textFlags_([f.first_name, f.last_name], [f.position, f.agency], f.email, hp);
+  const name = normName_(f.first_name + ' ' + f.last_name);
+  const same = regs.filter(function (r) {
+    return String(r.training_id) === t.id && String(r.email).toLowerCase() !== f.email &&
+      normName_(r.first_name + ' ' + r.last_name) === name;
+  })[0];
+  if (same) why.push('Possible duplicate of row ' + same.__row + ' (same name, another email)');
+  return why.concat(burst_('Registrations', regs.filter(function (r) { return String(r.training_id) === t.id; }), now));
+}
+
+function requestFlags_(f, rows, now, hp) {
+  const why = textFlags_([f.first_name, f.last_name], [f.position, f.agency], f.email, hp);
+  if (linkCount_([f.need, f.other_topics, f.participant_types, f.location].join(' ')) >= 2) why.push('Several links in the text');
+  const prev = recentSame_(rows, now, function (r) { return String(r.email).toLowerCase() === f.email; });
+  if (prev) why.push('Possible duplicate of row ' + prev.__row + ' (same email, ' + ago_(prev.timestamp, now) + ')');
+  return why.concat(burst_('Requests', rows, now));
+}
+
+function partnershipFlags_(f, rows, now, hp) {
+  const why = textFlags_([f.first_name, f.last_name], [f.position, f.organization], f.email, hp);
+  if (linkCount_([f.proposal, f.other_partnership, f.other_topics].join(' ')) >= 2) why.push('Several links in the text');
+  const org = normName_(f.organization);
+  const prev = recentSame_(rows, now, function (r) {
+    return String(r.email).toLowerCase() === f.email || (!!org && normName_(r.organization) === org);
+  });
+  if (prev) why.push('Possible duplicate of row ' + prev.__row + ' (same ' +
+    (String(prev.email).toLowerCase() === f.email ? 'email' : 'organization') + ', ' + ago_(prev.timestamp, now) + ')');
+  return why.concat(burst_('Partnerships', rows, now));
+}
+
+/** Evaluations have no names: only links or test text in the written answers. */
+function evaluationFlags_(text) {
+  const parts = [text.will_apply, text.comments];
+  const why = [];
+  if (parts.some(function (v) { return LINK_RE.test(String(v || '')); })) why.push('A link in the comments');
+  if (parts.some(junkText_)) why.push('Looks like a test or junk entry');
+  return why;
+}
+
+/** Checks shared by the forms with a name: the hidden field, test or junk text, numbers in a name,
+ *  a link where a name or office goes, and throwaway email addresses. */
+function textFlags_(names, fields, email, hp) {
+  const why = [];
+  if (hp) why.push('Possible bot: the hidden field was filled in');
+  const junk = names.filter(junkName_).concat(fields.filter(junkText_))[0];
+  if (junk) why.push('Looks like a test or junk entry ("' + String(junk).slice(0, 30) + '")');
+  if (names.some(function (v) { return /\d/.test(String(v || '')); })) why.push('A name has numbers in it');
+  if (names.concat(fields).some(function (v) { return LINK_RE.test(String(v || '')); })) why.push('A link in a name or office field');
+  const domain = String(email || '').split('@')[1] || '';
+  if (THROWAWAY_DOMAINS.some(function (d) { return domain === d || domain.slice(-d.length - 1) === '.' + d; })) why.push('Throwaway email address');
+  return why;
+}
+
+function junkText_(v) {
+  const s = String(v || '').trim();
+  return !!s && (JUNK_RE.test(s) || KEYMASH_RE.test(s));
+}
+
+/** Names also count as junk with a letter repeated four times ("aaaa") or no letters at all ("..."). */
+function junkName_(v) {
+  const s = String(v || '').trim();
+  return !!s && (junkText_(s) || /(.)\1{3}/i.test(s) || !/\p{L}/u.test(s));
+}
+
+function linkCount_(s) {
+  return (String(s || '').match(new RegExp(LINK_RE.source, 'gi')) || []).length;
+}
+
+/** "Juan M. Dela Cruz" and "juan dela  cruz" compare equal: lowercase, no accents, letters and digits only. */
+function normName_(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** The latest row in the last 30 days that matches. */
+function recentSame_(rows, now, match) {
+  return rows.filter(function (r) {
+    return r.timestamp instanceof Date && now - r.timestamp >= 0 && now - r.timestamp <= 30 * 864e5 && match(r);
+  }).sort(function (a, b) { return b.timestamp - a.timestamp; })[0] || null;
+}
+
+/** A flag when this entry is one of many in a few minutes (BURSTS). */
+function burst_(tab, rows, now) {
+  const limit = BURSTS[tab], ms = limit[1] * 60000;
+  const n = rows.filter(function (r) { return r.timestamp instanceof Date && now - r.timestamp >= 0 && now - r.timestamp <= ms; }).length + 1;
+  return n >= limit[0] ? ['Many ' + limit[2] + ' at once (' + n + ' in ' + limit[1] + ' minutes)'] : [];
+}
+
+function ago_(ts, now) {
+  const days = Math.floor((now - ts) / 864e5);
+  return days < 1 ? 'sent earlier today' : days === 1 ? 'sent 1 day earlier' : 'sent ' + days + ' days earlier';
+}
+
+/** A row's flag with one more reason. A reason starting with `replace` is swapped for the new one, and an OK is dropped. */
+function addFlag_(old, reason, replace) {
+  const keep = String(old || '').split(' · ').map(function (x) { return x.trim(); }).filter(function (x) {
+    return x && x.toUpperCase() !== 'OK' && !(replace && x.indexOf(replace) === 0);
+  });
+  return keep.concat([reason]).join(' · ');
+}
+
+function setFlag_(tab, row, text) {
+  const sh = sheet_(tab);
+  flagHeader_(sh);
+  setValue_(tab, row, 'flag', text);
+  flagRule_(sh);
+}
+
+/** Adds the "flag" column to a tab that doesn't have it yet (before Set up or repair tabs has run). */
+function flagHeader_(sh) {
+  const head = headers_(sh);
+  if (head.indexOf('flag') > -1) return;
+  sh.getRange(1, head.length + 1).setValue('flag').setFontWeight('bold').setBackground('#E3EFE7').setNote(FLAG_NOTE);
+}
+
+/** The amber highlight on flagged rows, rebuilt so it also covers rows added since. */
+function flagRule_(sh) {
+  const c = headers_(sh).indexOf('flag') + 1;
+  if (c < 1) return;
+  const col = columnLetter_(c);
+  const rules = sh.getConditionalFormatRules().filter(function (rule) {
+    const b = rule.getBooleanCondition();
+    return !(b && b.getCriteriaType() === SpreadsheetApp.BooleanCriteria.CUSTOM_FORMULA &&
+      /^=AND\(\$[A-Z]+2<>"",UPPER\(TRIM\(\$[A-Z]+2\)\)<>"OK"\)$/.test(String(b.getCriteriaValues()[0])));
+  });
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND($' + col + '2<>"",UPPER(TRIM($' + col + '2))<>"OK")')
+    .setBackground('#FCE8B2')
+    .setRanges([sh.getRange(2, 1, Math.max(sh.getMaxRows() - 1, 1), sh.getMaxColumns())])
+    .build());
+  sh.setConditionalFormatRules(rules);
+}
+
+/** Every flagged entry that nobody has marked OK yet: [{ tab, row, who, flag }]. */
+function flagged_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const out = [];
+  FLAG_TABS.forEach(function (tab) {
+    const sh = ss.getSheetByName(tab);
+    if (!sh || sh.getLastRow() < 2 || headers_(sh).indexOf('flag') < 0) return;
+    readTable_(tab).forEach(function (r) {
+      const flag = String(r.flag || '').trim();
+      if (!flag || flag.toUpperCase() === 'OK') return;
+      const who = tab === 'Registrations' ? [r.full_name, r.training_id]
+        : tab === 'Evaluations' ? ['Evaluation (no name)', r.training_id]
+        : tab === 'Requests' ? [r.full_name, r.agency]
+        : [r.organization, r.full_name];
+      out.push({ tab: tab, row: r.__row, who: who.map(String).filter(String).join(' · '), flag: flag });
+    });
+  });
+  return out;
+}
+
+/** "3 entries look like duplicates or spam (2 in Registrations, 1 in Requests)." */
+function flagSummary_(list) {
+  const counts = {};
+  list.forEach(function (f) { counts[f.tab] = (counts[f.tab] || 0) + 1; });
+  return (list.length === 1 ? '1 entry looks like a duplicate or spam' : list.length + ' entries look like duplicates or spam') +
+    ' (' + FLAG_TABS.filter(function (t) { return counts[t]; }).map(function (t) { return counts[t] + ' in ' + t; }).join(', ') + ').';
+}
+
+/**
+ * Sheet menu: SANAY › Review flagged entries.
+ * Lists the flagged entries; Show jumps to the row. Nothing is deleted here.
+ */
+function reviewFlags() {
+  const ui = SpreadsheetApp.getUi();
+  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (dataStewards in Code.gs) can review flagged entries.');
+  const list = flagged_();
+  const shown = list.slice(0, 200);
+  const rows = shown.map(function (f, i) {
+    return '<tr><td>' + esc_(f.tab) + '<br><span class="m">row ' + f.row + '</span></td><td>' + esc_(f.who) + '</td><td>' + esc_(f.flag) + '</td>' +
+      '<td><button type="button" data-i="' + i + '">Show</button></td></tr>';
+  }).join('');
+  const html = '<div style="font:14px/1.45 Arial,sans-serif;color:#1A1F1C">' +
+    '<style>table{border-collapse:collapse;width:100%}td,th{border-top:1px solid #DDE3DE;padding:7px 6px;vertical-align:top;text-align:left}' +
+    'th{font-size:12px;color:#59625C;border-top:0}.m{color:#59625C;font-size:12px}button{font:inherit;padding:4px 10px;cursor:pointer}</style>' +
+    '<p style="margin:0 0 10px">' + (list.length
+      ? esc_(flagSummary_(list)) + ' They are saved like any other entry and highlighted in amber. Check each one: delete it if it is junk, or type <b>OK</b> in its flag column once it is fine.'
+      : 'Nothing to review. When a new entry looks like a duplicate or spam, it is flagged and listed here.') + '</p>' +
+    (list.length ? '<table><tr><th>Tab</th><th>Entry</th><th>Why</th><th></th></tr>' + rows + '</table>' : '') +
+    (list.length > shown.length ? '<p class="m">Showing the first 200.</p>' : '') +
+    '<p id="msg" style="color:#B3261E" aria-live="polite"></p></div>' +
+    '<script>var L=' + JSON.stringify(shown.map(function (f) { return { tab: f.tab, row: f.row }; })).replace(/</g, '\\u003c') + ';' +
+    'document.addEventListener("click",function(e){var b=e.target.closest("button[data-i]");if(!b)return;var f=L[+b.getAttribute("data-i")];' +
+    'b.disabled=true;b.textContent="Opening…";google.script.run.withSuccessHandler(function(){google.script.host.close();})' +
+    '.withFailureHandler(function(err){b.disabled=false;b.textContent="Show";document.getElementById("msg").textContent=err.message;}).showFlagged(f.tab,f.row);});</script>';
+  ui.showModalDialog(HtmlService.createHtmlOutput(html).setWidth(680).setHeight(520), 'Entries to review');
+}
+
+/** From the review dialog: opens the tab and selects the flagged row. */
+function showFlagged(tab, row) {
+  SpreadsheetApp.getUi();   // only from the Sheet's own dialog, never from the web app
+  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward can review flagged entries.');
+  const n = Number(row);
+  if (FLAG_TABS.indexOf(String(tab)) < 0 || !(n >= 2 && Math.round(n) === n)) throw new Error('That entry is not in a ' + CONFIG.name + ' tab.');
+  const sh = sheet_(String(tab));
+  SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sh);
+  sh.setActiveRange(sh.getRange(n, 1, 1, Math.max(sh.getLastColumn(), 1)));
 }
 
 /* ===================================================================
@@ -1166,17 +1419,21 @@ function readTable_(name) {
 
 function appendRecord_(name, record) {
   const sh = sheet_(name);
+  if (record.flag) flagHeader_(sh);
   sh.appendRow(headers_(sh).map(function (h) { return toCell_(record[h]); }));
+  if (record.flag) flagRule_(sh);
 }
 
 /** Puts a row at a random position so row order doesn't reveal who answered when. */
 function insertAnonymous_(name, record) {
   const sh = sheet_(name);
+  if (record.flag) flagHeader_(sh);
   const row = headers_(sh).map(function (h) { return toCell_(record[h]); });
   const last = Math.max(sh.getLastRow(), 1);
   const pos = 2 + Math.floor(Math.random() * last);   // anywhere from row 2 to the row after the last
   if (pos <= last) sh.insertRowBefore(pos);
   sh.getRange(pos, 1, 1, row.length).setValues([row]);
+  if (record.flag) flagRule_(sh);
 }
 
 function setValue_(name, rowNumber, column, value) {

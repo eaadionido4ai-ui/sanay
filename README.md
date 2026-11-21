@@ -57,7 +57,7 @@ tests/            back-end tests against a mock Sheet, and browser checks (tests
 5. **Try it.** Open the link on your phone. Register for SAMPLE-1, then in the Sheet open **SANAY › Open the check-in scanner** and scan your QR code. Evaluate, send a request. Then delete the SAMPLE rows from the Trainings tab.
 6. **Lock it down** before real people register: see [Keep the data to a few people](#keep-the-data-to-a-few-people).
 
-After you change any file: **Deploy › Manage deployments › pencil › Version: New version › Deploy**. The link stays the same. If you already ran `setup` with an older version, run it again: it adds the new columns and tabs without touching your data. (If you tried the first version, with four ratings, its old Evaluations columns stay but are no longer used. Delete them, or delete the test Evaluations tab before you run `setup`.)
+After you change any file: **Deploy › Manage deployments › pencil › Version: New version › Deploy**. The link stays the same. If you already ran `setup` with an older version, run it again (**SANAY › Set up or repair tabs**): it adds the new columns and tabs, such as the `flag` columns and their highlight, without touching your data. (If you tried the first version, with four ratings, its old Evaluations columns stay but are no longer used. Delete them, or delete the test Evaluations tab before you run `setup`.)
 
 ## Running a training
 
@@ -110,6 +110,30 @@ The aim is that nobody can check in from somewhere else, with or without interne
 
 **Requests** land in the Requests tab. Update its `status` column as you go: New, Contacted, Scheduled, Done or Declined. **Partnership requests** land in the Partnerships tab, with the statuses New, Contacted, In talks, Partner or Declined.
 
+### Success messages and shared devices
+
+Every step that works ends with a short green note at the bottom of the screen: **Registration successful** (with the name, training and code), **Check-in successful**, **Walk-in registered and checked in**, **Evaluation submitted**, **Request sent**, **Partnership request sent**. When nothing new was saved, the note is grey instead: *Already registered*, *Already checked in today*, or *Saved on this device* at the walk-in desk with no signal. The note closes by itself after a few seconds, and screen readers read it out. The scanner confirms each scan in its own way: a green card with the name, a beep and a buzz.
+
+One phone, tablet or laptop can serve many people one after another, for example a registration desk or an evaluation tablet at the closing session. Nothing is limited by device; duplicates are checked by email and registration code.
+
+- **Register another person** opens an empty form for the same training, and the last person's code and QR code disappear.
+- **Another evaluation** keeps the training and empties the code and the answers, for the next participant.
+- **Send another** does the same for requests and partnership requests.
+- On the Attendance screen (online trainings), the last result disappears as soon as the next person starts typing.
+
+### Duplicates and spam
+
+Nothing is blocked: every entry is saved, and the ones that look like a duplicate or spam get a short reason in a **`flag`** column and an **amber highlight**, so a data steward can decide. When someone opens the Sheet, a message in the corner says how many entries are waiting, and **SANAY › Review flagged entries** lists them, with **Show** to jump to each row.
+
+What gets flagged:
+
+- **Registrations:** the same first and last name as someone already registered for that training under another email (accents and capitals don't matter); the same email registering again (noted on the first row); test or junk names like *test*, *asdf* or *aaaa*; numbers in a name; a link in a name or office; a throwaway email address (Mailinator, YOPmail and the like); 20 or more registrations for one training within 2 minutes.
+- **Requests and partnership requests:** the same email (or, for partnerships, the same organization) within 30 days; test or junk names; several links in the text; 5 or more within 10 minutes.
+- **Evaluations:** a link in the comments, or test text. They stay anonymous.
+- **Any form:** a hidden field that people never see but bots fill in.
+
+Check each flagged entry. Delete it if it's junk (for a duplicate registration, keep the one the person uses and delete the other), or type **OK** in its `flag` column once it's fine: the highlight goes away and it leaves the review list. The limits are in `BURSTS` near the top of `Code.gs` if your trainings need others.
+
 ## Settings
 
 All in `Code.gs`, at the top (`CONFIG`):
@@ -159,6 +183,7 @@ Good to know:
 - The impact-interview list shows only people who said yes. Saying yes doesn't oblige anyone to take part later.
 - The report page needs a fresh link from the Sheet menu, valid for at most 6 hours, because the web app itself is open to anyone.
 - The scanner needs its link and a PIN, shows only names, offices and codes, works only for its training, and can be replaced from the Sheet. QR codes hold only the registration code. A check-in station shows each result for a few seconds and never lists other people.
+- Flags only describe the entry ("same name, another email"); evaluations stay anonymous when flagged.
 - Never commit exported data or a filled-in attendance sheet to this repository. **The repository is public.**
 
 ## Open questions

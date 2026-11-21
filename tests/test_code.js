@@ -48,6 +48,9 @@ class Sheet {
   appendRow(row) { const r = this.getLastRow() + 1; row.forEach((v, j) => this.set(r, j + 1, parse(v))); }
   insertRowBefore(pos) { this.data.splice(pos - 1, 0, []); }
   setFrozenRows() {} getName() { return this.name; }
+  getMaxRows() { return Math.max(1000, this.data.length); } getMaxColumns() { return Math.max(26, this.getLastColumn()); }
+  getConditionalFormatRules() { return (this.cf || []).slice(); } setConditionalFormatRules(r) { this.cf = r; }
+  setActiveRange(r) { this.selected = r; return r; }
   getProtections() { return this.protection ? [this.protection] : []; }
   protect() {
     const p = { editors: ['someone@example.org'], desc: '', domain: true,
@@ -65,7 +68,8 @@ const ss = {
   insertSheet: n => { const s = new Sheet(n); sheets.push(s); return s; },
   getSheets: () => sheets.slice(),
   deleteSheet: s => sheets.splice(sheets.indexOf(s), 1),
-  setSpreadsheetTimeZone() {}, toast() {},
+  setSpreadsheetTimeZone() {}, toast(msg, title) { toasts.push({ msg, title }); },
+  setActiveSheet(sh) { active = sh; return sh; },
   getOwner: () => ({ getEmail: () => 'owner@up.example.edu' }),
   getEditors: () => ['owner@up.example.edu', 'steward@up.example.edu', 'intern@gmail.example.com'].map(e => ({ getEmail: () => e })),
   getViewers: () => ['owner@up.example.edu', 'steward@up.example.edu', 'intern@gmail.example.com', 'viewer@up.example.edu'].map(e => ({ getEmail: () => e }))
@@ -73,6 +77,11 @@ const ss = {
 let activeUser = 'owner@up.example.edu';
 const builder = { requireDate() { return this; }, requireValueInList() { return this; }, requireCheckbox() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } };
 const cache = {};
+const toasts = [];
+const cfBuilder = () => { const b = { formula: '', bg: '', ranges: [],
+  whenFormulaSatisfied(f) { this.formula = f; return this; }, setBackground(c) { this.bg = c; return this; }, setRanges(r) { this.ranges = r; return this; },
+  build() { const f = this.formula, bg = this.bg, ranges = this.ranges;
+    return { formula: f, bg, ranges, getBooleanCondition: () => ({ getCriteriaType: () => 'CUSTOM_FORMULA', getCriteriaValues: () => [f] }) }; } }; return b; };
 const props = {};
 const dialogs = [];
 let uiAvailable = true;
@@ -87,6 +96,7 @@ Object.assign(ctx, {
   SpreadsheetApp: {
     ProtectionType: { SHEET: 'SHEET', RANGE: 'RANGE' },
     getActiveSpreadsheet: () => ss, newDataValidation: () => builder,
+    newConditionalFormatRule: cfBuilder, BooleanCriteria: { CUSTOM_FORMULA: 'CUSTOM_FORMULA' },
     getUi: () => { if (!uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.'); return ui; },
     getActiveSheet: () => active
   },
@@ -137,7 +147,7 @@ ok(['Trainings', 'Registrations', 'Attendance', 'Evaluations', 'Requests', 'Part
 const th = T('Trainings').getRange(1, 1, 1, T('Trainings').getLastColumn()).getValues()[0];
 ok(th.join(',') === 'training_id,title,start_date,end_date,venue,mode,show_in_list,max_participants,registration_closes,notes,registered,female,male', 'trainings headers: ' + th.join(','));
 const rh = T('Registrations').getRange(1, 1, 1, T('Registrations').getLastColumn()).getValues()[0];
-ok(rh.length === 26 && rh[14] === 'sex' && rh[22] === 'impact_consent', 'registrations has 26 columns, sex in column O, impact consent added');
+ok(rh.length === 27 && rh[14] === 'sex' && rh[22] === 'impact_consent' && rh[26] === 'flag', 'registrations has 27 columns, sex in column O, impact consent added, flag last');
 ok(T('Trainings').formulas[0].includes('COUNTIF(Registrations!C2:C,A2:A)'), 'registered formula counts Registrations!C: ' + T('Trainings').formulas[0]);
 ok(T('Trainings').formulas[1].includes('Registrations!O2:O,"Female"'), 'female formula reads the sex column O: ' + T('Trainings').formulas[1]);
 ok(table('Trainings').length === 3 && table('Trainings')[0].start_date instanceof CtxDate, 'three sample trainings with real dates');
@@ -223,7 +233,7 @@ ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers }).stat
 ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: 'juan@example.com', answers }).status === 'already', 'second evaluation refused');
 let ev = table('Evaluations');
 ok(ev.length === 1 && !('reg_code' in ev[0]) && !JSON.stringify(ev[0]).includes('Juan') && ev[0].overall === 5, 'evaluation row has no name or code');
-ok(evalKeys.length === 16 && T('Evaluations').getLastColumn() === 20, 'Evaluations tab has a column for each of the 16 Likert statements');
+ok(evalKeys.length === 16 && T('Evaluations').getLastColumn() === 21, 'Evaluations tab has a column for each of the 16 Likert statements, then the flag');
 ok(ev[0].venue_ok === 'N/A' && ev[0].obj_clear === 1 && ev[0].logistics_ok === (evalKeys.indexOf('logistics_ok') % 5) + 1, 'Likert answers saved as numbers, N/A as text');
 ok(typeof table('Registrations')[0].evaluated_on === 'string' && table('Registrations')[0].evaluated_on.length === 10, 'registration marked as evaluated');
 throws(() => ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: r1.code, answers: { overall: 5 } }), /every statement/, 'missing statements refused');
@@ -436,6 +446,112 @@ const w9 = ctx.register(person({ email: 'door.only@example.com', walk_in: true }
 ok(w9.atDoor && !w9.checkIn && !table('Attendance').some(a => a.reg_code === w9.code), 'a walk-in who registers on their phone then checks in at the door');
 ok(ctx.getAppData().selfCheckIn === false, 'and the page knows it');
 vm.runInContext('CONFIG.selfCheckIn = true', ctx);
+
+// 8b. duplicates and spam: flagged for the data stewards, never blocked
+// (the earlier checks saved dozens of entries within seconds; make them an hour old so no burst carries over)
+['Registrations', 'Requests', 'Partnerships'].forEach(name => {
+  const sh = T(name), c = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].indexOf('timestamp') + 1;
+  for (let r = 2; r <= sh.getLastRow(); r++) sh.set(r, c, new CtxDate(Date.now() - 3600000));
+});
+const regOf = code => table('Registrations').find(r => r.reg_code === code);
+const regRow = code => table('Registrations').findIndex(r => r.reg_code === code) + 2;
+let f1 = regOf(r1.code).flag;
+ok(f1.includes('A link in a name or office field') && f1.includes('Registered again with the same email on '), 'a link in a name, and registering again with the same email, are flagged: ' + f1);
+ctx.register(person({ email: 'juan@example.com' }));
+ok(regOf(r1.code).flag.split(' · ').filter(x => x.startsWith('Registered again')).length === 1, 'registering again replaces the earlier note instead of piling up');
+const clean = ctx.register(person({ email: 'maria.clean@example.com', first_name: 'Maria', last_name: 'Clara', middle_initial: '', suffix: '' }));
+ok(regOf(clean.code).flag === '', 'a normal registration is not flagged');
+const dupR = ctx.register(person({ email: 'maria.personal@example.com', first_name: 'MARIA ', last_name: ' clara', middle_initial: '', suffix: '' }));
+ok(regOf(dupR.code).flag === 'Possible duplicate of row ' + regRow(clean.code) + ' (same name, another email)', 'same name with another email: a possible duplicate, with its row: ' + regOf(dupR.code).flag);
+const jose = ctx.register(person({ email: 'jose.n@example.com', first_name: 'José', last_name: 'Peña', middle_initial: '', suffix: '' }));
+const jose2 = ctx.register(person({ email: 'jose.n2@example.com', first_name: 'jose', last_name: 'pena', middle_initial: '', suffix: '' }));
+ok(regOf(jose2.code).flag.startsWith('Possible duplicate of row ' + regRow(jose.code)), 'accents and capitals do not hide a duplicate');
+const junkR = ctx.register(person({ email: 'x1@example.com', first_name: 'asdf', last_name: 'Ramos' }));
+ok(regOf(junkR.code).flag === 'Looks like a test or junk entry ("asdf")', 'keyboard mash flagged: ' + regOf(junkR.code).flag);
+const testR = ctx.register(person({ email: 'x2@example.com', first_name: 'Test', last_name: 'Person' }));
+ok(regOf(testR.code).flag === 'Looks like a test or junk entry ("Test")', 'a test entry flagged');
+const rep4 = ctx.register(person({ email: 'x4@example.com', first_name: 'Aaaa', last_name: 'Bueno' }));
+ok(regOf(rep4.code).flag === 'Looks like a test or junk entry ("Aaaa")', 'a letter four times in a row flagged');
+const numR = ctx.register(person({ email: 'x3@example.com', first_name: 'Pedro2', last_name: 'Uno' }));
+ok(regOf(numR.code).flag === 'A name has numbers in it', 'numbers in a name flagged');
+const tmpR = ctx.register(person({ email: 'someone@mailinator.com', first_name: 'Lito', last_name: 'Atienza' }));
+const tmpR2 = ctx.register(person({ email: 'other@inbox.yopmail.com', first_name: 'Lina', last_name: 'Bautista' }));
+ok(regOf(tmpR.code).flag === 'Throwaway email address' && regOf(tmpR2.code).flag === 'Throwaway email address', 'throwaway email addresses flagged');
+const botR = ctx.register(person({ email: 'bot1@example.com', first_name: 'Ramon', last_name: 'Magsaysay', hp: 'http://spam.example' }));
+ok(regOf(botR.code).flag === 'Possible bot: the hidden field was filled in', 'the hidden field flags a bot, and the entry is still saved');
+const intl = ctx.register(person({ email: 'li.ming@example.com', first_name: '明', last_name: '李', middle_initial: '', suffix: '' }));
+ok(regOf(intl.code).flag === '', 'a name in another alphabet is not junk');
+const inS2 = () => table('Registrations').filter(r => r.training_id === 'SAMPLE-2' && Date.now() - r.timestamp <= 120000).length;
+for (let k = 0; inS2() < 19; k++) ctx.register(person({ training_id: 'SAMPLE-2', email: 'burst' + k + '@example.com', first_name: 'Burst', last_name: 'Person ' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[k] }));
+ok(!String(table('Registrations').filter(r => r.training_id === 'SAMPLE-2').pop().flag).includes('Many'), '19 registrations in two minutes are not flagged as a burst');
+const b20 = ctx.register(person({ training_id: 'SAMPLE-2', email: 'burst.last@example.com', first_name: 'Burst', last_name: 'Last' }));
+ok(regOf(b20.code).flag === 'Many registrations at once (20 in 2 minutes)', 'the 20th registration in two minutes is flagged: ' + regOf(b20.code).flag);
+
+const rqA = ctx.submitRequest(request({ email: 'dup.req@example.com', first_name: 'Lorna', last_name: 'Abad' }));
+const rqB = ctx.submitRequest(request({ email: 'DUP.req@example.com', first_name: 'Lorna', last_name: 'Abad', need: 'Same need. Our pages: http://one.example.com and www.two.example.org' }));
+const rqRowOf = code => table("Requests").findIndex(r => r.request_code === code) + 2;
+const rqFlag = code => table('Requests').find(r => r.request_code === code).flag;
+ok(rqFlag(rqB.code).includes("Possible duplicate of row " + rqRowOf(rqA.code) + ' (same email, sent earlier today)') && rqFlag(rqB.code).includes('Several links in the text'),
+  'a second request from the same email, and links in the text, are flagged: ' + rqFlag(rqB.code));
+const rqBot = ctx.submitRequest(request({ email: 'bot.req@example.com', first_name: 'Nilo', last_name: 'Santos', hp: 'x' }));
+ok(rqFlag(rqBot.code) === 'Possible bot: the hidden field was filled in', 'the hidden field flags a bot request');
+const rqD = ctx.submitRequest(request({ email: 'fourth@example.com', first_name: 'Dina', last_name: 'Cruz' }));
+ok(rqFlag(rqD.code) === '', 'four requests in ten minutes are fine');
+const rqE = ctx.submitRequest(request({ email: 'fifth@example.com', first_name: 'Elma', last_name: 'Ong' }));
+ok(rqFlag(rqE.code) === 'Many requests at once (5 in 10 minutes)', 'the fifth request in ten minutes is flagged: ' + rqFlag(rqE.code));
+
+const ptA = ctx.submitPartnership(partner({ email: 'a@kalinga.example.org', organization: 'Kalinga Volunteers' }));
+const ptB = ctx.submitPartnership(partner({ email: 'b@kalinga.example.org', organization: 'kalinga  volunteers' }));
+const ptRows = () => table('Partnerships');
+ok(ptRows().find(r => r.request_code === ptB.code).flag.startsWith('Possible duplicate of row ' + (ptRows().findIndex(r => r.request_code === ptA.code) + 2) + ' (same organization, sent earlier today)'),
+  'a second partnership request from the same organization is flagged');
+const P = T('Partnerships'), pCol = P.getRange(1, 1, 1, P.getLastColumn()).getValues()[0].indexOf('flag') + 1;
+for (let r = 1; r <= P.getLastRow(); r++) P.set(r, pCol, '');           // a tab from before this version: no flag column
+const ptC = ctx.submitPartnership(partner({ email: 'c@other.example.org', organization: 'asdf' }));
+ok(P.getRange(1, 1, 1, P.getLastColumn()).getValues()[0].includes('flag') && ptRows().find(r => r.request_code === ptC.code).flag === 'Looks like a test or junk entry ("asdf")',
+  'the first flag adds the flag column to an older tab');
+
+const evP = ctx.register(person({ email: 'eval.link@example.com', first_name: 'Rosa', last_name: 'Linao' }));
+ok(ctx.submitEvaluation({ training_id: 'SAMPLE-1', key: evP.code, answers: Object.assign({}, answers, { comments: 'Great! Also see www.promo-example.com' }) }).status === 'ok', 'an evaluation with a link is still saved');
+const evRow = table('Evaluations').find(r => String(r.comments).includes('promo-example'));
+ok(evRow.flag === 'A link in the comments' && !('reg_code' in evRow), 'and flagged, still without a name or code');
+
+// the Sheet tells the data stewards
+const html1 = ctx.register(person({ email: 'x5@example.com', first_name: '<img src=x onerror=alert(1)>', last_name: 'Test' }));
+const fl = vm.runInContext('flagged_()', ctx);
+ok(fl.length >= 10 && fl.every(f => f.flag && f.flag.toUpperCase() !== 'OK') && fl.some(f => f.tab === 'Evaluations' && f.who.startsWith('Evaluation (no name)')),
+  'flagged entries are listed, evaluations without names (' + fl.length + ')');
+const sum = vm.runInContext('flagSummary_(flagged_())', ctx);
+ok(/^\d+ entries look like duplicates or spam \(\d+ in Registrations, 1 in Evaluations, \d+ in Requests, \d+ in Partnerships\)\.$/.test(sum), 'summary: ' + sum);
+toasts.length = 0;
+ctx.onOpen();
+ok(toasts.length === 1 && toasts[0].title === 'Entries to review' && toasts[0].msg === sum + ' See SANAY › Review flagged entries.', 'opening the Sheet says how many entries to review: ' + (toasts[0] && toasts[0].msg));
+vm.runInContext('setValue_("Registrations", ' + regRow(tmpR.code) + ', "flag", " ok ")', ctx);
+ok(vm.runInContext('flagged_()', ctx).length === fl.length - 1, 'typing OK in the flag column clears it');
+const rules = T('Registrations').cf.filter(r => /UPPER\(TRIM/.test(r.formula));
+ok(rules.length === 1 && rules[0].formula === '=AND($AA2<>"",UPPER(TRIM($AA2))<>"OK")' && rules[0].bg === '#FCE8B2', 'one amber highlight rule on the flag column: ' + (rules[0] && rules[0].formula));
+ctx.setup();
+ok(T('Registrations').cf.filter(r => /UPPER\(TRIM/.test(r.formula)).length === 1 && T('Requests').cf.length === 1, 'running setup again keeps one highlight rule per tab');
+dialogs.length = 0;
+ctx.reviewFlags();
+const rv = dialogs.pop();
+ok(rv.title === 'Entries to review' && rv.html.includes('Possible duplicate of row ' + regRow(clean.code)) && rv.html.includes('data-i="0"') && rv.html.includes('.showFlagged(f.tab,f.row)'),
+  'SANAY › Review flagged entries lists them with a Show button');
+ok(rv.html.includes('&lt;img src=x onerror=alert(1)&gt;') && !rv.html.includes('<img src=x'), 'names in the review list are escaped');
+uiAvailable = false;
+throws(() => ctx.reviewFlags(), /getUi/, 'the review list cannot be opened from the web app');
+throws(() => ctx.showFlagged('Registrations', 2), /getUi/, 'Show cannot be called from the web app');
+uiAvailable = true;
+ctx.showFlagged('Registrations', regRow(junkR.code));
+ok(active === T('Registrations') && T('Registrations').selected.r === regRow(junkR.code), 'Show opens the tab at the flagged row');
+throws(() => ctx.showFlagged('Trainings', 2), /not in a SANAY tab/, 'Show opens only the four data tabs');
+throws(() => ctx.showFlagged('Registrations', 1), /not in a SANAY tab/, 'and never the header row');
+vm.runInContext("CONFIG.dataStewards = ['steward@up.example.edu']", ctx);
+activeUser = 'intern@gmail.example.com';
+throws(() => ctx.reviewFlags(), /data steward/, 'only the owner and data stewards can review flagged entries');
+throws(() => ctx.showFlagged('Registrations', 2), /data steward/, 'or jump to them');
+activeUser = 'owner@up.example.edu';
+vm.runInContext('CONFIG.dataStewards = []', ctx);
 
 // 9. full and hidden
 const trS = T('Trainings'), H = trS.getRange(1, 1, 1, trS.getLastColumn()).getValues()[0];

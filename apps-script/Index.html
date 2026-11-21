@@ -61,6 +61,9 @@
   --desk: #E1E6E1;
   --grid: #E1E6E1;
   --flash: #FFF1B8;
+  --flagged: #FCE8B2;
+  --toast-ok: #0B4A2B;
+  --toast-info: #2A322E;
   --shadow: rgba(16, 24, 20, 0.10);
   --paper: #FFFFFF;
   --paper-ink: #161616;
@@ -89,7 +92,7 @@
     --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
     --fig-top: rgba(240, 163, 166, 0.1); --fig-bottom: rgba(143, 209, 168, 0.08);
     --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
-    --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
+    --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45); --flagged: #4D3B10; --toast-ok: #1F6B43; --toast-info: #3A4540;
     color-scheme: dark;
   }
 }
@@ -102,7 +105,7 @@
   --ring: rgba(240, 163, 166, 0.45); --band-green: #0B5A31; --band-maroon: #94232A; --plate: #F2F4F1;
   --fig-top: rgba(240, 163, 166, 0.1); --fig-bottom: rgba(143, 209, 168, 0.08);
   --ok: #8FD1A8; --ok-soft: #17301F; --warn: #F0C46A; --warn-soft: #3A2C10; --bad: #F4A49B; --bad-soft: #3D1B18;
-  --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45);
+  --desk: #090C0A; --grid: #232A26; --flash: #4A4214; --shadow: rgba(0, 0, 0, 0.45); --flagged: #4D3B10; --toast-ok: #1F6B43; --toast-info: #3A4540;
   color-scheme: dark;
 }
 
@@ -647,6 +650,27 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
 .grid thead th.app-col { z-index: 2; background: var(--sunken); }
 .cell-date { min-height: 0; width: auto; padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; font-size: 12.5px; }
 .cell-check { width: 16px; height: 16px; accent-color: var(--green-fill); }
+.grid tr.flagged td:not(.rownum) { background: var(--flagged); }
+.grid td.flag { font-weight: 600; }
+.sheet-notice { padding: 10px 12px; border-radius: 10px; background: var(--flagged); font-size: 13.5px; line-height: 1.45; }
+
+/* ---------- toasts: a short note after each successful step ---------- */
+.toasts { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; display: grid; justify-items: center; gap: 8px; pointer-events: none;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 12px; width: min(440px, 100%); padding: 12px 8px 12px 14px; border-radius: 14px;
+  background: var(--toast-info); color: #FFFFFF; box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.55); animation: toast-in 0.22s ease-out; }
+.toast.ok { background: var(--toast-ok); }
+.toast .t-ic { flex: none; display: grid; place-items: center; width: 26px; height: 26px; margin-top: 1px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); }
+.toast .t-body { flex: 1; min-width: 0; }
+.toast .t-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+.toast .t-detail { margin-top: 2px; font-size: 14px; line-height: 1.35; opacity: 0.92; overflow-wrap: anywhere; }
+.toast .t-close { flex: none; width: 32px; height: 32px; margin: -4px 0; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; font-size: 20px; line-height: 1; cursor: pointer; opacity: 0.85; }
+.toast .t-close:hover { opacity: 1; background: rgba(255, 255, 255, 0.14); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media print { .toasts { display: none !important; } }
+/* a field people never see: a bot that fills in every field gives itself away */
+.hp { position: absolute !important; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }
 .sheet-tabs { display: flex; flex-wrap: wrap; gap: 2px; padding: 6px; border-top: 1px solid var(--line); background: var(--sunken); }
 .sheet-tabs button { min-height: 34px; padding: 6px 12px; border: 0; border-radius: 8px; background: none; color: var(--muted); font-size: 13px; font-weight: 600; }
 .sheet-tabs button[aria-selected="true"] { background: var(--surface); color: var(--green-text); box-shadow: 0 1px 2px var(--shadow); }
@@ -765,6 +789,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             <p class="lead" id="regLead">Sign up ahead so the organizers can prepare enough seats, kits and meals.</p>
           </header>
           <form class="form" id="regForm" novalidate>
+            <div class="hp" aria-hidden="true"><label for="regHp">Leave this empty</label><input type="text" id="regHp" name="website_url" tabindex="-1" autocomplete="off"></div>
             <div class="group">
               <div class="field">
                 <label for="regTraining">Training</label>
@@ -926,7 +951,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <div class="view-head" style="padding:0"><h2 class="title">Thank you</h2><p class="lead">Your evaluation was saved without your name.</p></div>
           <p class="demo-note" id="evDemoNote" hidden>Preview: the answers went into the Evaluations tab at a random row. <button type="button" class="link-btn" data-see="Evaluations">See it</button></p>
           <div class="done-actions">
-            <button type="button" class="btn-quiet" id="evAgain">Evaluate another training</button>
+            <button type="button" class="btn-quiet" id="evAgain">Another evaluation</button>
             <button type="button" class="btn-quiet" data-home>Back to home</button>
           </div>
         </div>
@@ -941,6 +966,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             <p class="lead">Tell us what skills your office needs and when. We'll get in touch to plan it with you.</p>
           </header>
           <form class="form" id="rqForm" novalidate>
+            <div class="hp" aria-hidden="true"><label for="rqHp">Leave this empty</label><input type="text" id="rqHp" name="website_url" tabindex="-1" autocomplete="off"></div>
             <div class="group">
               <p class="group-title">Training needed</p>
               <div class="q" role="group" aria-labelledby="lbl-topics"><span class="q-label" id="lbl-topics">Topics<small>Choose all that apply.</small></span><div class="picks" id="rqTopics"></div><p class="err" id="err-rq-topics" hidden></p></div>
@@ -1004,6 +1030,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
             <p class="lead">Partner with us on training: co-organize one, send trainers, host it or support it. Tell us about your organization and your idea.</p>
           </header>
           <form class="form" id="ptForm" novalidate>
+            <div class="hp" aria-hidden="true"><label for="ptHp">Leave this empty</label><input type="text" id="ptHp" name="company_url" tabindex="-1" autocomplete="off"></div>
             <div class="group">
               <p class="group-title">Your organization</p>
               <div class="field"><label for="ptOrg">Organization name</label><input type="text" id="ptOrg" autocomplete="organization" maxlength="200" aria-describedby="err-pt-org"><p class="err" id="err-pt-org" hidden></p></div>
@@ -1179,6 +1206,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       <div class="sheet-head">
         <h2 class="sheet-title" id="sheetTitle">The Google Sheet behind it</h2>
         <p class="sheet-caption" id="sheetCaption"></p>
+        <p class="sheet-notice" id="sheetNotice" hidden></p>
       </div>
       <div class="sheet-frame">
         <div class="sheet-fx" id="sheetFx"></div>
@@ -1195,6 +1223,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
       <div class="sheet-legend" id="sheetLegend"></div>
     </aside>
   </div>
+  <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 </div>
 <div class="measure" id="measure" aria-hidden="true"></div>
 
@@ -1598,6 +1627,82 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     db.registrations.sort(byStamp);
     db.attendance.sort(byStamp);
 
+    // Flags for the data stewards, the same checks Code.gs makes (registrationFlags_ and the others there).
+    var JUNK_RE = /^(test(ing|er)?|sample|dummy|fake|asdf|asd|qwe(rty)?|zxcv?|abcd?|x{3,}|xyz|null|undefined|lorem|ipsum|blah)$/i;
+    var KEYMASH_RE = /asdf|qwer|zxcv|hjkl|sdfg|ghjk/i;
+    var LINK_RE = /https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|info|biz|xyz|top|site|online|ru|cn|io|me|ly)\b/i;
+    var THROWAWAY = ['mailinator.com', 'guerrillamail.com', 'sharklasers.com', 'grr.la', '10minutemail.com', 'temp-mail.org', 'tempmail.com', 'tempmail.net',
+      'yopmail.com', 'trashmail.com', 'getnada.com', 'dispostable.com', 'maildrop.cc', 'throwawaymail.com', 'fakeinbox.com', 'mintemail.com', 'emailondeck.com'];
+    var BURSTS = { registrations: [20, 2, 'registrations'], requests: [5, 10, 'requests'], partnerships: [5, 10, 'partnership requests'] };
+    var AGAIN = 'Registered again with the same email';
+    function junkText(v) { var x = String(v || '').trim(); return !!x && (JUNK_RE.test(x) || KEYMASH_RE.test(x)); }
+    function junkName(v) { var x = String(v || '').trim(); return !!x && (junkText(x) || /(.)\1{3}/i.test(x) || !/\p{L}/u.test(x)); }
+    function linkCount(v) { return (String(v || '').match(new RegExp(LINK_RE.source, 'gi')) || []).length; }
+    function normName(v) { return String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
+    function stampMs(st) { return Date.parse(String(st).replace(' ', 'T') + ':00+08:00'); }
+    function textFlags(names, fields, email, hp) {
+      var why = [], junk = names.filter(junkName).concat(fields.filter(junkText))[0], domain = String(email || '').split('@')[1] || '';
+      if (hp) why.push('Possible bot: the hidden field was filled in');
+      if (junk) why.push('Looks like a test or junk entry ("' + String(junk).slice(0, 30) + '")');
+      if (names.some(function (v) { return /\d/.test(String(v || '')); })) why.push('A name has numbers in it');
+      if (names.concat(fields).some(function (v) { return LINK_RE.test(String(v || '')); })) why.push('A link in a name or office field');
+      if (THROWAWAY.some(function (d) { return domain === d || domain.slice(-d.length - 1) === '.' + d; })) why.push('Throwaway email address');
+      return why;
+    }
+    function burst(kind, rows, now) {
+      var b = BURSTS[kind], n = rows.filter(function (r) { var age = now - stampMs(r.timestamp); return age >= 0 && age <= b[1] * 60000; }).length + 1;
+      return n >= b[0] ? ['Many ' + b[2] + ' at once (' + n + ' in ' + b[1] + ' minutes)'] : [];
+    }
+    function recentSame(rows, now, match) {
+      return rows.filter(function (r) { var age = now - stampMs(r.timestamp); return age >= 0 && age <= 30 * 864e5 && match(r); })
+        .sort(function (a, b) { return stampMs(b.timestamp) - stampMs(a.timestamp); })[0] || null;
+    }
+    function ago(st, now) { var days = Math.floor((now - stampMs(st)) / 864e5); return days < 1 ? 'sent earlier today' : days === 1 ? 'sent 1 day earlier' : 'sent ' + days + ' days earlier'; }
+    function addFlag(old, reason, replace) {
+      return String(old || '').split(' · ').map(function (x) { return x.trim(); })
+        .filter(function (x) { return x && x.toUpperCase() !== 'OK' && !(replace && x.indexOf(replace) === 0); }).concat([reason]).join(' · ');
+    }
+    function regFlags(f, tid, now, hp) {
+      var regs = db.registrations.filter(function (r) { return r.training_id === tid; }), email = String(f.email).toLowerCase(), name = normName(f.first_name + ' ' + f.last_name);
+      var why = textFlags([f.first_name, f.last_name], [f.position, f.agency], email, hp);
+      var same = regs.filter(function (r) { return r.email.toLowerCase() !== email && normName(r.first_name + ' ' + r.last_name) === name; })[0];
+      if (same) why.push('Possible duplicate of row ' + (db.registrations.indexOf(same) + 2) + ' (same name, another email)');
+      return why.concat(burst('registrations', regs, now)).join(' · ');
+    }
+    function requestFlags(f, now, hp) {
+      var email = String(f.email).toLowerCase(), why = textFlags([f.first_name, f.last_name], [f.position, f.agency], email, hp);
+      if (linkCount([f.need, f.other_topics, f.participant_types, f.location].join(' ')) >= 2) why.push('Several links in the text');
+      var prev = recentSame(db.requests, now, function (r) { return r.email.toLowerCase() === email; });
+      if (prev) why.push('Possible duplicate of row ' + (db.requests.indexOf(prev) + 2) + ' (same email, ' + ago(prev.timestamp, now) + ')');
+      return why.concat(burst('requests', db.requests, now)).join(' · ');
+    }
+    function partnerFlags(f, now, hp) {
+      var email = String(f.email).toLowerCase(), org = normName(f.organization), why = textFlags([f.first_name, f.last_name], [f.position, f.organization], email, hp);
+      if (linkCount([f.proposal, f.other_type, f.other_topics].join(' ')) >= 2) why.push('Several links in the text');
+      var prev = recentSame(db.partnerships, now, function (r) { return r.email.toLowerCase() === email || (!!org && normName(r.organization) === org); });
+      if (prev) why.push('Possible duplicate of row ' + (db.partnerships.indexOf(prev) + 2) + ' (same ' + (prev.email.toLowerCase() === email ? 'email' : 'organization') + ', ' + ago(prev.timestamp, now) + ')');
+      return why.concat(burst('partnerships', db.partnerships, now)).join(' · ');
+    }
+    function evalFlags(a) {
+      var parts = [a.will_apply, a.comments], why = [];
+      if (parts.some(function (v) { return LINK_RE.test(String(v || '')); })) why.push('A link in the comments');
+      if (parts.some(junkText)) why.push('Looks like a test or junk entry');
+      return why.join(' · ');
+    }
+    // Two entries the data stewards would see flagged: the same person registered twice, and a test request.
+    var rdFirst = db.registrations.filter(function (r) { return r.training_id === 'RDANA-1'; })[0];
+    var rdEmail = rdFirst.first_name.toLowerCase().replace(/[^a-z]/g, '') + '.personal@example.com', rdAt = D(-1) + ' 21:37';
+    var rdTwice = add(training('RDANA-1'), { first_name: rdFirst.first_name, middle_initial: rdFirst.middle_initial, last_name: rdFirst.last_name, position: rdFirst.position,
+      agency: rdFirst.agency, email: rdEmail, contact_no: rdFirst.contact_no, gad_consent: 'No', photo_consent: 'Yes', recording_consent: 'Yes', impact_consent: 'No' }, rdAt);
+    var testReq = { timestamp: D(-1) + ' 23:12', request_code: newCode(), first_name: 'Test', last_name: 'Test', full_name: 'Test Test', position: '', agency: 'asdf',
+      email: 'test.test@example.com', contact_no: '', topics: DEFAULT_TOPICS[0], other_topics: '', need: 'test', participants: 1, participant_types: '',
+      preferred_date: D(30), alternative_date: '', mode: 'Online', location: '', status: 'New', notes: '' };
+    testReq.flag = requestFlags(testReq, stampMs(testReq.timestamp), '');
+    db.requests.push(testReq);
+    db.requests.sort(byStamp);
+    db.registrations.sort(byStamp);
+    rdTwice.flag = regFlags(rdTwice, 'RDANA-1', stampMs(rdAt), '');   // after sorting, so the row number is right
+
     function counts(id) {
       var rows = db.registrations.filter(function (r) { return r.training_id === id; });
       return { count: rows.length, f: rows.filter(function (r) { return r.sex === 'Female'; }).length, m: rows.filter(function (r) { return r.sex === 'Male'; }).length };
@@ -1696,6 +1801,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         var email = String(f.email).trim().toLowerCase(), g = f.gad_consent === 'Yes';
         var r = db.registrations.filter(function (x) { return x.training_id === t.training_id && x.email.toLowerCase() === email; })[0], already = !!r;
         if (!r) {
+          var deskFlag = regFlags(f, t.training_id, ms, '');
           r = add(t, {
             first_name: f.first_name, last_name: f.last_name, middle_initial: f.middle_initial, suffix: f.suffix, position: f.position, agency: f.agency,
             email: email, contact_no: f.contact_no, gad_consent: f.gad_consent,
@@ -1703,6 +1809,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             indigenous_people: g ? f.indigenous_people : '', tribe: g && f.indigenous_people === 'Yes' ? f.tribe : '',
             photo_consent: f.photo_consent, recording_consent: f.recording_consent, impact_consent: f.impact_consent
           }, stampAt(ms), 'Walk-in');
+          r.flag = deskFlag;
         }
         var out = { status: 'ok', already: already, code: r.reg_code, name: r.full_name, checkIn: checkInAt(t, r, 'Walk-in', ms) };
         scanSeen[d.id] = out;
@@ -1718,11 +1825,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         var topics = (f.topics || []).filter(function (t) { return DEFAULT_TOPICS.indexOf(t) > -1; });
         if (!f.organization || ORG_TYPES.indexOf(f.org_type) < 0 || (!types.length && !f.other_type) || !f.proposal || !f.consent) throw new Error('Please answer every question.');
         if (f.preferred_start && f.preferred_start < today) throw new Error('Choose a date from today onward.');
-        var code = newCode(), stamp = manilaStamp();
+        var code = newCode(), stamp = manilaStamp(), pflag = partnerFlags(f, Date.now(), f.hp);
         db.partnerships.push({ timestamp: stamp, request_code: code, organization: f.organization, org_type: f.org_type, location: f.location, website: f.website,
           partnership_types: types.join('; '), other_partnership: f.other_type, topics: topics.join('; '), other_topics: f.other_topics, proposal: f.proposal,
           preferred_start: f.preferred_start, first_name: f.first_name, last_name: f.last_name, full_name: f.first_name + ' ' + f.last_name, position: f.position,
-          email: String(f.email).toLowerCase(), contact_no: f.contact_no, status: 'New', notes: '' });
+          email: String(f.email).toLowerCase(), contact_no: f.contact_no, status: 'New', notes: '', flag: pflag });
         S.flash = { tab: 'Partnerships', id: code };
         return { code: code, stamp: stamp, organization: f.organization, partnership: types.concat(f.other_type ? [f.other_type] : []).join('; '),
           topics: topics.concat(f.other_topics ? [f.other_topics] : []).join('; '), preferred_start: f.preferred_start };
@@ -1732,11 +1839,11 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (!topics.length && !f.other_topics) throw new Error('Choose at least one topic.');
         if (!f.preferred_date || f.preferred_date < today) throw new Error('Choose a preferred date from today onward.');
         if (REQUEST_MODES.indexOf(f.mode) < 0 || !f.consent) throw new Error('Please answer every question.');
-        var code = newCode(), stamp = manilaStamp(), all = topics.concat(f.other_topics ? [f.other_topics] : []).join('; ');
+        var code = newCode(), stamp = manilaStamp(), all = topics.concat(f.other_topics ? [f.other_topics] : []).join('; '), qflag = requestFlags(f, Date.now(), f.hp);
         db.requests.push({ timestamp: stamp, request_code: code, first_name: f.first_name, last_name: f.last_name, full_name: f.first_name + ' ' + f.last_name,
           position: f.position, agency: f.agency, email: String(f.email).toLowerCase(), contact_no: f.contact_no, topics: topics.join('; '), other_topics: f.other_topics,
           need: f.need, participants: Number(f.participants), participant_types: f.participant_types, preferred_date: f.preferred_date,
-          alternative_date: f.alternative_date, mode: f.mode, location: f.location, status: 'New', notes: '' });
+          alternative_date: f.alternative_date, mode: f.mode, location: f.location, status: 'New', notes: '', flag: qflag });
         S.flash = { tab: 'Requests', id: code };
         return { code: code, stamp: stamp, topics: all, preferred_date: f.preferred_date, alternative_date: f.alternative_date, mode: f.mode, participants: Number(f.participants) };
       },
@@ -1749,9 +1856,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         var dup = db.registrations.filter(function (r) { return r.training_id === t.id && r.email.toLowerCase() === email; })[0];
         var res;
         if (dup) {
+          dup.flag = addFlag(dup.flag, AGAIN + ' on ' + manilaStamp(), AGAIN);
           res = { already: true, code: dup.reg_code, name: dup.full_name, training: t, stamp: dup.timestamp };
         } else {
-          var g = f.gad_consent === 'Yes';
+          var g = f.gad_consent === 'Yes', flag = regFlags(f, t.id, Date.now(), f.hp);
           var r = add({ training_id: t.id, title: t.title }, {
             first_name: f.first_name, last_name: f.last_name, middle_initial: f.middle_initial, suffix: f.suffix, position: f.position, agency: f.agency,
             email: email, contact_no: f.contact_no, gad_consent: f.gad_consent,
@@ -1759,6 +1867,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
             indigenous_people: g ? f.indigenous_people : '', tribe: g && f.indigenous_people === 'Yes' ? f.tribe : '',
             photo_consent: f.photo_consent, recording_consent: f.recording_consent, impact_consent: f.impact_consent
           }, manilaStamp(), today >= t.start ? 'Walk-in' : 'Pre-registered');
+          r.flag = flag;
           S.flash = { tab: 'Registrations', id: r.reg_code };
           res = { already: false, code: r.reg_code, name: r.full_name, training: t, stamp: r.timestamp };
         }
@@ -1782,7 +1891,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         if (r.evaluated_on) return { status: 'already' };
         r.evaluated_on = today;
         var a = d.answers, id = 'e' + Date.now();
-        var row = { _id: id, date: today, training_id: t.id, will_apply: a.will_apply, comments: a.comments };
+        var row = { _id: id, date: today, training_id: t.id, will_apply: a.will_apply, comments: a.comments, flag: evalFlags(a) };
         EVAL_ITEMS.forEach(function (sec) {
           sec.items.forEach(function (it) {
             var v = String(a[it.key] || '');
@@ -2073,7 +2182,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       first_name: val('#firstName'), last_name: val('#lastName'), middle_initial: val('#middleInitial'), suffix: $('#suffix').value,
       position: val('#position'), agency: val('#agency'), email: val('#email'), contact_no: val('#contactNo'),
       gad_consent: radio('gad_consent'), photo_consent: radio('photo_consent'), recording_consent: radio('recording_consent'), impact_consent: radio('impact_consent'),
-      walk_in: !!S.walkIn
+      walk_in: !!S.walkIn, hp: $('#regHp').value
     };
     if (f.gad_consent === 'Yes') {
       GAD_KEYS.forEach(function (k) { f[k] = radio(k); });
@@ -2153,6 +2262,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('#regDone').hidden = false;
     try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
     $('#regDone').focus();
+    if (ci && ci.status === 'already') notify('info', 'Already checked in today', res.name + ' checked in at ' + ci.time + '.');
+    else if (ci) notify('ok', res.already ? 'Check-in successful' : 'Registered and checked in', res.name + ' · ' + ci.time + ' · Day ' + ci.day + ' of ' + ci.days);
+    else if (res.already) notify('info', 'Already registered', 'This email was already registered for ' + t.title + '.');
+    else notify('ok', 'Registration successful', res.name + ' · ' + t.title + ' · code ' + res.code);
   }
   function resetRegForm(keepTraining) {
     var keep = $('#regTraining').value;
@@ -2235,7 +2348,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       preferred_date: $('#rqDate').value, alternative_date: $('#rqAlt').value,
       mode: radio('rq_mode'), location: val('#rqPlace'),
       first_name: val('#rqFirst'), last_name: val('#rqLast'), position: val('#rqPosition'), agency: val('#rqAgency'),
-      email: val('#rqEmail'), contact_no: val('#rqContact'), consent: $('#rqConsent').checked
+      email: val('#rqEmail'), contact_no: val('#rqContact'), consent: $('#rqConsent').checked, hp: $('#rqHp').value
     };
   }
   function validateRequest(f) {
@@ -2291,6 +2404,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('#rqDone').hidden = false;
       try { window.scrollTo(0, 0); } catch (e2) { /* ignore */ }
       $('#rqDone').focus();
+      notify('ok', 'Request sent', 'Request number ' + res.code);
       if (!LIVE && S.sheetOpen) { S.sheetTab = 'Requests'; renderSheet(); }
       if (!LIVE && S.report) S.report = Demo.getReport({ training_id: S.rpTraining });
     }).catch(function (err) {
@@ -2351,7 +2465,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       topics: $$('#ptTopics input:checked').map(function (el) { return el.value; }), other_topics: val('#ptOtherTopics'),
       proposal: $('#ptProposal').value.trim(), preferred_start: $('#ptStart').value,
       first_name: val('#ptFirst'), last_name: val('#ptLast'), position: val('#ptPosition'), email: val('#ptEmail'), contact_no: val('#ptContact'),
-      consent: $('#ptConsent').checked
+      consent: $('#ptConsent').checked, hp: $('#ptHp').value
     };
   }
   function validatePartner(f) {
@@ -2404,6 +2518,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('#ptDone').hidden = false;
       try { window.scrollTo(0, 0); } catch (e2) { /* ignore */ }
       $('#ptDone').focus();
+      notify('ok', 'Partnership request sent', 'Request number ' + res.code);
       if (!LIVE && S.sheetOpen) { S.sheetTab = 'Partnerships'; renderSheet(); }
       if (!LIVE && S.report) S.report = Demo.getReport({ training_id: S.rpTraining });
     }).catch(function (err) {
@@ -2429,6 +2544,25 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     return '<div class="result ' + kind + '">' + ICONS[kind] + '<div><p class="result-title">' + esc(title) + '</p>' +
       lines.map(function (l) { return '<p>' + esc(l) + '</p>'; }).join('') + (extra || '') + '</div></div>';
   }
+  // A short note at the bottom of the screen after each step that worked, read out by screen readers.
+  function notify(kind, title, detail) {
+    var box = $('#toasts');
+    if (!box) return null;
+    var el = document.createElement('div'), timer;
+    el.className = 'toast ' + kind;
+    el.innerHTML = '<span class="t-ic">' + ICONS[kind === 'ok' ? 'ok' : 'info'].replace('width="22" height="22"', 'width="16" height="16"') + '</span>' +
+      '<div class="t-body"><p class="t-title">' + esc(title) + '</p>' + (detail ? '<p class="t-detail">' + esc(detail) + '</p>' : '') + '</div>' +
+      '<button type="button" class="t-close" aria-label="Dismiss">×</button>';
+    function close() { clearTimeout(timer); if (el.parentNode) el.parentNode.removeChild(el); }
+    function later(ms) { clearTimeout(timer); timer = setTimeout(close, ms); }
+    el.querySelector('.t-close').addEventListener('click', close);
+    el.addEventListener('mouseenter', function () { clearTimeout(timer); });
+    el.addEventListener('mouseleave', function () { later(2500); });
+    box.appendChild(el);
+    while (box.children.length > 3) box.removeChild(box.firstChild);
+    later(6000);
+    return el;
+  }
   function onCheckIn(e) {
     e.preventDefault();
     var tid = $('#ciTraining').value, key = $('#ciKey').value.trim(), err = $('#ciError');
@@ -2452,8 +2586,10 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       if (r.status === 'ok') {
         out.innerHTML = resultHTML('ok', "You're checked in", [r.name, r.time + ' · Day ' + r.day + ' of ' + r.days], keep) + demo;
         $('#ciKey').value = '';
+        notify('ok', 'Check-in successful', r.name + ' · ' + r.time + ' · Day ' + r.day + ' of ' + r.days);
       } else if (r.status === 'already') {
         out.innerHTML = resultHTML('info', 'Already checked in today', [r.name + ' checked in at ' + r.time + '.'], keep);
+        notify('info', 'Already checked in today', r.name + ' checked in at ' + r.time + '.');
       } else {
         out.innerHTML = resultHTML('warn', "We couldn't find that registration", ['Check the code or email. If you did not register, register now as a walk-in.'],
           '<button type="button" class="btn-quiet" data-walkin="' + esc(tid) + '">Register as a walk-in</button>');
@@ -3003,6 +3139,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('#regDone').hidden = false;
     try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
     $('#regDone').focus();
+    if (!res) notify('info', 'Saved on this device', item.name + ' · sent to the Sheet when the signal is back');
+    else if (ci && ci.status === 'already') notify('info', 'Already checked in today', res.name + ' checked in at ' + ci.time + '.');
+    else notify('ok', res.already ? 'Check-in successful' : 'Walk-in registered and checked in', res.name + ' · code ' + res.code);
   }
   function deskButtons(desk) {
     $('#doneCodeLabel').textContent = desk ? 'Registration code' : 'Your registration code';
@@ -3169,6 +3308,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     busy(btn, true, 'Submitting…');
     call('submitEvaluation', { training_id: tid, key: key, answers: answers }).then(function (r) {
       if (r.status === 'ok') {
+        S.evTraining = tid;   // "Another evaluation" keeps it, for the next participant on this device
         $('#evForm').reset();
         $$('#evLikert .lk-item').forEach(function (el) { el.classList.remove('missing'); });
         updateLikertProgress();
@@ -3177,6 +3317,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
         $('#evDone').hidden = false;
         try { window.scrollTo(0, 0); } catch (e2) { /* ignore */ }
         $('#evDone').focus();
+        notify('ok', 'Evaluation submitted', 'Thank you. Your answers were saved without your name.');
       } else if (r.status === 'already') {
         $('#evResult').innerHTML = resultHTML('info', 'Already evaluated', ['This registration has already sent an evaluation for this training.']);
       } else {
@@ -3775,22 +3916,22 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   var LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   var REG_HEAD = ['timestamp', 'reg_code', 'training_id', 'training_title', 'last_name', 'first_name', 'middle_initial', 'suffix', 'full_name', 'position', 'agency', 'email',
     'contact_no', 'gad_consent', 'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe', 'photo_consent', 'recording_consent', 'impact_consent', 'privacy_version',
-    'registered_as', 'evaluated_on'];
+    'registered_as', 'evaluated_on', 'flag'];
   var REG_SHOWN = ['timestamp', 'reg_code', 'training_id', 'full_name', 'agency', 'gad_consent', 'sex', 'age_range', 'senior_citizen', 'pwd', 'indigenous_people', 'tribe',
-    'photo_consent', 'recording_consent', 'impact_consent', 'registered_as', 'evaluated_on'];
+    'photo_consent', 'recording_consent', 'impact_consent', 'registered_as', 'evaluated_on', 'flag'];
   var REQ_HEAD = ['timestamp', 'request_code', 'first_name', 'last_name', 'full_name', 'position', 'agency', 'email', 'contact_no', 'topics', 'other_topics', 'need',
-    'participants', 'participant_types', 'preferred_date', 'alternative_date', 'mode', 'location', 'status', 'notes'];
-  var REQ_SHOWN = ['timestamp', 'request_code', 'full_name', 'agency', 'topics', 'participants', 'preferred_date', 'alternative_date', 'mode', 'status'];
+    'participants', 'participant_types', 'preferred_date', 'alternative_date', 'mode', 'location', 'status', 'notes', 'flag'];
+  var REQ_SHOWN = ['timestamp', 'request_code', 'full_name', 'agency', 'topics', 'participants', 'preferred_date', 'alternative_date', 'mode', 'status', 'flag'];
   var PT_HEAD = ['timestamp', 'request_code', 'organization', 'org_type', 'location', 'website', 'partnership_types', 'other_partnership', 'topics', 'other_topics',
-    'proposal', 'preferred_start', 'first_name', 'last_name', 'full_name', 'position', 'email', 'contact_no', 'status', 'notes'];
-  var PT_SHOWN = ['timestamp', 'request_code', 'organization', 'org_type', 'partnership_types', 'topics', 'preferred_start', 'full_name', 'email', 'status'];
+    'proposal', 'preferred_start', 'first_name', 'last_name', 'full_name', 'position', 'email', 'contact_no', 'status', 'notes', 'flag'];
+  var PT_SHOWN = ['timestamp', 'request_code', 'organization', 'org_type', 'partnership_types', 'topics', 'preferred_start', 'full_name', 'email', 'status', 'flag'];
   var ATT_HEAD = ['timestamp', 'date', 'training_id', 'reg_code', 'full_name', 'sex', 'agency', 'method'];
-  var EVAL_HEAD = ['date', 'training_id'].concat(evalKeys(EVAL_ITEMS), ['will_apply', 'comments']);
-  var EVAL_SHOWN = ['date', 'training_id', 'obj_clear', 'obj_met', 'rp_knowledge', 'time_enough', 'venue_ok', 'overall', 'will_apply', 'comments'];
+  var EVAL_HEAD = ['date', 'training_id'].concat(evalKeys(EVAL_ITEMS), ['will_apply', 'comments', 'flag']);
+  var EVAL_SHOWN = ['date', 'training_id', 'obj_clear', 'obj_met', 'rp_knowledge', 'time_enough', 'venue_ok', 'overall', 'will_apply', 'comments', 'flag'];
   var SHOW_LAST = 14;
   var CAPTIONS = {
     Trainings: '<strong>Organizers add one row per training.</strong> The app reads this tab to build the dropdowns. Try it: untick a show_in_list box, or move an end date into the past, and watch the Register dropdown change.',
-    Registrations: '<strong>One row per registration.</strong> The timestamp stands in for the signature. GAD columns stay blank when the person did not consent. Showing 17 of 26 columns.',
+    Registrations: '<strong>One row per registration.</strong> The timestamp stands in for the signature. GAD columns stay blank when the person did not consent. Showing 18 of 27 columns.',
     Attendance: '<strong>One row per person per training day</strong>, added at check-in. The organizer report turns these into the attendance sheet.',
     Evaluations: '<strong>No names here on purpose.</strong> Each new row goes in at a random position, so the order doesn’t show who answered when.',
     Partnerships: '<strong>One row per partnership request.</strong> Organizers update the status column. Over time this tab doubles as your directory of potential training partners.',
@@ -3803,17 +3944,30 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     if (t.state === 'open') return '<span class="chip ok">' + (t.happening ? 'Selectable · today' : 'Selectable') + '</span>';
     return '<span class="chip warn">Greyed out · ' + ({ full: 'full', closed: 'closed', completed: 'completed' }[t.state]) + '</span>';
   }
+  function colLetter(i) { return i < 26 ? LETTERS[i] : LETTERS[Math.floor(i / 26) - 1] + LETTERS[i % 26]; }
+  function isFlagged(r) { var f = String(r.flag || '').trim(); return !!f && f.toUpperCase() !== 'OK'; }
+  // What the real Sheet says when it opens (Code.gs flagSummary_), shown above the preview's grid.
+  function flagNotice() {
+    var db = Demo.db, tabs = [['Registrations', db.registrations], ['Evaluations', db.evaluations], ['Requests', db.requests], ['Partnerships', db.partnerships]];
+    var parts = [], total = 0;
+    tabs.forEach(function (t) { var n = t[1].filter(isFlagged).length; if (n) { parts.push(n + ' in ' + t[0]); total += n; } });
+    $('#sheetNotice').hidden = !total;
+    if (total) $('#sheetNotice').innerHTML = '<strong>' + (total === 1 ? '1 entry looks like a duplicate or spam' : total + ' entries look like duplicates or spam') +
+      '</strong> (' + esc(parts.join(', ')) + '). They are saved and highlighted in amber. In Google Sheets, this note pops up when the Sheet opens, and ' +
+      esc(BRAND.name || 'SANAY') + ' › Review flagged entries lists them. Type OK in the flag column once an entry is fine.';
+  }
   function gridHead(cols, extra) {
     return '<thead><tr><th class="rownum"></th>' + cols.map(function (c) { return '<th>' + c.letter + '</th>'; }).join('') + (extra || '') + '</tr></thead>';
   }
   function gridRows(name, head, shown, rows, flashId, idOf) {
-    var cols = shown.map(function (k) { return { key: k, letter: LETTERS[head.indexOf(k)] }; });
+    var cols = shown.map(function (k) { return { key: k, letter: colLetter(head.indexOf(k)) }; });
     var start = Math.max(0, rows.length - SHOW_LAST), html = gridHead(cols) + '<tbody><tr class="hdr"><td class="rownum">1</td>' +
       cols.map(function (c) { return '<td>' + c.key + '</td>'; }).join('') + '</tr>';
     if (start > 0) html += '<tr class="muted"><td class="rownum">2–' + (start + 1) + '</td><td colspan="' + cols.length + '">' + start + ' earlier rows</td></tr>';
     rows.slice(start).forEach(function (r, i) {
-      html += '<tr' + (flashId && idOf(r) === flashId ? ' class="flash"' : '') + '><td class="rownum">' + (start + i + 2) + '</td>' +
-        cols.map(function (c) { return '<td' + (c.key === 'will_apply' || c.key === 'comments' ? ' class="wrap"' : '') + '>' + esc(r[c.key]) + '</td>'; }).join('') + '</tr>';
+      var cls = [flashId && idOf(r) === flashId ? 'flash' : '', isFlagged(r) ? 'flagged' : ''].filter(Boolean).join(' ');
+      html += '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td class="rownum">' + (start + i + 2) + '</td>' +
+        cols.map(function (c) { return '<td' + (c.key === 'will_apply' || c.key === 'comments' ? ' class="wrap"' : c.key === 'flag' ? ' class="flag"' : '') + '>' + esc(r[c.key]) + '</td>'; }).join('') + '</tr>';
     });
     return html + '</tbody>';
   }
@@ -3823,6 +3977,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     $('#sheetCaption').innerHTML = CAPTIONS[tab];
     var flashId = S.flash && S.flash.tab === tab ? S.flash.id : null;
     $('#sheetLegend').innerHTML = '';
+    flagNotice();
     if (tab === 'Trainings') {
       var list = Demo.list(), byId = {};
       list.forEach(function (t) { byId[t.id] = t; });
@@ -3994,6 +4149,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       doCheckIn(S.lastReg.trainingId, S.lastReg.code);
     });
     $('#ciForm').addEventListener('submit', onCheckIn);
+    $('#ciKey').addEventListener('input', function () { if ($('#ciResult').innerHTML) $('#ciResult').innerHTML = ''; });   // the next person on a shared device
     $('#doneScan').addEventListener('click', function () { show('scan'); });
     $('#creditsBtn').addEventListener('click', openCredits);
     $('#crBy').addEventListener('click', toggleAffiliation);
@@ -4065,6 +4221,9 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       $('#evDone').hidden = true;
       $('#evFormWrap').hidden = false;
       fillEvaluation();
+      if ([].some.call($('#evTraining').options, function (o) { return o.value === S.evTraining; })) $('#evTraining').value = S.evTraining;
+      try { window.scrollTo(0, 0); } catch (e) { /* ignore */ }
+      $('#evKey').focus();
     });
     $('#rpTraining').addEventListener('change', function () { S.rpTraining = this.value; loadReport(this.value); });
     $('#rpList').addEventListener('change', function () { S.rpList = this.value; renderReport(); });
