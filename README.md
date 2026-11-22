@@ -112,7 +112,7 @@ The aim is that nobody can check in from somewhere else, with or without interne
 
 ## Admin mode
 
-For the Sheet's owner and the data stewards listed in `dataStewards`: run check-in from a phone, without opening the Sheet. Open the web app link with `?page=admin` at the end, or tap the small **lock** under the home buttons.
+For the Sheet's owner and the data stewards (listed in the `DATA_STEWARDS` script property, see [step 4 below](#keep-the-data-to-a-few-people)): run check-in from a phone, without opening the Sheet. Open the web app link with `?page=admin` at the end, or tap the small **lock** under the home buttons.
 
 **Signing in.** Type your email. SANAY emails you a 6-digit code, from the account that deployed the web app; type it within 10 minutes. You stay signed in on that device for 12 hours; **Sign out** ends it sooner. The page gives the same answer for any email, so it never shows who the admins are, and only the owner, the account that deployed the web app and the data stewards ever get a code. Five wrong codes lock sign-in for 10 minutes, ten wrong codes within 6 hours lock it for 6 hours, and an email gets at most three codes in 15 minutes. Someone taken off `dataStewards` is signed out at once.
 
@@ -174,7 +174,7 @@ All in `Code.gs`, at the top (`CONFIG`):
 - `requestTopics`: the topics people can tick when they request a training or propose a partnership. `requestPrivacy`: the note above the consent box.
 - `partnershipTypes`, `organizationTypes`, `partnershipPrivacy`: the choices and the consent note on the partnership form.
 - `certificateRule`: `'all-days'` (checked in on every training day) or `'any-day'` (at least one day). Both also need the evaluation.
-- `dataStewards`: the UP emails of the people, besides the Sheet's owner, who may open the report page, run `setup` and edit the data tabs. See below.
+- `dataStewards`: best left empty. List the data stewards in the `DATA_STEWARDS` script property instead (step 4 below), so their emails stay out of the code, survive pasting a new `Code.gs` and never end up on GitHub. Emails in either place count.
 - `evaluationItems`: the evaluation statements, in parts. Each has a `key`, which is its column in the Evaluations tab, and the `text` people see. A part with `na: true` adds *Not applicable*. To change a statement's meaning, add a new one with a new key rather than editing an old key, or old answers would be counted under the new wording. Run `setup` after adding statements so their columns appear.
 - `evaluationScale`: the five labels, from 1 to 5.
 - `selfCheckIn`: `'online'` (the default) lets people check themselves in by code or email only for online trainings; `false` never; `true` for every training, which means anyone with a code could check in from anywhere.
@@ -191,7 +191,7 @@ Participants never get access to the Sheet. The web app saves their answers thro
 1. **Share the Sheet only with the data stewards, by name.** In the Sheet, click **Share**. Under *General access*, keep **Restricted**: never *Anyone with the link*, and not *University of the Philippines* either.
 2. **Make only data stewards editors.** Anyone who can edit the Sheet can also open **Extensions › Apps Script** and change the code. If someone else needs to read the data, make them a viewer.
 3. **Tighten the sharing settings.** In the Share dialog, click the gear and untick both **Editors can change permissions and share** and **Viewers and commenters can see the option to download, print, and copy**.
-4. **List the data stewards in `Code.gs`**, for example `dataStewards: ['juan.delacruz@up.edu.ph', 'second.steward@up.edu.ph']`, then run `setup` again. From then on only the owner and these people can open the report page, run `setup` and edit the five data tabs (Registrations, Attendance, Evaluations, Requests and Partnerships).
+4. **List the data stewards in a script property, not in the code.** In the Sheet, open **Extensions › Apps Script**, click **Project Settings** (the gear on the left), scroll down to **Script Properties** and click **Add script property**. Property: `DATA_STEWARDS`. Value: their emails separated by commas, for example `juan.delacruz@up.edu.ph, second.steward@up.edu.ph`. Click **Save script properties**, then choose **SANAY › Set up or repair tabs** in the Sheet. From then on only the owner and these people can open the report page, sign in to admin mode, run setup and edit the five data tabs (Registrations, Attendance, Evaluations, Requests and Partnerships).
 5. **Check now and then.** **SANAY › Check who can see the data** lists the owner, the editors and the viewers, and marks anyone who isn't a data steward.
 
 Good to know:
