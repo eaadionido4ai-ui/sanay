@@ -32,6 +32,7 @@ class Range {
   getValues() { const out = []; for (let i = 0; i < this.nr; i++) { const row = []; for (let j = 0; j < this.nc; j++) row.push(this.sh.get(this.r + i, this.c + j)); out.push(row); } return out; }
   getValue() { return this.sh.get(this.r, this.c); }
   getRow() { return this.r; }
+  getColumn() { return this.c; } getNumRows() { return this.nr; } getNumColumns() { return this.nc; } getSheet() { return this.sh; }
   setValues(v) { assert.strictEqual(v.length, this.nr, 'row count'); v.forEach((row, i) => { assert.strictEqual(row.length, this.nc, 'col count'); row.forEach((x, j) => this.sh.set(this.r + i, this.c + j, parse(x))); }); return this; }
   setValue(x) { this.sh.set(this.r, this.c, parse(x)); return this; }
   setFormulas(f) { f.forEach((row, i) => row.forEach((x, j) => { const m = /^=\{"([^"]+)"/.exec(x); this.sh.set(this.r + i, this.c + j, m ? m[1] : { FORMULA: x }); this.sh.formulas.push(x); })); return this; }
@@ -47,6 +48,7 @@ class Sheet {
   getActiveRange() { return new Range(this, this.activeRow, 1, 1, 1); }
   appendRow(row) { const r = this.getLastRow() + 1; row.forEach((v, j) => this.set(r, j + 1, parse(v))); }
   insertRowBefore(pos) { this.data.splice(pos - 1, 0, []); }
+  deleteRow(r) { this.data.splice(r - 1, 1); }
   setFrozenRows() {} getName() { return this.name; }
   getMaxRows() { return Math.max(1000, this.data.length); } getMaxColumns() { return Math.max(26, this.getLastColumn()); }
   getConditionalFormatRules() { return (this.cf || []).slice(); } setConditionalFormatRules(r) { this.cf = r; }
@@ -78,6 +80,8 @@ let activeUser = 'owner@up.example.edu';
 const builder = { requireDate() { return this; }, requireValueInList() { return this; }, requireCheckbox() { return this; }, setAllowInvalid() { return this; }, build() { return {}; } };
 const cache = {};
 const toasts = [];
+const mails = [];
+const triggers = [];
 const cfBuilder = () => { const b = { formula: '', bg: '', ranges: [],
   whenFormulaSatisfied(f) { this.formula = f; return this; }, setBackground(c) { this.bg = c; return this; }, setRanges(r) { this.ranges = r; return this; },
   build() { const f = this.formula, bg = this.bg, ranges = this.ranges;
@@ -100,12 +104,18 @@ Object.assign(ctx, {
     getUi: () => { if (!uiAvailable) throw new Error('Cannot call SpreadsheetApp.getUi() from this context.'); return ui; },
     getActiveSheet: () => active
   },
-  Utilities: { formatDate: fmtDate, getUuid: () => crypto.randomUUID() },
+  Utilities: { formatDate: fmtDate, getUuid: () => crypto.randomUUID(), DigestAlgorithm: { SHA_256: 'SHA_256' }, Charset: { UTF_8: 'UTF_8' },
+    computeDigest: (alg, text) => Array.from(crypto.createHash('sha256').update(String(text), 'utf8').digest()).map(b => (b > 127 ? b - 256 : b)) },
+  MailApp: { sendEmail: o => mails.push(o) },
   LockService: { getScriptLock: () => ({ tryLock: () => true, releaseLock() {} }) },
-  CacheService: { getScriptCache: () => ({ put: (k, v, s) => { assert.ok(s <= 21600, 'cache time within 6 hours'); cache[k] = v; }, get: k => (k in cache ? cache[k] : null) }) },
+  CacheService: { getScriptCache: () => ({ put: (k, v, s) => { assert.ok(s >= 1 && s <= 21600, 'cache time within 6 hours'); cache[k] = v; }, get: k => (k in cache ? cache[k] : null), remove: k => { delete cache[k]; } }) },
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); },
     deleteProperty: k => { delete props[k]; }, getProperties: () => Object.assign({}, props) }) },
-  ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }) },
+  ScriptApp: {
+    getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }),
+    getProjectTriggers: () => triggers.filter(t => t.user === 'owner@up.example.edu').map(t => ({ getHandlerFunction: () => t.fn })),
+    newTrigger: fn => { const t = { fn, user: 'owner@up.example.edu' }; const b = { forSpreadsheet() { return b; }, onEdit() { t.type = 'onEdit'; return b; }, onChange() { t.type = 'onChange'; return b; }, create() { triggers.push(t); return t; } }; return b; }
+  },
   HtmlService: {
     XFrameOptionsMode: { ALLOWALL: 'ALLOWALL' },
     createTemplateFromFile: name => (template = { name, evaluate() { return { tpl: this, setTitle() { return this; }, addMetaTag() { return this; }, setXFrameOptionsMode() { return this; } }; } }),
@@ -320,6 +330,15 @@ function DATA_TABS_OK() {
 vm.runInContext("CONFIG.dataStewards = ['Steward@up.example.edu']", ctx);
 ctx.setup();
 ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,steward@up.example.edu', 'listed data stewards can edit the data tabs too');
+// the script property DATA_STEWARDS: emails kept out of the code, so they survive pasting a new Code.gs
+props.DATA_STEWARDS = ' Prop.Steward@up.example.edu, not an email;STEWARD@up.example.edu\n prop.steward@up.example.edu ';
+ok(vm.runInContext('stewards_()', ctx).join() === 'steward@up.example.edu,prop.steward@up.example.edu',
+  'DATA_STEWARDS: separated by commas, semicolons, spaces or new lines, any case; repeats and non-emails skipped');
+ctx.setup();
+ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,prop.steward@up.example.edu,steward@up.example.edu', 'data stewards in DATA_STEWARDS can edit the data tabs too');
+delete props.DATA_STEWARDS;
+ctx.setup();
+ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,steward@up.example.edu', 'taken out of DATA_STEWARDS, setup removes their edit rights');
 activeUser = 'intern@gmail.example.com';
 const before = Object.keys(cache).length;
 ctx.openReport();
@@ -334,6 +353,7 @@ ok(/page=report&amp;key=/.test((dialogs.pop() || {}).html || ''), 'a data stewar
 ctx.checkAccess();
 const acc = dialogs.pop();
 ok(acc.title === 'Who can see the data' && /intern@gmail\.example\.com <b[^>]*>· not a data steward/.test(acc.html) && /viewer@up\.example\.edu <b/.test(acc.html) && !/steward@up\.example\.edu <b/.test(acc.html) && !/owner@up\.example\.edu <b/.test(acc.html), 'access check lists everyone and flags people who are not data stewards (not the owner)');
+ok(/Data stewards \(DATA_STEWARDS\)/.test(acc.html) && /<li>steward@up\.example\.edu<\/li>/.test(acc.html), 'Check who can see the data also lists the data stewards');
 ok(/@OnlyCurrentDoc/.test(src), 'the script is limited to this one Sheet');
 vm.runInContext('CONFIG.dataStewards = []', ctx);
 activeUser = 'owner@up.example.edu';
@@ -348,7 +368,23 @@ const cr = brand.credits, me = cr.people[0];
 ok(cr.heading === 'Conceptualized and Developed with AI Assistance by:' && cr.people.length === 1 && me.name === 'Edward Andrew A. Dionido' &&
   me.lines.join('|') === 'Science Research Specialist II|Institution Building Division|University of the Philippines Resilience Institute' &&
   me.additionalAffiliation.join('|') === 'Graduate Student (Ongoing)|College of Professional and Graduate Studies|De La Salle University Dasmariñas' &&
-  cr.dateDeveloped === 'November 2026' && brand.figure && /^M/.test(brand.figure.d), 'credits in the developer format with the additional affiliation, and the half Oblation, reach the page');
+  cr.dateDeveloped === 'November 2026', 'credits in the developer format, with the additional affiliation, reach the page');
+ok(brand.backdrop === null || /^data:image\/(jpeg|png|webp);base64,/.test(brand.backdrop.src), 'the background photo from Logos.gs, if there is one, is a data: image');
+ok(brand.backdrop && brand.backdrop.fit === 'right' && brand.backdrop.credit === 'Edward Andrew A. Dionido' && brand.backdrop.creditLink === '',
+  "the background photo is EA's photo of the Oblation at UP BGC, along the right edge, credited to him");
+const photoBytes = Buffer.from(brand.backdrop.src.split(',')[1], 'base64');
+ok(photoBytes.length < 160 * 1024 && photoBytes.indexOf(Buffer.from('Exif')) < 0 && photoBytes.indexOf(Buffer.from('GPS')) < 0,
+  'the photo is small (%d KB) and carries no location, time or camera data'.replace('%d', Math.round(photoBytes.length / 1024)));
+const bd = ctx.backdrop_({ src: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', position: '50% 30%', credit: '  Photo: A. Person  ', creditLink: 'https://example.org/photos/1' });
+ok(bd && bd.position === '50% 30%' && bd.credit === 'Photo: A. Person' && bd.creditLink === 'https://example.org/photos/1' && ctx.backdrop_({ src: 'https://example.org/oblation.jpg' }).position === 'center',
+  'background photo: a data: image or an https link reaches the page, with its focus, credit and the link to the photo');
+ok(ctx.backdrop_({ src: 'https://example.org/a.jpg', creditLink: 'javascript:alert(1)' }).creditLink === '' && ctx.backdrop_({ src: 'https://example.org/a.jpg', creditLink: 'https://x.org/" onclick="x' }).creditLink === '',
+  'background photo: a credit link that is not a plain https link is dropped');
+ok(ctx.backdrop_(null) === null && ctx.backdrop_({ src: 'javascript:alert(1)' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg") ; background: red' }) === null &&
+  ctx.backdrop_({ src: 'data:image/svg+xml;base64,PHN2Zz4=' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg', position: 'url(x); color: red' }).position === 'urlx color red',
+  'background photo: anything that could break out of the CSS is refused');
+ok(ctx.backdrop_({ src: 'https://example.org/a.jpg', fit: 'right' }).fit === 'right' && ctx.backdrop_({ src: 'https://example.org/a.jpg', fit: 'left; color: red' }).fit === 'cover' && bd.fit === 'cover',
+  'background photo: it fills the screen, or stands along the right edge; nothing else gets in');
 vm.runInContext("var keepCredits = CONFIG.credits; CONFIG.credits = { heading: '  By:  ', people: [{ name: ' ' }, { name: 'A. Person', lines: ['Role', '  '] }, null] }", ctx);
 const cr2 = JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits;
 ok(cr2.heading === 'By:' && cr2.people.length === 1 && cr2.people[0].lines.join() === 'Role' && cr2.people[0].additionalAffiliation.length === 0 && cr2.dateDeveloped === '',
@@ -358,7 +394,7 @@ ok(JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits.people.length =
 vm.runInContext('CONFIG.credits = keepCredits', ctx);
 ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
 ok(brand.expansion === 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY' && brand.project === 'TaTaK Resilience Project' &&
-  brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
+  brand.projectMark === 'TaTaK' && brand.projectShort === 'TaTaK Resilience' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
 
 // 8b. check-in scanner at the door
 const keyOf = html => (/page=scan&amp;k=([0-9a-f]+)/.exec(html || '') || [])[1];
@@ -552,6 +588,174 @@ throws(() => ctx.reviewFlags(), /data steward/, 'only the owner and data steward
 throws(() => ctx.showFlagged('Registrations', 2), /data steward/, 'or jump to them');
 activeUser = 'owner@up.example.edu';
 vm.runInContext('CONFIG.dataStewards = []', ctx);
+
+// 8c. admin mode: sign in with a code sent to the email, then run check-in from the web app
+const codeOf = m => (/admin code is (\d{6})/.exec(m.body) || [])[1];
+const lastMail = () => mails[mails.length - 1];
+mails.length = 0;
+let sent = ctx.adminSendCode({ email: ' Intern@gmail.example.com ' });
+ok(sent.email === 'intern@gmail.example.com' && sent.minutes === 10 && mails.length === 0, 'someone who is not an admin gets the same answer as an admin, and no email');
+throws(() => ctx.adminSignIn({ email: 'intern@gmail.example.com', code: '123456' }), /expired/, 'and no code lets them in');
+throws(() => ctx.adminSendCode({ email: 'not an email' }), /valid email/, 'a code needs a real email');
+sent = ctx.adminSendCode({ email: 'OWNER@up.example.edu' });
+ok(mails.length === 1 && mails[0].to === 'owner@up.example.edu' && /^\d{6}$/.test(codeOf(mails[0])) && !/\d{6}/.test(mails[0].subject) && mails[0].htmlBody.includes(codeOf(mails[0])),
+  'the owner gets an email with a 6-digit code (not in the subject line)');
+const code1 = codeOf(mails[0]);
+ok(!JSON.stringify(cache).includes(code1), 'the code itself is not kept, only a hash of it');
+throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: String((+code1 + 1) % 1000000).padStart(6, '0') }), /not right/, 'a wrong code is refused');
+const adm = ctx.adminSignIn({ email: 'owner@up.example.edu', code: code1 });
+ok(/^[0-9a-f]{64}$/.test(adm.token) && adm.email === 'owner@up.example.edu' && adm.until > Date.now() + 11.9 * 3600000, 'the right code signs in for 12 hours');
+ok(!Object.keys(props).concat(Object.values(props)).some(v => v.includes(adm.token)), 'the session key is kept only as a hash');
+throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: code1 }), /expired/, 'a code works once');
+ctx.adminSendCode({ email: 'owner@up.example.edu' });
+const code2 = codeOf(lastMail()), wrong = String((+code2 + 7) % 1000000).padStart(6, '0');
+for (let i = 0; i < 4; i++) throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: wrong }), /not right/, 'wrong code ' + (i + 1) + ' refused');
+throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: wrong }), /Too many wrong codes/, 'the fifth wrong code locks sign-in for 10 minutes');
+throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: code2 }), /Too many wrong codes/, 'even the right code, while locked');
+throws(() => ctx.adminSendCode({ email: 'owner@up.example.edu' }), /Too many wrong codes/, 'and no new code meanwhile');
+Object.keys(cache).filter(k => /^admin(lock|sent):/.test(k)).forEach(k => delete cache[k]);
+// a new code does not reset the count: ten wrong codes within 6 hours lock the email for 6 hours
+ctx.adminSendCode({ email: 'owner@up.example.edu' });
+const code3 = codeOf(lastMail()), wrong3 = String((+code3 + 3) % 1000000).padStart(6, '0');
+for (let i = 0; i < 4; i++) throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: wrong3 }), /not right/, 'another code, wrong try ' + (6 + i));
+throws(() => ctx.adminSignIn({ email: 'owner@up.example.edu', code: wrong3 }), /locked for 6 hours/, 'the tenth wrong try within 6 hours, over two codes, locks sign-in for 6 hours');
+throws(() => ctx.adminSendCode({ email: 'owner@up.example.edu' }), /locked for 6 hours/, 'and no code is sent meanwhile');
+Object.keys(cache).filter(k => /^admin(lock|sent|fail):/.test(k)).forEach(k => delete cache[k]);
+['1', '2', '3'].forEach(() => ctx.adminSendCode({ email: 'someone@example.com' }));
+throws(() => ctx.adminSendCode({ email: 'someone@example.com' }), /already sent 3 times/, 'at most 3 codes per email in 15 minutes');
+const A = extra => Object.assign({ token: adm.token }, extra);
+throws(() => ctx.adminHome({ token: 'f'.repeat(64) }), /signed out/, 'a made-up session key is refused');
+throws(() => ctx.adminHome({}), /signed out/, 'no key, no admin data');
+throws(() => ctx.adminCheckIn({ training_id: 'SAMPLE-1', code: r1.code }), /signed out/, 'and no admin action');
+const home = ctx.adminHome(A());
+ok(home.email === 'owner@up.example.edu' && home.trainings[0].id === 'SAMPLE-1' && home.trainings[0].when === 'now' && home.detail.training.id === 'SAMPLE-1',
+  'admin mode opens on the training happening today');
+ok(home.trainings.map(t => t.when).join() === 'now,next,past,past' && isPlain(home), 'then upcoming and past trainings; plain JSON: ' + home.trainings.map(t => t.id + ':' + t.when).join());
+const det0 = home.detail;
+ok(det0.trainingDay && det0.checkin.open && det0.day === tday && det0.days.length === 2 && det0.days[0].n === det0.checkedIn.length,
+  'check-in is open today, with the count for each training day');
+ok(det0.people.length === table('Registrations').filter(r => r.training_id === 'SAMPLE-1').length &&
+  det0.people.every(p => Object.keys(p).sort().join() === 'agency,code,flagged,name,walkIn'), 'the list has names, offices and codes only: no emails or numbers');
+ok(det0.people.find(p => p.code === junkR.code).flagged && !det0.people.find(p => p.code === clean.code).flagged, 'flagged entries are marked in the list');
+const scA = ctx.adminScanner(A({ training_id: 'SAMPLE-1' }));
+ok(/^[0-9a-f]{32}$/.test(scA.key) && /^\d{6}$/.test(scA.pin) && scA.link.endsWith('page=scan&k=' + scA.key), 'admin mode gives the scanner link and PIN, to open the scanner here or add a device');
+throws(() => ctx.adminScanner(A({ training_id: 'SAMPLE-3' })), /has ended/, 'no scanner for a training that has ended');
+// close check-in for the rest of today
+const closedDet = ctx.adminSetCheckIn(A({ training_id: 'SAMPLE-1', open: false }));
+ok(!closedDet.checkin.open && /^\d{1,2}:\d{2} (AM|PM)$/.test(closedDet.checkin.time) && closedDet.checkin.by === 'owner@up.example.edu', 'check-in closed, with the time and who closed it');
+const lateA = ctx.register(person({ email: 'late.a@example.com', first_name: 'Lito', last_name: 'Abad' }));
+const lateB = ctx.register(person({ email: 'late.b@example.com', first_name: 'Nora', last_name: 'Bayani' }));
+const inAtt = code => table('Attendance').some(a => a.reg_code === code);
+const sClosed = ctx.scanSync({ key: scA.key, pin: scA.pin, items: [{ id: 'closed-1', code: lateA.code, at: Date.now() }] });
+ok(sClosed.results[0].status === 'closed' && !inAtt(lateA.code), 'after closing, a scan checks no one in');
+ok(sClosed.checkin.open === false && /AM|PM/.test(sClosed.checkin.time), 'and every scanner hears that check-in is closed, so it can say so even offline');
+ok(ctx.scanSync({ key: scA.key, pin: scA.pin, items: [{ id: 'closed-2', code: lateB.code, at: Date.now() - 3600000 }] }).results[0].status === 'ok' && inAtt(lateB.code),
+  'a scan made before closing, sent later by a phone that had no signal, still counts');
+ok(ctx.scanSync({ key: scA.key, pin: scA.pin, items: [{ id: 'closed-3', code: lateB.code, at: Date.now() }] }).results[0].status === 'already', 'someone already in is still shown as already in');
+const wClosed = ctx.scanWalkIn({ key: scA.key, pin: scA.pin, id: 'desk-closed', at: Date.now(), form: person({ email: 'closed.walkin@example.com', first_name: 'Nena', last_name: 'Cruz' }) });
+ok(wClosed.status === 'ok' && wClosed.checkIn.status === 'closed' && table('Registrations').some(r => r.email === 'closed.walkin@example.com') && !inAtt(wClosed.code),
+  'a walk-in at the door after closing is registered but not checked in');
+throws(() => ctx.checkIn({ training_id: 'SAMPLE-1', key: wClosed.code }), /closed for today/, 'self check-in is closed too');
+const wPhone = ctx.register(person({ email: 'closed.phone@example.com', first_name: 'Pia', last_name: 'Dela Rosa', walk_in: true }));
+ok(wPhone.checkIn && wPhone.checkIn.status === 'closed' && !inAtt(wPhone.code), 'a walk-in registering on a phone is registered, not checked in');
+const byHand = ctx.adminCheckIn(A({ training_id: 'SAMPLE-1', code: 'sanay:' + wClosed.code.toLowerCase() }));
+ok(byHand.result.status === 'ok' && table('Attendance').find(a => a.reg_code === wClosed.code).method === 'Admin' && byHand.checkedIn.some(c => c.code === wClosed.code && c.method === 'Admin'),
+  'an admin can still check someone in by hand');
+ok(ctx.adminCheckIn(A({ training_id: 'SAMPLE-1', code: wClosed.code })).result.status === 'already', 'checking in by hand twice says already in');
+throws(() => ctx.adminCheckIn(A({ training_id: 'SAMPLE-1', code: r3.code })), /No one with that code/, 'only people registered for this training');
+throws(() => ctx.adminCheckIn(A({ training_id: 'SAMPLE-2', code: r3.code })), /only on the training days/, 'and only on the training days');
+const reopened = ctx.adminSetCheckIn(A({ training_id: 'SAMPLE-1', open: true }));
+ok(reopened.checkin.open && ctx.scanSync({ key: scA.key, pin: scA.pin, items: [{ id: 'open-again', code: lateA.code, at: Date.now() }] }).results[0].status === 'ok', 'reopened: scans check people in again');
+props['checkin:SAMPLE-1'] = JSON.stringify({ day: add(-1), at: Date.now() - 864e5, by: 'owner@up.example.edu' });
+ok(ctx.adminTraining(A({ training_id: 'SAMPLE-1' })).checkin.open && ctx.getScanner({ key: scA.key, pin: scA.pin }).checkin.open, 'closing lasts only for the day it was closed');
+delete props['checkin:SAMPLE-1'];
+throws(() => ctx.adminSetCheckIn(A({ training_id: 'SAMPLE-2', open: false })), /only on a training day/, 'check-in can be closed only on a training day');
+// undo a check-in made by mistake
+const undone = ctx.adminUndoCheckIn(A({ training_id: 'SAMPLE-1', code: lateA.code, date: tday }));
+ok(!inAtt(lateA.code) && !undone.checkedIn.some(c => c.code === lateA.code) && undone.day === tday, 'undo removes the check-in');
+throws(() => ctx.adminUndoCheckIn(A({ training_id: 'SAMPLE-1', code: lateA.code, date: tday })), /not checked in/, 'undoing twice says so');
+throws(() => ctx.adminUndoCheckIn(A({ training_id: 'SAMPLE-1', code: lateB.code, date: add(1) })), /up to today/, 'only training days up to today');
+ok(ctx.adminTraining(A({ training_id: 'SAMPLE-1', date: add(1) })).day === tday, 'a day that has not come yet shows today instead');
+const scB = ctx.adminScanner(A({ training_id: 'SAMPLE-1', renew: true }));
+ok(scB.key !== scA.key && /^\d{6}$/.test(scB.pin), 'a new scanner link and PIN from admin mode');
+throws(() => ctx.getScanner({ key: scA.key, pin: scA.pin }), /expired or is not valid/, 'and the old one stops working');
+// data stewards, and the end of a session
+vm.runInContext("CONFIG.dataStewards = ['steward@up.example.edu']", ctx);
+ctx.adminSendCode({ email: 'steward@up.example.edu' });
+const sSt = ctx.adminSignIn({ email: 'steward@up.example.edu', code: codeOf(lastMail()) });
+ok(ctx.adminHome({ token: sSt.token }).email === 'steward@up.example.edu', 'a data steward signs in the same way');
+vm.runInContext('CONFIG.dataStewards = []', ctx);
+throws(() => ctx.adminHome({ token: sSt.token }), /signed out/, 'taken off the list, a steward is signed out at once');
+props.DATA_STEWARDS = 'other.steward@up.example.edu, prop.steward@up.example.edu';
+ctx.adminSendCode({ email: 'Prop.Steward@up.example.edu' });
+const sPr = ctx.adminSignIn({ email: 'prop.steward@up.example.edu', code: codeOf(lastMail()) });
+ok(ctx.adminHome({ token: sPr.token }).email === 'prop.steward@up.example.edu', 'a data steward listed only in the DATA_STEWARDS script property signs in too');
+delete props.DATA_STEWARDS;
+throws(() => ctx.adminHome({ token: sPr.token }), /signed out/, 'taken out of DATA_STEWARDS, signed out at once');
+const sessKey = Object.keys(props).find(k => k.startsWith('admin:') && JSON.parse(props[k]).e === 'owner@up.example.edu');
+const keepSess = props[sessKey];
+props[sessKey] = JSON.stringify({ e: 'owner@up.example.edu', x: Date.now() - 1000 });
+throws(() => ctx.adminHome(A()), /signed out/, 'after 12 hours, sign in again');
+ok(!props[sessKey], 'and the ended session is removed');
+props[sessKey] = keepSess;
+ok(ctx.adminSignOut(A({ station: true })).ok && !props[sessKey], 'signing out ends the session');
+throws(() => ctx.adminHome(A()), /signed out/, 'signed out means signed out');
+ok(ctx.adminSignOut(A()).ok, 'signing out twice does no harm');
+
+// 8d. the Changelog tab
+const logs = () => table('Changelog');
+ok(T('Changelog').getRange(1, 1, 1, 9).getValues()[0].join() === 'timestamp,who,action,tab,row,record,column,old_value,new_value', 'the Changelog tab and its columns');
+ok(T('Changelog').protection && T('Changelog').protection.editors.join() === 'owner@up.example.edu' && /changelog: only the owner and the data stewards/.test(T('Changelog').protection.desc),
+  'only the owner and the data stewards can edit the Changelog');
+ok(triggers.filter(t => t.fn === 'logSheetEdit' && t.type === 'onEdit').length === 1 && triggers.filter(t => t.fn === 'logSheetChange' && t.type === 'onChange').length === 1,
+  'setup turns on the edit log once, however often it runs');
+const has = (action, f) => logs().some(l => (typeof action === 'string' ? l.action === action : action.test(l.action)) && (!f || f(l)));
+ok(has('Ran Set up or repair tabs', l => l.who === 'owner@up.example.edu' && l.timestamp instanceof CtxDate), 'setup runs are logged, with who and when');
+ok(has('Made a report link (works 6 hours)', l => l.record === 'SAMPLE-1') && has('Opened the scanner link and PIN (Sheet menu)') && has(/^Made a new scanner link and PIN/),
+  'report and scanner links from the Sheet menu are logged');
+ok(has('Signed in to admin mode', l => l.who === 'steward@up.example.edu') && has('Signed out of admin mode to make the device a check-in station'), 'admin sign-ins and sign-outs are logged');
+ok(has('Admin sign-in locked for 10 minutes after 5 wrong codes', l => l.who === 'owner@up.example.edu') && has('Admin sign-in locked for 6 hours after 10 wrong codes'), 'locked sign-ins are logged');
+ok(has('Closed check-in for the rest of today', l => l.record === 'SAMPLE-1' && /^Closed from \d/.test(l.new_value)) && has('Reopened check-in'), 'closing and reopening check-in are logged');
+ok(has('Checked someone in by hand after check-in closed', l => l.record === wClosed.code && l.new_value.startsWith('Nena')), 'a check-in by hand is logged');
+ok(has('Undid a check-in', l => l.record === lateA.code && /Lito/.test(l.old_value) && l.tab === 'Attendance'), 'an undone check-in is logged with what it was');
+ok(!logs().some(l => /valuat/i.test(l.action)) && !logs().some(l => l.record === lateB.code), 'evaluations and ordinary scans are not logged: the data tabs already record them');
+const R = T('Registrations'), RH = R.getRange(1, 1, 1, R.getLastColumn()).getValues()[0];
+const row1 = regRow(r1.code), agencyCol = RH.indexOf('agency') + 1;
+R.getRange(row1, agencyCol).setValue("'MDRRMO Dalisay");                 // a steward fixes the office in the Sheet
+ctx.logSheetEdit({ range: R.getRange(row1, agencyCol), oldValue: 'MDRRMO San Isidro', value: 'MDRRMO Dalisay', user: { getEmail: () => 'Steward@up.example.edu' } });
+let l1 = logs().pop();
+ok(l1.action === 'Edited a cell' && l1.tab === 'Registrations' && l1.row === row1 && l1.column === 'agency' && l1.record === r1.code &&
+  l1.old_value === 'MDRRMO San Isidro' && l1.new_value === 'MDRRMO Dalisay' && l1.who === 'steward@up.example.edu', 'an edit in the Sheet: who, where, whose row, old and new value');
+ctx.logSheetEdit({ range: R.getRange(row1, RH.indexOf('last_name') + 1), oldValue: '=IMPORTXML("http://x.example","//a")' });
+l1 = logs().pop();
+ok(typeof l1.old_value === 'string' && l1.old_value.startsWith('=IMPORTXML') && l1.who.startsWith('A Sheet editor'), 'old values are kept as text (never run as formulas); no email from Google, no name invented');
+ctx.logSheetEdit({ range: R.getRange(5, 2, 3, 2) });
+l1 = logs().pop();
+ok(l1.action === 'Changed 6 cells at once (pasted, filled or cleared)' && l1.column === 'B5:C7' && l1.row === '5–7', 'a paste over several cells is logged with the range');
+ctx.logSheetEdit({ range: T('Evaluations').getRange(2, 3), oldValue: '4' });
+l1 = logs().pop();
+ok(l1.tab === 'Evaluations' && l1.record === 'SAMPLE-1', 'an edited evaluation is named by its training only');
+const before8d = logs().length;
+ctx.logSheetEdit({ range: T('Changelog').getRange(2, 3), oldValue: 'x' });
+ctx.logSheetEdit({ range: { getSheet: 'not a function' } });
+ctx.logSheetEdit({ range: 'A1' });
+ctx.logSheetEdit(null);
+ctx.logSheetChange({ changeType: 'REMOVE_ROW' });
+ctx.logSheetChange({ changeType: 'INSERT_ROW', source: { getActiveSheet: () => T('Registrations') } });
+ok(logs().length === before8d, 'not logged: edits in the Changelog itself, inserted rows, and calls from the web page that are not real edits');
+ctx.logSheetChange({ changeType: 'REMOVE_ROW', source: { getActiveSheet: () => T('Registrations') }, user: { getEmail: () => 'owner@up.example.edu' } });
+l1 = logs().pop();
+ok(l1.action === 'Deleted rows' && l1.tab === 'Registrations' && /Version history/.test(l1.new_value), 'deleted rows are logged, with the tab');
+ctx.logSheetChange({ changeType: 'REMOVE_ROW', source: { getActiveSheet: () => T('Changelog') } });
+ok(logs().pop().tab === 'Changelog', 'deleting lines from the Changelog itself is logged too');
+const ownTab = new (Object.getPrototypeOf(T('Trainings')).constructor)('My notes');
+ctx.logSheetChange({ changeType: 'REMOVE_ROW', source: { getActiveSheet: () => ownTab } });
+ok(logs().length === before8d + 2, 'tabs of your own are left alone');
+const logSize = logs().length;
+vm.runInContext("var keepSheet = SpreadsheetApp.getActiveSpreadsheet; SpreadsheetApp.getActiveSpreadsheet = function () { throw new Error('Sheet unavailable'); }", ctx);
+ok(vm.runInContext('log_({ who: "x", action: "y" }); true', ctx), 'a problem writing the log never stops the work');
+vm.runInContext('SpreadsheetApp.getActiveSpreadsheet = keepSheet', ctx);
+ok(logs().length === logSize, 'and writes nothing half-way');
 
 // 9. full and hidden
 const trS = T('Trainings'), H = trS.getRange(1, 1, 1, trS.getLastColumn()).getValues()[0];

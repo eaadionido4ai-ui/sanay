@@ -28,7 +28,7 @@ SKELETON = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>%s</body></html>')
 (OUT / 'preview.html').write_text(SKELETON.replace('%s', (ROOT / 'src' / 'app.html').read_text(encoding='utf-8')), encoding='utf-8')
 
-# What Code.gs writes into the deployed page (CONFIG, the logos, the half Oblation), read from Code.gs and Logos.gs themselves
+# What Code.gs writes into the deployed page (CONFIG, the logos, the background photo), read from Code.gs and Logos.gs themselves
 BRAND = json.loads(subprocess.run(['node', '-e', '''
 const vm = require("vm"), fs = require("fs"), ctx = vm.createContext({});
 for (const f of ["Code.gs", "Logos.gs"]) vm.runInContext(fs.readFileSync(process.argv[1] + "/" + f, "utf8"), ctx, { filename: f });
@@ -63,6 +63,17 @@ def route_fonts(pg):
     pg.route('https://fonts.googleapis.com/**', lambda r: r.fulfill(status=200, content_type='text/css', body=css, headers=CORS))
     pg.route('https://fonts.gstatic.com/local/**', lambda r: r.fulfill(
         status=200, path=str(FONTS / r.request.url.rsplit('/', 1)[1]), headers=dict(CORS, **{'Content-Type': 'font/woff2'})))
+
+
+def tiny_png(w=6, h=4, grey=120):
+    """A small grey PNG as a data: URI, standing in for a background photo."""
+    import struct, zlib
+    raw = b''.join(b'\x00' + bytes([grey]) * w for _ in range(h))
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 0, 0, 0, 0))
+           + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+    return 'data:image/png;base64,' + base64.b64encode(png).decode('ascii')
 
 
 def open_page(browser, w, h, dark=False, brand=None, dsf=1):
@@ -168,6 +179,8 @@ with sync_playwright() as p:
     check(pg.is_hidden('#credits'), 'Escape closes the credits')
 
     go(pg, 'register')
+    label = pg.eval_on_selector('#view-register .mini-mark', "m => [m.textContent, (m.querySelector('.mm-t b') || {}).textContent, getComputedStyle(m).whiteSpace]")
+    check(label == ['TaTaK Resilience|SANAY', 'TaTaK', 'nowrap'], 'the label at the top of each screen: TaTaK Resilience | SANAY, with TaTaK in bold: %s' % label)
     groups = pg.eval_on_selector_all('#regTraining optgroup', 'gs => gs.map(g => g.label)')
     check(groups == ['Open for registration', 'Full or closed', 'Completed'], 'dropdown groups: %s' % groups)
     check(pg.eval_on_selector_all('#regTraining optgroup:not([label^="Open"]) option', 'os => os.every(o => o.disabled)'), 'full, closed and completed trainings cannot be chosen')
@@ -306,6 +319,16 @@ with sync_playwright() as p:
     check(not errors or all('fonts.g' in e for e in errors), 'no script errors on the phone: %s' % errors[:3])
     ctx.close()
 
+    # the label still fits on one line beside Home on narrow phones
+    for w in (320, 360):
+        ctx, pg, errors = open_page(browser, w, 720)
+        go(pg, 'register')
+        g = pg.evaluate("""() => { const bar = document.querySelector('#view-register .topbar'), b = bar.querySelector('.back').getBoundingClientRect(),
+            m = bar.querySelector('.mini-mark').getBoundingClientRect(), r = bar.getBoundingClientRect();
+            return [Math.round(m.left - b.right), Math.round(r.right - m.right), Math.abs(m.top - b.top) < 20, getComputedStyle(bar.querySelector('.mini-mark')).fontSize]; }""")
+        check(g[0] >= 4 and g[1] >= 0 and g[2], 'a %d px phone: the label fits on one line beside Home: %s' % (w, g))
+        ctx.close()
+
     # ---------------- one device, many people; duplicates and spam flagged in the Sheet ----------------
     ctx, pg, errors = open_page(browser, 1360, 900)
     def quick_register(first, last, email, training='RDANA-1', bot=''):
@@ -349,6 +372,131 @@ with sync_playwright() as p:
     pg.locator('#toasts .toast').last.wait_for(state='detached', timeout=9000)
     check(pg.locator('#toasts .toast').count() == 0, 'success notes close by themselves after a few seconds')
     check(not errors or all('fonts.g' in e for e in errors), 'no script errors while flagging: %s' % errors[:3])
+    ctx.close()
+
+    # ---------------- admin mode: sign in with an emailed code, then run check-in from a phone ----------------
+    ctx, pg, errors = open_page(browser, 390, 844, dsf=2)
+    lock = pg.locator('#adminBtn')
+    check(lock.is_visible() and lock.get_attribute('aria-label').startswith('Admin mode'), 'a small lock beside the credits opens admin mode')
+    lock.click()
+    pg.wait_for_selector('#adEmailForm:not([hidden])')
+    check(pg.inner_text('#adTitle') == 'Admin sign-in' and pg.is_hidden('#adMain'), 'admin mode starts at sign-in')
+    no_overflow(pg, 'admin sign-in (phone)')
+    pg.screenshot(path=str(OUT / '20-phone-admin-sign-in.png'))
+    pg.fill('#adEmail', 'not-an-email'); pg.click('#adSend')
+    check('valid email' in pg.inner_text('#adEmailErr'), 'a code needs a real email')
+    pg.fill('#adEmail', 'ea@example.org'); pg.click('#adSend')
+    pg.wait_for_selector('#adCodeForm:not([hidden])')
+    check('ea@example.org' in pg.inner_text('#adSentTo') and pg.inner_text('#adSentTo').startswith('If ') and pg.is_visible('#adDemo'),
+          'the reply never says who is an admin ("If ... can use admin mode, a code is on its way")')
+    pg.fill('#adCode', '111111'); pg.click('#adGo')
+    pg.wait_for_function('!document.querySelector("#adCodeErr").hidden')
+    check('not right' in pg.inner_text('#adCodeErr') and pg.is_hidden('#adMain'), 'a wrong code keeps admin mode shut')
+    pg.fill('#adCode', '135790'); pg.click('#adGo')
+    pg.wait_for_selector('#adMain:not([hidden])')
+    pg.wait_for_function('document.querySelector("#adPeople li") !== null')
+    check(pg.inner_text('#adWho') == 'ea@example.org' and pg.locator('#toasts .toast.ok .t-title').last.inner_text() == 'Signed in to admin mode', 'the right code signs in, with a note')
+    check(pg.input_value('#adTraining') == 'ICS-4' and pg.locator('#adTraining optgroup').first.get_attribute('label') == 'Today', 'admin mode opens on the training happening today')
+    check(pg.inner_text('#adStatus .badge') == 'Open' and 'Day 2 of 3' in pg.inner_text('#adStatus'), 'check-in shows as open, on day 2 of 3')
+    n_in, n_of = int(pg.inner_text('#adIn')), int(pg.inner_text('#adOf'))
+    check(n_of == pg.locator('#adPeople li').count() and 0 < n_in < n_of, 'the count and the list match: %d of %d in' % (n_in, n_of))
+    check(pg.locator('#adDays button').count() == 2 and pg.get_attribute('#adDays button >> nth=1', 'aria-pressed') == 'true', 'days so far to choose from, today chosen')
+    no_overflow(pg, 'admin mode (phone)')
+    pg.screenshot(path=str(OUT / '21-phone-admin.png'))
+    # close check-in for the rest of today
+    pg.click('#adToggle')
+    check(pg.inner_text('#adToggle') == 'Tap again to close check-in' and pg.inner_text('#adStatus .badge') == 'Open', 'closing check-in asks for a second tap')
+    pg.click('#adToggle')
+    pg.wait_for_function('document.querySelector("#adStatus .badge").textContent === "Closed"')
+    check('by ea@example.org' in pg.inner_text('#adStatus') and pg.inner_text('#adToggle') == 'Reopen check-in', 'closed: since when, by whom, and a Reopen button')
+    pg.screenshot(path=str(OUT / '22-phone-admin-closed.png'))
+    not_in = pg.get_attribute('#adPeople [data-in] >> nth=0', 'data-in')   # someone not in yet
+    # the scanner, opened from admin mode on this phone: no PIN to type, and it knows check-in is closed
+    pg.click('#adScan')
+    pg.wait_for_selector('#scMain:not([hidden])')
+    check(pg.is_hidden('#scPinForm') and pg.is_visible('#scAdmin') and 'Check-in closed at' in pg.inner_text('#scLead'), 'the scanner opens without asking for the PIN, says check-in is closed, and has a way back')
+    in_before = pg.inner_text('#scIn')
+    pg.fill('#scCode', not_in); pg.press('#scCode', 'Enter')
+    check(pg.inner_text('#scResult .st') == 'Check-in is closed' and pg.inner_text('#scIn') == in_before, 'a scan after closing checks no one in')
+    pg.screenshot(path=str(OUT / '23-phone-scanner-closed.png'))
+    pg.click('#scMain .seg [data-mode="walkin"]')
+    pg.fill('#firstName', 'Nena'); pg.fill('#lastName', 'Cruz'); pg.fill('#agency', 'BFP Malaya'); pg.fill('#email', 'nena.cruz@example.com')
+    pg.click('label[for="gadNo"]'); pg.click('label[for="photo_consent-Yes"]'); pg.click('label[for="recording_consent-Yes"]'); pg.click('label[for="impact_consent-No"]')
+    pg.click('#regSubmit')
+    pg.wait_for_selector('#regDone:not([hidden])', timeout=15000)
+    check(pg.inner_text('#doneTitle') == 'Registered, not checked in' and 'check-in is closed' in pg.inner_text('#doneLead'), 'a walk-in at the door after closing is registered but not checked in')
+    pg.click('#doneScan')
+    pg.click('#scAdmin')
+    pg.wait_for_selector('#adMain:not([hidden])')
+    # check someone in by hand, then undo it
+    pg.fill('#adSearch', 'Nena Cruz')
+    pg.wait_for_selector('#adPeople [data-in]')
+    check(pg.locator('#adPeople li').count() == 1, 'back in admin mode, the list already has the walk-in from the door')
+    pg.click('#adPeople [data-in]')
+    check(pg.inner_text('#adPeople [data-in]') == 'Tap again to confirm', 'checking in by hand asks for a second tap')
+    pg.click('#adPeople [data-in]')
+    pg.wait_for_function('document.querySelector("#adPeople .ad-how") !== null')
+    check(pg.inner_text('#adPeople .ad-how') == 'By an admin' and pg.locator('#toasts .t-title').last.inner_text() == 'Checked in by hand', 'an admin checks Nena in by hand, though check-in is closed')
+    pg.click('#adPeople [data-undo]'); pg.click('#adPeople [data-undo]')
+    pg.wait_for_function('document.querySelector("#adPeople [data-in]") !== null')
+    check(pg.locator('#toasts .t-title').last.inner_text() == 'Check-in undone', 'undo, with a second tap, removes the check-in')
+    pg.fill('#adSearch', '')
+    pg.click('#adDays button >> nth=0')
+    pg.wait_for_function('document.querySelector("#adDays button").getAttribute("aria-pressed") === "true"')
+    check(pg.locator('#adPeople [data-in]').count() == 0 and 'on ' in pg.inner_text('#adSum'), 'an earlier day: who came, no Check in buttons: ' + pg.inner_text('#adSum')[:40])
+    pg.click('#adDays button >> nth=1')
+    pg.wait_for_function('document.querySelector("#adDays button:last-child").getAttribute("aria-pressed") === "true"')
+    pg.click('#adAdd')
+    pg.wait_for_selector('#adAddBox:not([hidden])')
+    check(pg.inner_text('#adPin') == '246810' and pg.locator('#adAddQr svg').count() == 1, 'Add a device shows the scanner QR code and PIN')
+    pg.click('#adToggle')
+    pg.wait_for_function('document.querySelector("#adStatus .badge").textContent === "Open"')
+    check(True, 'reopened with one tap')
+    pg.select_option('#adTraining', 'RDANA-1')
+    pg.wait_for_function('document.querySelector("#adStatus .badge").textContent === "Not yet"')
+    check(pg.is_hidden('#adToggle') and pg.is_hidden('#adDays') and 'registered so far' in pg.inner_text('#adSum'), 'an upcoming training: nothing to close yet, the people registered so far')
+    pg.select_option('#adTraining', 'ICS-3')
+    pg.wait_for_function('document.querySelector("#adStatus .badge").textContent === "Ended"')
+    check(pg.is_hidden('#adDevices') and pg.locator('#adDays button').count() == 3, 'a training that ended: no scanner, but every day to look back at')
+    pg.select_option('#adTraining', 'ICS-4')
+    pg.wait_for_function('document.querySelector("#adStatus .badge").textContent === "Open"')
+    # a check-in station signs this device out of admin mode first
+    pg.click('#adStation')
+    check(pg.inner_text('#adStation').startswith('Tap again'), 'a check-in station asks for a second tap')
+    pg.click('#adStation')
+    pg.wait_for_function('document.querySelector("#view-scan").classList.contains("station")')
+    check(pg.is_hidden('#scAdmin') and pg.is_hidden('#scPinForm'), 'the station opens with no way back to admin mode')
+    inside = pg.evaluate("""() => { const card = document.querySelector('#view-scan').getBoundingClientRect();
+        return [...document.querySelectorAll('#view-scan .sc-top > *')].filter(e => e.offsetParent !== null).map(e => Math.round(card.right - e.getBoundingClientRect().right)); }""")
+    check(len(inside) == 2 and min(inside) >= 8, 'check-in station: the label and the connection pill stay inside the card (the pill goes under the label if needed): %s' % inside)
+    pg.click('#scExitBtn'); pg.fill('#scExitPin', '246810'); pg.press('#scExitPin', 'Enter')
+    pg.evaluate("() => { location.hash = '#admin'; }")
+    pg.wait_for_selector('#adEmailForm:not([hidden])')
+    check(pg.is_hidden('#adMain'), 'after making a station, admin mode on that device needs signing in again')
+    # the Changelog tab in the preview's Sheet
+    pg.set_viewport_size({'width': 1360, 'height': 900})
+    pg.click('#toggleSheet'); pg.click('#sheetTabs [data-tab="Changelog"]')
+    pg.evaluate('window.scrollTo(0, 0)')
+    sheet_w = pg.evaluate("document.querySelector('#sheet').getBoundingClientRect().width")
+    check(sheet_w > 600, 'on a desktop, the Sheet panel sits beside admin mode at full width (%d px)' % sheet_w)
+    log = pg.inner_text('#grid')
+    for line in ('Signed in to admin mode', 'Closed check-in for the rest of today', 'Opened the scanner link and PIN (admin mode)',
+                 'Checked someone in by hand after check-in closed', 'Undid a check-in', 'Reopened check-in', 'Signed out of admin mode to make the device a check-in station'):
+        check(line in log, 'the Changelog has "%s"' % line)
+    check('Nena Cruz' in log and 'ea@example.org' in log and 'Edited a cell' in log, 'with who did it and whose row; edits made in the Sheet are there too')
+    pg.screenshot(path=str(OUT / '24-desktop-changelog.png'))
+    check(not errors or all('fonts.g' in e for e in errors), 'no script errors in admin mode: %s' % errors[:3])
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, dark=True, dsf=2)
+    pg.click('#adminBtn'); pg.fill('#adEmail', 'ea@example.org'); pg.click('#adSend')
+    pg.wait_for_selector('#adCodeForm:not([hidden])'); pg.fill('#adCode', '135790'); pg.click('#adGo')
+    pg.wait_for_function('document.querySelector("#adPeople li") !== null')
+    pg.locator('#toasts .toast').last.wait_for(state='detached', timeout=9000)
+    pg.screenshot(path=str(OUT / '25-phone-admin-dark.png'))
+    pg.click('#adOut')
+    pg.wait_for_selector('#adEmailForm:not([hidden])')
+    check(pg.locator('#toasts .t-title').last.inner_text() == 'Signed out of admin mode' and pg.input_value('#adEmail') == '', 'Sign out goes back to sign-in, with an empty email box')
+    check(not errors or all('fonts.g' in e for e in errors), 'no script errors in admin mode, dark: %s' % errors[:3])
     ctx.close()
 
     # ---------------- check-in scanner at the door ----------------
@@ -594,14 +742,62 @@ with sync_playwright() as p:
     pg.screenshot(path=str(OUT / '08-desktop-dark-register.png'))
     ctx.close()
 
+    # ---------------- a background photo: faded, under the woven pattern, not on report pages ----------------
+    photo = dict(BRAND, backdrop={'src': tiny_png(), 'position': '50% 30%', 'credit': 'Test Person on Flickr', 'creditLink': 'https://www.example.org/photos/1'})
+    ctx, pg, errors = open_page(browser, 390, 844, brand=photo)
+    st = pg.evaluate("""() => { const el = document.querySelector('#bgPhoto'), cs = getComputedStyle(el), weave = getComputedStyle(document.body, '::before');
+        return [!el.hidden, cs.backgroundImage.slice(0, 26), cs.backgroundPosition, cs.position, cs.zIndex, weave.zIndex, cs.opacity]; }""")
+    check(st == [True, 'url("data:image/png;base64', '50% 30%', 'fixed', '-2', '-1', '0.24'], 'background photo: fixed, faded, under the woven pattern: %s' % st)
+    lt = pg.evaluate("""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return [q('#bgPhoto').filter, q('.inst-1').color, q('.band-trim').stroke, q('.logos').boxShadow.startsWith('rgba(0, 0, 0, 0)')]; }""")
+    check(lt == ['none', 'rgb(26, 31, 28)', 'rgba(0, 0, 0, 0)', True], 'light mode: the photo in color and no gold touches: %s' % lt)
+    pg.click('#creditsBtn')
+    link = pg.locator('#crList dd a')
+    check(pg.locator('#crList dt').all_text_contents() == ['Background photo', 'QR codes', 'Runs on'] and link.count() == 1 and link.inner_text() == 'Test Person on Flickr'
+          and link.get_attribute('href') == 'https://www.example.org/photos/1' and link.get_attribute('target') == '_blank' and 'noopener' in link.get_attribute('rel'),
+          'the photo credit comes first in the credits notes and links to the photo, in a new tab')
+    pg.click('#crClose')
+    pg.evaluate("() => document.body.classList.add('is-report')")
+    on_top = pg.evaluate("""() => { const r = document.querySelector('#go-register').getBoundingClientRect();
+        return document.elementFromPoint(r.left + r.width / 2, r.top + 3).closest('#go-register') !== null; }""")
+    check(on_top, 'the home buttons sit above the shade behind the title')
+    check(pg.is_hidden('#bgPhoto'), 'background photo: not behind report pages')
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, dark=True, brand=photo)
+    dk = pg.evaluate("""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return [q('#bgPhoto').opacity, q('#bgPhoto').filter.startsWith('grayscale(1)'), q('.inst-1').color, q('.action-icon').color, q('.band-trim').stroke]; }""")
+    check(dk == ['0.24', True, 'rgb(214, 181, 103)', 'rgb(214, 181, 103)', 'rgb(214, 181, 103)'], 'dark mode: warm black-and-white photo and the gold touches: %s' % dk)
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, brand=dict(BRAND, backdrop={'src': 'https://example.org/a.jpg") ; background: red'}))
+    check(pg.is_hidden('#bgPhoto'), 'background photo: a link that could break out of the CSS is not used')
+    ctx.close()
+    # fit 'right': along the right edge of wide screens, fading in from the left; phones show the whole photo
+    edge = dict(BRAND, backdrop={'src': tiny_png(6, 4), 'position': '58% 30%', 'fit': 'right', 'credit': 'A. Person'})
+    look = """() => { const el = document.querySelector('#bgPhoto'), cs = getComputedStyle(el);
+        return [el.classList.contains('edge'), cs.backgroundSize, cs.backgroundPosition, (cs.maskImage || cs.webkitMaskImage || 'none') !== 'none',
+                el.style.getPropertyValue('--photo-aspect'), cs.opacity]; }"""
+    ctx, pg, errors = open_page(browser, 1440, 900, brand=edge)
+    pg.wait_for_function("document.querySelector('#bgPhoto').style.getPropertyValue('--photo-aspect') !== ''")
+    st = pg.evaluate(look)
+    # Chromium writes "right -40px top" back as "calc(100% + 40px) 0%": the same spot
+    check(st[:2] == [True, 'auto 100%'] and st[2] in ('right -40px top 0px', 'calc(100% + 40px) 0%') and st[3] and st[4] == '1.5' and abs(float(st[5]) - 0.384) < 0.001,
+          'wide screen: the photo at full height along the right edge, fading in from the left, a little stronger: %s' % st)
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, brand=edge)
+    st = pg.evaluate(look)
+    check(st[:4] == [True, 'cover', '58% 30%', False] and st[5] == '0.24', 'phone: the same photo fills the screen, as before: %s' % st)
+    ctx.close()
+
     # ---------------- deployed look: real logos and names ----------------
     ctx, pg, errors = open_page(browser, 390, 844, brand=BRAND, dsf=2)
     check(pg.locator('#logos img').count() == 3, 'deployed look: three logos')
-    check(pg.is_visible('#figure svg path'), 'deployed look: the half Oblation at the right edge')
+    check(pg.is_visible('#bgPhoto') == bool(BRAND.get('backdrop')) and not pg.locator('#figure').count(), 'deployed look: the background photo when Logos.gs has one, and no half Oblation')
     pg.click('#creditsBtn')
     notes = pg.locator('#crList dt').all_text_contents()
-    check(notes == ['QR codes', 'Runs on'] and not any(w in pg.inner_text('#credits') for w in ('Oblation', 'Logos', 'NOAH', 'Garamond')),
-          'deployed credits: no Oblation, logo or font notes, only QR codes and Runs on: %s' % notes)
+    check(notes == ['Background photo', 'QR codes', 'Runs on'] and not any(w in pg.inner_text('#credits') for w in ('Oblation', 'Logos', 'NOAH', 'Garamond')),
+          'deployed credits: the photo credit, QR codes and Runs on; no Oblation, logo or font notes: %s' % notes)
+    check(pg.inner_text('#crList dd >> nth=0') == 'Edward Andrew A. Dionido' and pg.locator('#crList dd a').count() == 0,
+          "deployed credits: EA's photo, credited by name with no link")
     by = [l.strip() for l in pg.inner_text('#crBy').split('\n') if l.strip()]
     check(by == ['Conceptualized and Developed with AI Assistance by:', 'Edward Andrew A. Dionido', 'Science Research Specialist II',
                  'Institution Building Division', 'University of the Philippines Resilience Institute', 'Date Developed: November 2026'],

@@ -15,7 +15,7 @@ A web app for the UP Resilience Institute's trainings. The home screen shows the
 | **Request a training** | Any time | Offices tell you the topics they need, the number of participants and their preferred dates, mode and venue. |
 | **Training partnership** | Any time | Organizations offer to co-organize, send trainers, host, fund, send participants or develop materials. Over time the Partnerships tab becomes your list of potential training partners. |
 
-Organizers also get a **check-in scanner** for the door and a **report page**, both opened from the Google Sheet. The report page has:
+Organizers also get a **check-in scanner** for the door and a **report page**, both opened from the Google Sheet, and the data stewards get an **admin mode** in the web app to run check-in from a phone (see [Admin mode](#admin-mode)). A **Changelog** tab in the Sheet records who changed what. The report page has:
 
 - **Attendance sheet** in the GAD template layout, on 13 × 8.5 in long bond paper (landscape), for each training day, all days, or the registration list. Spare numbered rows on the last page let walk-ins sign by hand.
 - **Certificates**: who is eligible, meaning they checked in and answered the evaluation. Anyone who isn't eligible is **highlighted** with the reason (for example "attended 2 of 3 days, no evaluation") so you can check. You can filter to eligible only or to-check only, and copy the eligible names, offices and emails for a mail merge.
@@ -31,7 +31,7 @@ Print or save any of them as a PDF from the browser.
 
 The Google Sheet is the database. Google Apps Script serves the page and writes the rows. Nothing else to host or pay for.
 
-The pages carry a faint half silhouette of the Oblation along the right edge, and a small **(i)** under the home buttons opens the credits.
+Behind the woven pattern the deployed app shows a faded photo of the Oblation at UP BGC (see *Background photo* below). Under the home buttons, a small **lock** opens admin mode and a small **(i)** opens the credits.
 
 ## What's in this repository
 
@@ -39,7 +39,7 @@ The pages carry a faint half silhouette of the Oblation along the right edge, an
 apps-script/      the three files to paste into Apps Script (Code.gs, Logos.gs, Index.html) and the manifest
 src/app.html      the page source; opened outside Apps Script it runs as a preview with sample data
 assets/logos/     UP, UPRI and NOAH logos, cropped from the GAD attendance template
-assets/figure/    the half Oblation silhouette for the right edge of the pages
+assets/backdrop/  the background photo, with backdrop.json (the file, the part to keep in view, the credit)
 tools/build.py    builds apps-script/Index.html and apps-script/Logos.gs from src/ and assets/
 tests/            back-end tests against a mock Sheet, and browser checks (tests/vendor holds the QR reader they use)
 ```
@@ -52,12 +52,12 @@ tests/            back-end tests against a mock Sheet, and browser checks (tests
    - Click **+ › Script**, name it `Logos`, paste [`apps-script/Logos.gs`](apps-script/Logos.gs).
    - Click **+ › HTML**, name it `Index` (exactly), paste [`apps-script/Index.html`](apps-script/Index.html).
    - Save.
-3. **Create the tabs.** In the toolbar choose the function `setup` and click **Run**. Approve the permissions. This makes the Trainings, Registrations, Attendance, Evaluations, Requests and Partnerships tabs with three SAMPLE trainings, and a **SANAY** menu in the Sheet.
+3. **Create the tabs.** In the toolbar choose the function `setup` and click **Run**, from the Sheet owner's account. Approve the permissions: besides this Sheet, SANAY asks to **send email as you** (the sign-in codes for admin mode) and to **run when you are not present** (the Changelog's record of edits). This makes the Trainings, Registrations, Attendance, Evaluations, Requests, Partnerships and Changelog tabs with three SAMPLE trainings, and a **SANAY** menu in the Sheet.
 4. **Publish the web app.** **Deploy › New deployment › gear › Web app**. *Execute as:* Me. *Who has access:* Anyone. Deploy, then copy the web app link.
 5. **Try it.** Open the link on your phone. Register for SAMPLE-1, then in the Sheet open **SANAY › Open the check-in scanner** and scan your QR code. Evaluate, send a request. Then delete the SAMPLE rows from the Trainings tab.
 6. **Lock it down** before real people register: see [Keep the data to a few people](#keep-the-data-to-a-few-people).
 
-After you change any file: **Deploy › Manage deployments › pencil › Version: New version › Deploy**. The link stays the same. If you already ran `setup` with an older version, run it again (**SANAY › Set up or repair tabs**): it adds the new columns and tabs, such as the `flag` columns and their highlight, without touching your data. (If you tried the first version, with four ratings, its old Evaluations columns stay but are no longer used. Delete them, or delete the test Evaluations tab before you run `setup`.)
+After you change any file: **Deploy › Manage deployments › pencil › Version: New version › Deploy**. The link stays the same. If you already ran `setup` with an older version, run it again from the owner's account (**SANAY › Set up or repair tabs**): it adds the new columns and tabs, such as the `flag` columns and the Changelog, turns on the Changelog's record of edits, and asks for any new permissions, without touching your data. (If you tried the first version, with four ratings, its old Evaluations columns stay but are no longer used. Delete them, or delete the test Evaluations tab before you run `setup`.)
 
 ## Running a training
 
@@ -69,7 +69,7 @@ After you change any file: **Deploy › Manage deployments › pencil › Versio
    - `?page=request` for offices that want to ask for a training
    - `?page=partner` for organizations that want to partner with you
 3. **Watch the counts.** The `registered`, `female` and `male` columns of the Trainings tab update themselves.
-4. **On the day, check people in at the door** with the scanner. See below.
+4. **On the day, check people in at the door** with the scanner. See below. From a phone, [admin mode](#admin-mode) opens the scanner, closes check-in when it's time, and fixes mistakes.
 5. **Print the report.** In the Sheet, click the training's row, then **SANAY › Open the report page**. The link works for 6 hours. Choose the part and the list (a day, all days, or registered). Then **Print or save as PDF**. In the print dialog, keep the paper at 13 × 8.5 in, landscape, with background graphics on.
 6. **Certificates.** After the last day, open **Certificates**. Check the highlighted people (for example, someone who forgot to check in one morning), then use **Copy eligible names** for your certificate mail merge.
 7. **Evaluation results.** Once the evaluation closes (14 days after the last day), open **Evaluation results** and print or save it for your post-activity report.
@@ -110,6 +110,34 @@ The aim is that nobody can check in from somewhere else, with or without interne
 
 **Requests** land in the Requests tab. Update its `status` column as you go: New, Contacted, Scheduled, Done or Declined. **Partnership requests** land in the Partnerships tab, with the statuses New, Contacted, In talks, Partner or Declined.
 
+## Admin mode
+
+For the Sheet's owner and the data stewards (listed in the `DATA_STEWARDS` script property, see [step 4 below](#keep-the-data-to-a-few-people)): run check-in from a phone, without opening the Sheet. Open the web app link with `?page=admin` at the end, or tap the small **lock** under the home buttons.
+
+**Signing in.** Type your email. SANAY emails you a 6-digit code, from the account that deployed the web app; type it within 10 minutes. You stay signed in on that device for 12 hours; **Sign out** ends it sooner. The page gives the same answer for any email, so it never shows who the admins are, and only the owner, the account that deployed the web app and the data stewards ever get a code. Five wrong codes lock sign-in for 10 minutes, ten wrong codes within 6 hours lock it for 6 hours, and an email gets at most three codes in 15 minutes. Someone taken off `dataStewards` is signed out at once.
+
+**What you can do**, for the training you pick (today's comes first, then upcoming, then past ones):
+
+- **Close check-in for today** (tap twice). From then on, the scanners, the check-in station, the walk-in desk and self check-in stop checking anyone new in, and each scanner says so, even with no signal once it has heard. Scans made before the closing time still count when a phone sends them later. Walk-ins at the desk are still registered, just not checked in. Check-in opens again by itself the next day, or tap **Reopen check-in**.
+- **See who's in**, today or on an earlier training day, with a search and a filter for checked in or not yet. Each check-in shows its time and how it was made (QR code, from the list, typed code, walk-in, self check-in or by an admin).
+- **Check someone in by hand** (tap twice), even after closing, for someone without their QR code. **Undo** (tap twice) removes a check-in made by mistake; the Changelog keeps what it was.
+- **Open the scanner on this device**, with no link to copy and no PIN to type; **Admin mode** at its top brings you back.
+- **Make this device a check-in station** (tap twice). It signs this device out of admin mode first, because a station stands where participants are.
+- **Add a device** shows the scanner's QR code and PIN for another phone, and **Make a new link and PIN** replaces them. Use this for phones you hand to the door staff: they get the scanner, not admin mode.
+
+Everything done in admin mode goes into the Changelog with your email. The list refreshes by itself every 30 seconds. To add parts to admin mode later, see the note above `var AD` in `src/app.html` and `adminTraining` in `Code.gs`.
+
+## Changelog
+
+The **Changelog** tab is SANAY's record of who changed what. One line per change, newest at the bottom: when, who, what, the tab and row, whose row it was (the registration code, training or request number), the column, and the old and new value.
+
+- **Edits in the Sheet**: every cell someone changes in the SANAY tabs, with the old and the new value. A paste or a cleared block of cells is one line with its range. Deleted rows, columns and tabs are recorded too, with where; Google doesn't say which rows, so **File › Version history** shows them.
+- **Admin mode**: sign-ins and sign-outs, a sign-in locked after wrong codes, check-in closed or reopened, check-ins by hand, undone check-ins, and scanner links and PINs opened or replaced.
+- **The Sheet menu**: report links made, the scanner dialog opened, a new scanner link and PIN, and each run of Set up or repair tabs.
+- **Not recorded here**: what participants send (their registrations, check-ins, requests and partnership requests are already rows of their own), and evaluations, which are never tied to a person. An edited evaluation is named only by its training.
+
+Who made an edit: Google gives the editor's email only for accounts in the owner's organization, such as UP accounts; for others the line says *A Sheet editor (Google did not share the email)*. Only the owner and the data stewards can edit the Changelog, and old values are kept as text, so nothing in it runs as a formula. The record of edits runs on two triggers that `setup` turns on from the owner's account, so run **Set up or repair tabs** from the owner's account once (in a shared drive, from any data steward's account). The Changelog holds old values, names included, so when you delete old personal data, delete its Changelog lines too.
+
 ### Success messages and shared devices
 
 Every step that works ends with a short green note at the bottom of the screen: **Registration successful** (with the name, training and code), **Check-in successful**, **Walk-in registered and checked in**, **Evaluation submitted**, **Request sent**, **Partnership request sent**. When nothing new was saved, the note is grey instead: *Already registered*, *Already checked in today*, or *Saved on this device* at the walk-in desk with no signal. The note closes by itself after a few seconds, and screen readers read it out. The scanner confirms each scan in its own way: a green card with the name, a beep and a buzz.
@@ -140,13 +168,14 @@ All in `Code.gs`, at the top (`CONFIG`):
 
 - `name` and `expansion`. In the expansion, the letters that spell the name are highlighted, in order and with their case: S-A-N-A-Y. The same goes for `projectMark` in `projectExpansion`: Ta-Ta-K in *TagapagTaguyod ng Kasanayan tungo sa Katatagan*.
 - `project`, `projectMark`, `projectExpansion`: the TaTaK Resilience Project line above the name. `projectAccent`: a word in the expansion shown in green, now *Katatagan*, since it means resilience.
+- `projectShort`: the label at the top of every screen but home, before the name: **TaTaK Resilience | SANAY**, with `projectMark` in bold.
 - `institution`, `address`, `contactNo`, `email`: the header and footer of the printed pages.
 - `privacyStatement`: word for word from the template. If you change it, change `privacyVersion` too. Each registration records the version the person saw.
 - `mediaStatement` and `impactStatement`: the photo, recording and follow-up interview consent. **This wording is a draft. Have the Data Protection Officer review it.**
 - `requestTopics`: the topics people can tick when they request a training or propose a partnership. `requestPrivacy`: the note above the consent box.
 - `partnershipTypes`, `organizationTypes`, `partnershipPrivacy`: the choices and the consent note on the partnership form.
 - `certificateRule`: `'all-days'` (checked in on every training day) or `'any-day'` (at least one day). Both also need the evaluation.
-- `dataStewards`: the UP emails of the people, besides the Sheet's owner, who may open the report page, run `setup` and edit the data tabs. See below.
+- `dataStewards`: best left empty. List the data stewards in the `DATA_STEWARDS` script property instead (step 4 below), so their emails stay out of the code, survive pasting a new `Code.gs` and never end up on GitHub. Emails in either place count.
 - `evaluationItems`: the evaluation statements, in parts. Each has a `key`, which is its column in the Evaluations tab, and the `text` people see. A part with `na: true` adds *Not applicable*. To change a statement's meaning, add a new one with a new key rather than editing an old key, or old answers would be counted under the new wording. Run `setup` after adding statements so their columns appear.
 - `evaluationScale`: the five labels, from 1 to 5.
 - `selfCheckIn`: `'online'` (the default) lets people check themselves in by code or email only for online trainings; `false` never; `true` for every training, which means anyone with a code could check in from anywhere.
@@ -154,7 +183,7 @@ All in `Code.gs`, at the top (`CONFIG`):
 
 Logos: replace the files in `assets/logos/` (keep `logos.json` in step) and run `python3 tools/build.py`, or edit `Logos.gs` directly. An entry's `src` can also be an image link.
 
-The Oblation: `assets/figure/oblation.svg` is the half silhouette at the right edge, one path whose right edge is the statue's center line. Replace it and run `python3 tools/build.py`. To leave it out, delete `FIGURE` from `Logos.gs`. It and the logos appear only in the deployed app, not in the preview.
+Background photo: the deployed app shows EA's own photo of the Oblation at UP BGC, from `assets/backdrop/`. `backdrop.json` names the file and sets `fit` (`right` stands the photo at full height along the right edge of laptop and desktop screens, fading in from the left, so the statue stands beside the buttons instead of behind the title; `cover` fills the screen; phones always show the whole photo), `position` (the part of the photo kept in view when a screen crops it, e.g. `58% 30%`), `credit` (shown first in the credits box; leave it empty if no credit is needed) and `creditLink` (the photo's page, if it has one; the credit links to it). Then run `python3 tools/build.py`. The page fades it (`--photo-opacity`, a little stronger along the right edge) and draws the woven pattern and the two color washes over it. Dark mode shows it black-and-white with a little warmth (`--photo-filter`) and adds a touch of gold: the trim along the bands, a ring around the logos, the university name and the button icons. A soft shade behind the logos and the title (`--scrim`) keeps their text readable over the photo. It loads with every page, so keep the file small (about 800 px wide, under 150 KB), and save it without the location and camera data phones store in photos: the repository is public. Use a photo you have the rights to. To leave it out, delete `BACKDROP` from `Logos.gs`. Like the logos, it appears only in the deployed app, not in the preview.
 
 ## Keep the data to a few people
 
@@ -163,7 +192,7 @@ Participants never get access to the Sheet. The web app saves their answers thro
 1. **Share the Sheet only with the data stewards, by name.** In the Sheet, click **Share**. Under *General access*, keep **Restricted**: never *Anyone with the link*, and not *University of the Philippines* either.
 2. **Make only data stewards editors.** Anyone who can edit the Sheet can also open **Extensions › Apps Script** and change the code. If someone else needs to read the data, make them a viewer.
 3. **Tighten the sharing settings.** In the Share dialog, click the gear and untick both **Editors can change permissions and share** and **Viewers and commenters can see the option to download, print, and copy**.
-4. **List the data stewards in `Code.gs`**, for example `dataStewards: ['juan.delacruz@up.edu.ph', 'second.steward@up.edu.ph']`, then run `setup` again. From then on only the owner and these people can open the report page, run `setup` and edit the five data tabs (Registrations, Attendance, Evaluations, Requests and Partnerships).
+4. **List the data stewards in a script property, not in the code.** In the Sheet, open **Extensions › Apps Script**, click **Project Settings** (the gear on the left), scroll down to **Script Properties** and click **Add script property**. Property: `DATA_STEWARDS`. Value: their emails separated by commas, for example `juan.delacruz@up.edu.ph, second.steward@up.edu.ph`. Click **Save script properties**, then choose **SANAY › Set up or repair tabs** in the Sheet. From then on only the owner and these people can open the report page, sign in to admin mode, run setup and edit the five data tabs (Registrations, Attendance, Evaluations, Requests and Partnerships).
 5. **Check now and then.** **SANAY › Check who can see the data** lists the owner, the editors and the viewers, and marks anyone who isn't a data steward.
 
 Good to know:
@@ -183,6 +212,8 @@ Good to know:
 - The impact-interview list shows only people who said yes. Saying yes doesn't oblige anyone to take part later.
 - The report page needs a fresh link from the Sheet menu, valid for at most 6 hours, because the web app itself is open to anyone.
 - The scanner needs its link and a PIN, shows only names, offices and codes, works only for its training, and can be replaced from the Sheet. QR codes hold only the registration code. A check-in station shows each result for a few seconds and never lists other people.
+- Admin mode needs a code sent to an admin's email each time, lasts 12 hours on a device, and shows names, offices and codes only. The page never tells who the admins are. SANAY keeps only a fingerprint (hash) of each code and session, never the code itself.
+- The Changelog names whoever changed what, but never ties an evaluation to a person.
 - Flags only describe the entry ("same name, another email"); evaluations stay anonymous when flagged.
 - Never commit exported data or a filled-in attendance sheet to this repository. **The repository is public.**
 
@@ -192,7 +223,7 @@ Good to know:
 - **Signatures:** the submission time stands in for the signature. If COA or Finance need wet signatures, for example for meals, print the attendance sheet and have people sign beside the time.
 - **Certificates for multi-day trainings** currently need every day. Switch `certificateRule` to `'any-day'` if a certificate of attendance should go to anyone who came.
 - **Evaluation statements:** the 16 statements are a starting set. If UPRI or UP has a standard evaluation form, put its statements in `evaluationItems`.
-- **Pre-test and post-test** come next.
+- **Pre-test and post-test**: a plan is being studied.
 
 ## Develop
 
