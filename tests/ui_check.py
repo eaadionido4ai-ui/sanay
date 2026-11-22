@@ -179,6 +179,8 @@ with sync_playwright() as p:
     check(pg.is_hidden('#credits'), 'Escape closes the credits')
 
     go(pg, 'register')
+    label = pg.eval_on_selector('#view-register .mini-mark', "m => [m.textContent, (m.querySelector('.mm-t b') || {}).textContent, getComputedStyle(m).whiteSpace]")
+    check(label == ['TaTaK Resilience|SANAY', 'TaTaK', 'nowrap'], 'the label at the top of each screen: TaTaK Resilience | SANAY, with TaTaK in bold: %s' % label)
     groups = pg.eval_on_selector_all('#regTraining optgroup', 'gs => gs.map(g => g.label)')
     check(groups == ['Open for registration', 'Full or closed', 'Completed'], 'dropdown groups: %s' % groups)
     check(pg.eval_on_selector_all('#regTraining optgroup:not([label^="Open"]) option', 'os => os.every(o => o.disabled)'), 'full, closed and completed trainings cannot be chosen')
@@ -317,6 +319,16 @@ with sync_playwright() as p:
     check(not errors or all('fonts.g' in e for e in errors), 'no script errors on the phone: %s' % errors[:3])
     ctx.close()
 
+    # the label still fits on one line beside Home on narrow phones
+    for w in (320, 360):
+        ctx, pg, errors = open_page(browser, w, 720)
+        go(pg, 'register')
+        g = pg.evaluate("""() => { const bar = document.querySelector('#view-register .topbar'), b = bar.querySelector('.back').getBoundingClientRect(),
+            m = bar.querySelector('.mini-mark').getBoundingClientRect(), r = bar.getBoundingClientRect();
+            return [Math.round(m.left - b.right), Math.round(r.right - m.right), Math.abs(m.top - b.top) < 20, getComputedStyle(bar.querySelector('.mini-mark')).fontSize]; }""")
+        check(g[0] >= 4 and g[1] >= 0 and g[2], 'a %d px phone: the label fits on one line beside Home: %s' % (w, g))
+        ctx.close()
+
     # ---------------- one device, many people; duplicates and spam flagged in the Sheet ----------------
     ctx, pg, errors = open_page(browser, 1360, 900)
     def quick_register(first, last, email, training='RDANA-1', bot=''):
@@ -454,6 +466,9 @@ with sync_playwright() as p:
     pg.click('#adStation')
     pg.wait_for_function('document.querySelector("#view-scan").classList.contains("station")')
     check(pg.is_hidden('#scAdmin') and pg.is_hidden('#scPinForm'), 'the station opens with no way back to admin mode')
+    inside = pg.evaluate("""() => { const card = document.querySelector('#view-scan').getBoundingClientRect();
+        return [...document.querySelectorAll('#view-scan .sc-top > *')].filter(e => e.offsetParent !== null).map(e => Math.round(card.right - e.getBoundingClientRect().right)); }""")
+    check(len(inside) == 2 and min(inside) >= 8, 'check-in station: the label and the connection pill stay inside the card (the pill goes under the label if needed): %s' % inside)
     pg.click('#scExitBtn'); pg.fill('#scExitPin', '246810'); pg.press('#scExitPin', 'Enter')
     pg.evaluate("() => { location.hash = '#admin'; }")
     pg.wait_for_selector('#adEmailForm:not([hidden])')

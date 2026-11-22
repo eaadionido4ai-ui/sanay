@@ -179,7 +179,7 @@ button { cursor: pointer; }
 
 /* ---------- check-in scanner (organizers at the door) ---------- */
 body[data-view="scan"]:not(.is-sheet) .shell { max-width: 560px; }
-.sc-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 14px 2px; }
+.sc-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding-block: 14px 2px; }
 .sc-kicker { font-size: 12.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green-text); }
 .sc-net { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 999px; background: var(--sunken); color: var(--muted); font-size: 13px; font-weight: 700; white-space: nowrap; }
 .sc-net::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
@@ -399,9 +399,14 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 12px 2px; }
 .back { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin-left: -8px; padding: 8px 12px 8px 6px; border: 0; border-radius: 12px; background: none; color: var(--ink); font-weight: 600; }
 .back:hover { background: var(--sunken); }
-.mini-mark { display: inline-flex; align-items: baseline; gap: 8px; font-family: var(--display); font-size: 18px; font-weight: 600; }
-.mm-t { color: var(--wordmark-g); }
+/* the label at the top of every screen but home: "TaTaK Resilience | SANAY", like the names on the home screen */
+.mini-mark { display: inline-flex; align-items: baseline; gap: 8px; font-family: var(--display); font-size: 18px; font-weight: 600; white-space: nowrap; }
+.mm-t { color: var(--wordmark-g); font-weight: 500; }
+.mm-t b { font-weight: 700; }
+.mm-bar { color: var(--muted); font-weight: 400; }
 .mm-s { color: var(--wordmark); letter-spacing: 0.14em; }
+@media (max-width: 440px) { .mini-mark { gap: 6px; font-size: 16px; } }
+@media (max-width: 359px) { .mini-mark { gap: 5px; font-size: 14px; } }
 .view-head { display: grid; gap: 6px; padding-block: 10px 22px; }
 .title { font-family: var(--display); font-size: 38px; font-weight: 600; line-height: 1.05; }
 .title:focus { outline: none; }
@@ -1437,6 +1442,7 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
       expansion: 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY',
       project: 'TaTaK Resilience Project',
       projectMark: 'TaTaK',
+      projectShort: 'TaTaK Resilience',
       projectExpansion: 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
       projectAccent: 'Katatagan',
       institution: ['INSTITUTION NAME', 'Office or center name'],
@@ -2231,8 +2237,12 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
     var mark = BRAND.project ? (BRAND.projectMark || '') : '';
     $('#sanayMark').textContent = BRAND.name;
     $('#projectMark').textContent = mark;
+    // the label at the top of every screen but home: "TaTaK Resilience | SANAY", the mark in bold
+    var short = BRAND.project ? String(BRAND.projectShort || mark) : '';
+    var shortHTML = mark && short.indexOf(mark) === 0 ? '<b>' + esc(mark) + '</b>' + esc(short.slice(mark.length)) : esc(short);
     $$('[data-brand-name]').forEach(function (el) {
-      el.innerHTML = (mark ? '<span class="mm-t">' + esc(mark) + '</span>' : '') + '<span class="mm-s">' + esc(BRAND.name) + '</span>';
+      el.innerHTML = (short ? '<span class="mm-t">' + shortHTML + '</span><span class="mm-bar" aria-hidden="true">|</span>' : '') +
+        '<span class="mm-s">' + esc(BRAND.name) + '</span>';
     });
     $('#brandExpansion').innerHTML = acronymHTML(BRAND.expansion, BRAND.name);
     // "TaTaK Resilience Project": the mark in bold, the rest in regular weight

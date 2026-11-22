@@ -43,6 +43,7 @@ const CONFIG = {
   // ---- The project, shown above the name. projectMark is highlighted the same way: Ta-Ta-K.
   project: 'TaTaK Resilience Project',
   projectMark: 'TaTaK',
+  projectShort: 'TaTaK Resilience',   // the label at the top of every screen but home: TaTaK Resilience | SANAY
   projectExpansion: 'TagapagTaguyod ng Kasanayan tungo sa Katatagan',
   projectAccent: 'Katatagan',   // shown in green: it means resilience, like "Resilience Project" below it
 
@@ -256,6 +257,7 @@ function brandJson_() {
     expansion: CONFIG.expansion,
     project: CONFIG.project,
     projectMark: CONFIG.projectMark,
+    projectShort: CONFIG.projectShort,
     projectExpansion: CONFIG.projectExpansion,
     projectAccent: CONFIG.projectAccent,
     institution: CONFIG.institution,

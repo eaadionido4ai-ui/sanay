@@ -394,7 +394,7 @@ ok(JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits.people.length =
 vm.runInContext('CONFIG.credits = keepCredits', ctx);
 ok(brand.bands.join() === '#014421,#7B1113' && brand.institution[0] === 'UNIVERSITY OF THE PHILIPPINES', 'UP green and maroon bands, institution lines');
 ok(brand.expansion === 'Skills And Needs Assessment and Training Interventions towards enhanced DRRM CapacitY' && brand.project === 'TaTaK Resilience Project' &&
-  brand.projectMark === 'TaTaK' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
+  brand.projectMark === 'TaTaK' && brand.projectShort === 'TaTaK Resilience' && brand.projectExpansion === 'TagapagTaguyod ng Kasanayan tungo sa Katatagan' && brand.projectAccent === 'Katatagan', 'SANAY expansion, the TaTaK Resilience Project and its green word');
 
 // 8b. check-in scanner at the door
 const keyOf = html => (/page=scan&amp;k=([0-9a-f]+)/.exec(html || '') || [])[1];
