@@ -330,6 +330,15 @@ function DATA_TABS_OK() {
 vm.runInContext("CONFIG.dataStewards = ['Steward@up.example.edu']", ctx);
 ctx.setup();
 ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,steward@up.example.edu', 'listed data stewards can edit the data tabs too');
+// the script property DATA_STEWARDS: emails kept out of the code, so they survive pasting a new Code.gs
+props.DATA_STEWARDS = ' Prop.Steward@up.example.edu, not an email;STEWARD@up.example.edu\n prop.steward@up.example.edu ';
+ok(vm.runInContext('stewards_()', ctx).join() === 'steward@up.example.edu,prop.steward@up.example.edu',
+  'DATA_STEWARDS: separated by commas, semicolons, spaces or new lines, any case; repeats and non-emails skipped');
+ctx.setup();
+ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,prop.steward@up.example.edu,steward@up.example.edu', 'data stewards in DATA_STEWARDS can edit the data tabs too');
+delete props.DATA_STEWARDS;
+ctx.setup();
+ok(T('Registrations').protection.editors.sort().join() === 'owner@up.example.edu,steward@up.example.edu', 'taken out of DATA_STEWARDS, setup removes their edit rights');
 activeUser = 'intern@gmail.example.com';
 const before = Object.keys(cache).length;
 ctx.openReport();
@@ -344,6 +353,7 @@ ok(/page=report&amp;key=/.test((dialogs.pop() || {}).html || ''), 'a data stewar
 ctx.checkAccess();
 const acc = dialogs.pop();
 ok(acc.title === 'Who can see the data' && /intern@gmail\.example\.com <b[^>]*>· not a data steward/.test(acc.html) && /viewer@up\.example\.edu <b/.test(acc.html) && !/steward@up\.example\.edu <b/.test(acc.html) && !/owner@up\.example\.edu <b/.test(acc.html), 'access check lists everyone and flags people who are not data stewards (not the owner)');
+ok(/Data stewards \(DATA_STEWARDS\)/.test(acc.html) && /<li>steward@up\.example\.edu<\/li>/.test(acc.html), 'Check who can see the data also lists the data stewards');
 ok(/@OnlyCurrentDoc/.test(src), 'the script is limited to this one Sheet');
 vm.runInContext('CONFIG.dataStewards = []', ctx);
 activeUser = 'owner@up.example.edu';
@@ -660,6 +670,12 @@ const sSt = ctx.adminSignIn({ email: 'steward@up.example.edu', code: codeOf(last
 ok(ctx.adminHome({ token: sSt.token }).email === 'steward@up.example.edu', 'a data steward signs in the same way');
 vm.runInContext('CONFIG.dataStewards = []', ctx);
 throws(() => ctx.adminHome({ token: sSt.token }), /signed out/, 'taken off the list, a steward is signed out at once');
+props.DATA_STEWARDS = 'other.steward@up.example.edu, prop.steward@up.example.edu';
+ctx.adminSendCode({ email: 'Prop.Steward@up.example.edu' });
+const sPr = ctx.adminSignIn({ email: 'prop.steward@up.example.edu', code: codeOf(lastMail()) });
+ok(ctx.adminHome({ token: sPr.token }).email === 'prop.steward@up.example.edu', 'a data steward listed only in the DATA_STEWARDS script property signs in too');
+delete props.DATA_STEWARDS;
+throws(() => ctx.adminHome({ token: sPr.token }), /signed out/, 'taken out of DATA_STEWARDS, signed out at once');
 const sessKey = Object.keys(props).find(k => k.startsWith('admin:') && JSON.parse(props[k]).e === 'owner@up.example.edu');
 const keepSess = props[sessKey];
 props[sessKey] = JSON.stringify({ e: 'owner@up.example.edu', x: Date.now() - 1000 });

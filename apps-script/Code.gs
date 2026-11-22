@@ -130,8 +130,11 @@ const CONFIG = {
   webAppUrl: '',                 // optional: paste the web app link here if the report menu can't find it
 
   // ---- Data privacy: besides the Sheet's owner, the accounts allowed to open the report page,
-  //      run setup and edit the data tabs. Example: ['juan.delacruz@up.edu.ph', 'second.steward@up.edu.ph']
-  //      Empty: anyone who can edit the Sheet can open the report; only the owner can edit the data tabs.
+  //      run setup, edit the data tabs and sign in to admin mode. Put their emails in the script property
+  //      DATA_STEWARDS (Extensions › Apps Script › Project Settings › Script properties), separated by commas, not here:
+  //      a script property stays out of the code, so it survives pasting a new Code.gs and never lands on
+  //      GitHub. Emails listed here count too. Empty in both places: anyone who can edit the Sheet can
+  //      open the report; only the owner can edit the data tabs.
   dataStewards: [],
 
   // ---- Evaluation: Likert statements, each rated from 1 (Strongly disagree) to 5 (Strongly agree).
@@ -215,7 +218,7 @@ const THROWAWAY_DOMAINS = ['mailinator.com', 'guerrillamail.com', 'sharklasers.c
 const BURSTS = { Registrations: [20, 2, 'registrations'], Requests: [5, 10, 'requests'], Partnerships: [5, 10, 'partnership requests'] };
 const AGAIN = 'Registered again with the same email';
 
-// Admin mode. Who may sign in: the data stewards (dataStewards), the Sheet's owner and the account that
+// Admin mode. Who may sign in: the data stewards (DATA_STEWARDS), the Sheet's owner and the account that
 // deployed the web app. A code goes to the email; nobody gets in by typing an email alone.
 const ADMIN_CODE_MINUTES = 10;     // a sign-in code works this long
 const ADMIN_SESSION_HOURS = 12;    // then sign in again (long enough for a training day)
@@ -601,7 +604,7 @@ function submitPartnership(form) {
 function openReport() {
   const ui = SpreadsheetApp.getUi();   // first, so this can't run from the web page
   if (!isSteward_()) {
-    ui.alert('Only the owner of this Sheet and the data stewards listed in Code.gs (dataStewards) can open the report page. You are signed in as ' +
+    ui.alert('Only the owner of this Sheet and the data stewards (the DATA_STEWARDS script property) can open the report page. You are signed in as ' +
       (Session.getActiveUser().getEmail() || 'an account the script cannot see') + '.');
     return;
   }
@@ -723,7 +726,7 @@ const SCANNER_GONE = 'This scanner link has expired or is not valid. In the Goog
 function openScanner() {
   const ui = SpreadsheetApp.getUi();   // first, so this can't run from the web page
   if (!isSteward_()) {
-    ui.alert('Only the owner of this Sheet and the data stewards listed in Code.gs (dataStewards) can open the check-in scanner.');
+    ui.alert('Only the owner of this Sheet and the data stewards (the DATA_STEWARDS script property) can open the check-in scanner.');
     return;
   }
   const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
@@ -1010,19 +1013,20 @@ function checkAccess() {
   };
   const html = '<div style="font:14px/1.5 Arial,sans-serif;color:#1A1F1C">' +
     '<p style="margin:0">Participants never see this Sheet. The web app writes to it as the account that deployed it. Only the people below can open the Sheet, and editors can also change this script, so make only data stewards editors.</p>' +
-    list('Owner', owner ? [owner] : []) + list('Editors', editors) + list('Viewers and commenters', viewers) +
+    list('Owner', owner ? [owner] : []) + (stewards.length ? list('Data stewards (DATA_STEWARDS)', stewards) : '') +
+    list('Editors', editors) + list('Viewers and commenters', viewers) +
     '<p style="margin:14px 0 4px"><b>Also check, in Share:</b></p><ol style="margin:0;padding-left:18px">' +
     '<li>General access is <b>Restricted</b>, not "Anyone with the link".</li>' +
     '<li>In the gear: untick <b>Editors can change permissions and share</b>.</li>' +
     '<li>In the gear: untick <b>Viewers and commenters can see the option to download, print, and copy</b>.</li></ol>' +
-    (stewards.length ? '' : '<p style="margin:12px 0 0;color:#8A5300">Tip: list your data stewards in Code.gs (dataStewards) so only they can open the report page and edit the data tabs.</p>') +
+    (stewards.length ? '' : '<p style="margin:12px 0 0;color:#8A5300">Tip: list your data stewards in the script property DATA_STEWARDS (Extensions › Apps Script › Project Settings › Script properties), separated by commas, so only they can open the report page and edit the data tabs.</p>') +
     '</div>';
-  ui.showModalDialog(HtmlService.createHtmlOutput(html).setWidth(480).setHeight(460), 'Who can see the data');
+  ui.showModalDialog(HtmlService.createHtmlOutput(html).setWidth(480).setHeight(540), 'Who can see the data');
 }
 
 /** Creates the tabs and headers. Safe to run again: it never deletes data. */
 function setup() {
-  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (dataStewards in Code.gs) can run setup.');
+  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (the DATA_STEWARDS script property) can run setup.');
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   ss.setSpreadsheetTimeZone(CONFIG.timeZone);
 
@@ -1307,7 +1311,7 @@ function flagSummary_(list) {
  */
 function reviewFlags() {
   const ui = SpreadsheetApp.getUi();
-  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (dataStewards in Code.gs) can review flagged entries.');
+  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (the DATA_STEWARDS script property) can review flagged entries.');
   const list = flagged_();
   const shown = list.slice(0, 200);
   const rows = shown.map(function (f, i) {
@@ -1995,8 +1999,14 @@ function evalKeys_() {
   return keys;
 }
 
+/** The data stewards, lowercase and once each: the emails in the script property DATA_STEWARDS (separated by
+ *  commas, semicolons, spaces or new lines) and any in CONFIG.dataStewards. Anything that isn't an email is skipped. */
 function stewards_() {
-  return (CONFIG.dataStewards || []).map(function (e) { return String(e).trim().toLowerCase(); }).filter(String);
+  const fromProperty = String(PropertiesService.getScriptProperties().getProperty('DATA_STEWARDS') || '').split(/[\s,;]+/);
+  const seen = {};
+  return (CONFIG.dataStewards || []).concat(fromProperty)
+    .map(function (e) { return String(e).trim().toLowerCase(); })
+    .filter(function (e) { return EMAIL_RE.test(e) && !seen[e] && (seen[e] = true); });
 }
 
 /** True when no stewards are listed, or when the person running this owns the Sheet or is listed. */
