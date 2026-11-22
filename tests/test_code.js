@@ -358,7 +358,23 @@ const cr = brand.credits, me = cr.people[0];
 ok(cr.heading === 'Conceptualized and Developed with AI Assistance by:' && cr.people.length === 1 && me.name === 'Edward Andrew A. Dionido' &&
   me.lines.join('|') === 'Science Research Specialist II|Institution Building Division|University of the Philippines Resilience Institute' &&
   me.additionalAffiliation.join('|') === 'Graduate Student (Ongoing)|College of Professional and Graduate Studies|De La Salle University Dasmariñas' &&
-  cr.dateDeveloped === 'November 2026' && brand.figure && /^M/.test(brand.figure.d), 'credits in the developer format with the additional affiliation, and the half Oblation, reach the page');
+  cr.dateDeveloped === 'November 2026', 'credits in the developer format, with the additional affiliation, reach the page');
+ok(brand.backdrop === null || /^data:image\/(jpeg|png|webp);base64,/.test(brand.backdrop.src), 'the background photo from Logos.gs, if there is one, is a data: image');
+ok(brand.backdrop && brand.backdrop.fit === 'right' && brand.backdrop.credit === 'Edward Andrew A. Dionido' && brand.backdrop.creditLink === '',
+  "the background photo is EA's photo of the Oblation at UP BGC, along the right edge, credited to him");
+const photoBytes = Buffer.from(brand.backdrop.src.split(',')[1], 'base64');
+ok(photoBytes.length < 160 * 1024 && photoBytes.indexOf(Buffer.from('Exif')) < 0 && photoBytes.indexOf(Buffer.from('GPS')) < 0,
+  'the photo is small (%d KB) and carries no location, time or camera data'.replace('%d', Math.round(photoBytes.length / 1024)));
+const bd = ctx.backdrop_({ src: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', position: '50% 30%', credit: '  Photo: A. Person  ', creditLink: 'https://example.org/photos/1' });
+ok(bd && bd.position === '50% 30%' && bd.credit === 'Photo: A. Person' && bd.creditLink === 'https://example.org/photos/1' && ctx.backdrop_({ src: 'https://example.org/oblation.jpg' }).position === 'center',
+  'background photo: a data: image or an https link reaches the page, with its focus, credit and the link to the photo');
+ok(ctx.backdrop_({ src: 'https://example.org/a.jpg', creditLink: 'javascript:alert(1)' }).creditLink === '' && ctx.backdrop_({ src: 'https://example.org/a.jpg', creditLink: 'https://x.org/" onclick="x' }).creditLink === '',
+  'background photo: a credit link that is not a plain https link is dropped');
+ok(ctx.backdrop_(null) === null && ctx.backdrop_({ src: 'javascript:alert(1)' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg") ; background: red' }) === null &&
+  ctx.backdrop_({ src: 'data:image/svg+xml;base64,PHN2Zz4=' }) === null && ctx.backdrop_({ src: 'https://example.org/a.jpg', position: 'url(x); color: red' }).position === 'urlx color red',
+  'background photo: anything that could break out of the CSS is refused');
+ok(ctx.backdrop_({ src: 'https://example.org/a.jpg', fit: 'right' }).fit === 'right' && ctx.backdrop_({ src: 'https://example.org/a.jpg', fit: 'left; color: red' }).fit === 'cover' && bd.fit === 'cover',
+  'background photo: it fills the screen, or stands along the right edge; nothing else gets in');
 vm.runInContext("var keepCredits = CONFIG.credits; CONFIG.credits = { heading: '  By:  ', people: [{ name: ' ' }, { name: 'A. Person', lines: ['Role', '  '] }, null] }", ctx);
 const cr2 = JSON.parse(ctx.brandJson_().replace(/\\u003c/g, '<')).credits;
 ok(cr2.heading === 'By:' && cr2.people.length === 1 && cr2.people[0].lines.join() === 'Role' && cr2.people[0].additionalAffiliation.length === 0 && cr2.dateDeveloped === '',

@@ -28,7 +28,7 @@ SKELETON = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
             'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style></head><body>%s</body></html>')
 (OUT / 'preview.html').write_text(SKELETON.replace('%s', (ROOT / 'src' / 'app.html').read_text(encoding='utf-8')), encoding='utf-8')
 
-# What Code.gs writes into the deployed page (CONFIG, the logos, the half Oblation), read from Code.gs and Logos.gs themselves
+# What Code.gs writes into the deployed page (CONFIG, the logos, the background photo), read from Code.gs and Logos.gs themselves
 BRAND = json.loads(subprocess.run(['node', '-e', '''
 const vm = require("vm"), fs = require("fs"), ctx = vm.createContext({});
 for (const f of ["Code.gs", "Logos.gs"]) vm.runInContext(fs.readFileSync(process.argv[1] + "/" + f, "utf8"), ctx, { filename: f });
@@ -63,6 +63,17 @@ def route_fonts(pg):
     pg.route('https://fonts.googleapis.com/**', lambda r: r.fulfill(status=200, content_type='text/css', body=css, headers=CORS))
     pg.route('https://fonts.gstatic.com/local/**', lambda r: r.fulfill(
         status=200, path=str(FONTS / r.request.url.rsplit('/', 1)[1]), headers=dict(CORS, **{'Content-Type': 'font/woff2'})))
+
+
+def tiny_png(w=6, h=4, grey=120):
+    """A small grey PNG as a data: URI, standing in for a background photo."""
+    import struct, zlib
+    raw = b''.join(b'\x00' + bytes([grey]) * w for _ in range(h))
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+    png = (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 0, 0, 0, 0))
+           + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b''))
+    return 'data:image/png;base64,' + base64.b64encode(png).decode('ascii')
 
 
 def open_page(browser, w, h, dark=False, brand=None, dsf=1):
@@ -716,14 +727,62 @@ with sync_playwright() as p:
     pg.screenshot(path=str(OUT / '08-desktop-dark-register.png'))
     ctx.close()
 
+    # ---------------- a background photo: faded, under the woven pattern, not on report pages ----------------
+    photo = dict(BRAND, backdrop={'src': tiny_png(), 'position': '50% 30%', 'credit': 'Test Person on Flickr', 'creditLink': 'https://www.example.org/photos/1'})
+    ctx, pg, errors = open_page(browser, 390, 844, brand=photo)
+    st = pg.evaluate("""() => { const el = document.querySelector('#bgPhoto'), cs = getComputedStyle(el), weave = getComputedStyle(document.body, '::before');
+        return [!el.hidden, cs.backgroundImage.slice(0, 26), cs.backgroundPosition, cs.position, cs.zIndex, weave.zIndex, cs.opacity]; }""")
+    check(st == [True, 'url("data:image/png;base64', '50% 30%', 'fixed', '-2', '-1', '0.24'], 'background photo: fixed, faded, under the woven pattern: %s' % st)
+    lt = pg.evaluate("""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return [q('#bgPhoto').filter, q('.inst-1').color, q('.band-trim').stroke, q('.logos').boxShadow.startsWith('rgba(0, 0, 0, 0)')]; }""")
+    check(lt == ['none', 'rgb(26, 31, 28)', 'rgba(0, 0, 0, 0)', True], 'light mode: the photo in color and no gold touches: %s' % lt)
+    pg.click('#creditsBtn')
+    link = pg.locator('#crList dd a')
+    check(pg.locator('#crList dt').all_text_contents() == ['Background photo', 'QR codes', 'Runs on'] and link.count() == 1 and link.inner_text() == 'Test Person on Flickr'
+          and link.get_attribute('href') == 'https://www.example.org/photos/1' and link.get_attribute('target') == '_blank' and 'noopener' in link.get_attribute('rel'),
+          'the photo credit comes first in the credits notes and links to the photo, in a new tab')
+    pg.click('#crClose')
+    pg.evaluate("() => document.body.classList.add('is-report')")
+    on_top = pg.evaluate("""() => { const r = document.querySelector('#go-register').getBoundingClientRect();
+        return document.elementFromPoint(r.left + r.width / 2, r.top + 3).closest('#go-register') !== null; }""")
+    check(on_top, 'the home buttons sit above the shade behind the title')
+    check(pg.is_hidden('#bgPhoto'), 'background photo: not behind report pages')
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, dark=True, brand=photo)
+    dk = pg.evaluate("""() => { const q = s => getComputedStyle(document.querySelector(s));
+        return [q('#bgPhoto').opacity, q('#bgPhoto').filter.startsWith('grayscale(1)'), q('.inst-1').color, q('.action-icon').color, q('.band-trim').stroke]; }""")
+    check(dk == ['0.24', True, 'rgb(214, 181, 103)', 'rgb(214, 181, 103)', 'rgb(214, 181, 103)'], 'dark mode: warm black-and-white photo and the gold touches: %s' % dk)
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, brand=dict(BRAND, backdrop={'src': 'https://example.org/a.jpg") ; background: red'}))
+    check(pg.is_hidden('#bgPhoto'), 'background photo: a link that could break out of the CSS is not used')
+    ctx.close()
+    # fit 'right': along the right edge of wide screens, fading in from the left; phones show the whole photo
+    edge = dict(BRAND, backdrop={'src': tiny_png(6, 4), 'position': '58% 30%', 'fit': 'right', 'credit': 'A. Person'})
+    look = """() => { const el = document.querySelector('#bgPhoto'), cs = getComputedStyle(el);
+        return [el.classList.contains('edge'), cs.backgroundSize, cs.backgroundPosition, (cs.maskImage || cs.webkitMaskImage || 'none') !== 'none',
+                el.style.getPropertyValue('--photo-aspect'), cs.opacity]; }"""
+    ctx, pg, errors = open_page(browser, 1440, 900, brand=edge)
+    pg.wait_for_function("document.querySelector('#bgPhoto').style.getPropertyValue('--photo-aspect') !== ''")
+    st = pg.evaluate(look)
+    # Chromium writes "right -40px top" back as "calc(100% + 40px) 0%": the same spot
+    check(st[:2] == [True, 'auto 100%'] and st[2] in ('right -40px top 0px', 'calc(100% + 40px) 0%') and st[3] and st[4] == '1.5' and abs(float(st[5]) - 0.384) < 0.001,
+          'wide screen: the photo at full height along the right edge, fading in from the left, a little stronger: %s' % st)
+    ctx.close()
+    ctx, pg, errors = open_page(browser, 390, 844, brand=edge)
+    st = pg.evaluate(look)
+    check(st[:4] == [True, 'cover', '58% 30%', False] and st[5] == '0.24', 'phone: the same photo fills the screen, as before: %s' % st)
+    ctx.close()
+
     # ---------------- deployed look: real logos and names ----------------
     ctx, pg, errors = open_page(browser, 390, 844, brand=BRAND, dsf=2)
     check(pg.locator('#logos img').count() == 3, 'deployed look: three logos')
-    check(pg.is_visible('#figure svg path'), 'deployed look: the half Oblation at the right edge')
+    check(pg.is_visible('#bgPhoto') == bool(BRAND.get('backdrop')) and not pg.locator('#figure').count(), 'deployed look: the background photo when Logos.gs has one, and no half Oblation')
     pg.click('#creditsBtn')
     notes = pg.locator('#crList dt').all_text_contents()
-    check(notes == ['QR codes', 'Runs on'] and not any(w in pg.inner_text('#credits') for w in ('Oblation', 'Logos', 'NOAH', 'Garamond')),
-          'deployed credits: no Oblation, logo or font notes, only QR codes and Runs on: %s' % notes)
+    check(notes == ['Background photo', 'QR codes', 'Runs on'] and not any(w in pg.inner_text('#credits') for w in ('Oblation', 'Logos', 'NOAH', 'Garamond')),
+          'deployed credits: the photo credit, QR codes and Runs on; no Oblation, logo or font notes: %s' % notes)
+    check(pg.inner_text('#crList dd >> nth=0') == 'Edward Andrew A. Dionido' and pg.locator('#crList dd a').count() == 0,
+          "deployed credits: EA's photo, credited by name with no link")
     by = [l.strip() for l in pg.inner_text('#crBy').split('\n') if l.strip()]
     check(by == ['Conceptualized and Developed with AI Assistance by:', 'Edward Andrew A. Dionido', 'Science Research Specialist II',
                  'Institution Building Division', 'University of the Philippines Resilience Institute', 'Date Developed: November 2026'],

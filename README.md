@@ -31,7 +31,7 @@ Print or save any of them as a PDF from the browser.
 
 The Google Sheet is the database. Google Apps Script serves the page and writes the rows. Nothing else to host or pay for.
 
-The pages carry a faint half silhouette of the Oblation along the right edge. Under the home buttons, a small **lock** opens admin mode and a small **(i)** opens the credits.
+Behind the woven pattern the deployed app shows a faded photo of the Oblation at UP BGC (see *Background photo* below). Under the home buttons, a small **lock** opens admin mode and a small **(i)** opens the credits.
 
 ## What's in this repository
 
@@ -39,7 +39,7 @@ The pages carry a faint half silhouette of the Oblation along the right edge. Un
 apps-script/      the three files to paste into Apps Script (Code.gs, Logos.gs, Index.html) and the manifest
 src/app.html      the page source; opened outside Apps Script it runs as a preview with sample data
 assets/logos/     UP, UPRI and NOAH logos, cropped from the GAD attendance template
-assets/figure/    the half Oblation silhouette for the right edge of the pages
+assets/backdrop/  the background photo, with backdrop.json (the file, the part to keep in view, the credit)
 tools/build.py    builds apps-script/Index.html and apps-script/Logos.gs from src/ and assets/
 tests/            back-end tests against a mock Sheet, and browser checks (tests/vendor holds the QR reader they use)
 ```
@@ -182,7 +182,7 @@ All in `Code.gs`, at the top (`CONFIG`):
 
 Logos: replace the files in `assets/logos/` (keep `logos.json` in step) and run `python3 tools/build.py`, or edit `Logos.gs` directly. An entry's `src` can also be an image link.
 
-The Oblation: `assets/figure/oblation.svg` is the half silhouette at the right edge, one path whose right edge is the statue's center line. Replace it and run `python3 tools/build.py`. To leave it out, delete `FIGURE` from `Logos.gs`. It and the logos appear only in the deployed app, not in the preview.
+Background photo: the deployed app shows EA's own photo of the Oblation at UP BGC, from `assets/backdrop/`. `backdrop.json` names the file and sets `fit` (`right` stands the photo at full height along the right edge of laptop and desktop screens, fading in from the left, so the statue stands beside the buttons instead of behind the title; `cover` fills the screen; phones always show the whole photo), `position` (the part of the photo kept in view when a screen crops it, e.g. `58% 30%`), `credit` (shown first in the credits box; leave it empty if no credit is needed) and `creditLink` (the photo's page, if it has one; the credit links to it). Then run `python3 tools/build.py`. The page fades it (`--photo-opacity`, a little stronger along the right edge) and draws the woven pattern and the two color washes over it. Dark mode shows it black-and-white with a little warmth (`--photo-filter`) and adds a touch of gold: the trim along the bands, a ring around the logos, the university name and the button icons. A soft shade behind the logos and the title (`--scrim`) keeps their text readable over the photo. It loads with every page, so keep the file small (about 800 px wide, under 150 KB), and save it without the location and camera data phones store in photos: the repository is public. Use a photo you have the rights to. To leave it out, delete `BACKDROP` from `Logos.gs`. Like the logos, it appears only in the deployed app, not in the preview.
 
 ## Keep the data to a few people
 

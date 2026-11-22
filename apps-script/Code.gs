@@ -19,7 +19,7 @@
  *
  * Files in this Apps Script project:
  *   Code.gs     this file
- *   Logos.gs    the UP, UPRI and NOAH logos and the half Oblation (optional; without it the app shows neither)
+ *   Logos.gs    the UP, UPRI and NOAH logos and the background photo (optional; without it the app shows neither)
  *   Index.html  the web page
  *
  * Set-up steps are in README.md of the sanay repository. In short:
@@ -263,11 +263,24 @@ function brandJson_() {
     logos: logos.filter(function (l) { return l && l.src; })
       .map(function (l) { return { src: String(l.src), alt: String(l.alt || '') }; }),
     credits: credits_(),
-    // The half Oblation at the right edge of the pages (from Logos.gs; leave it out there to hide it)
-    figure: typeof FIGURE !== 'undefined' && FIGURE && FIGURE.d ? { viewBox: String(FIGURE.viewBox), d: String(FIGURE.d) } : null
+    // The photo faded behind the woven pattern (from Logos.gs; delete BACKDROP there to leave it out)
+    backdrop: backdrop_(typeof BACKDROP !== 'undefined' ? BACKDROP : null)
   };
   return JSON.stringify(brand)
     .replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+}
+
+/** The background photo, only if it is safe to put in the page's CSS: a data: image or a plain https link. */
+function backdrop_(b) {
+  const src = String((b && b.src) || '');
+  if (!/^(data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/]+=*|https:\/\/[^\s"'()<>\\]+)$/.test(src)) return null;
+  return {
+    src: src,
+    position: String(b.position || '').replace(/[^0-9a-z%. -]/gi, '').trim().slice(0, 40) || 'center',
+    fit: b.fit === 'right' ? 'right' : 'cover',   // 'right': along the right edge of wide screens
+    credit: String(b.credit || '').trim(),
+    creditLink: /^https:\/\/[^\s"'<>\\]+$/.test(String(b.creditLink || '')) ? String(b.creditLink) : ''
+  };
 }
 
 /** CONFIG.credits as plain text for the credits box (the page writes it as text, never as HTML). */
