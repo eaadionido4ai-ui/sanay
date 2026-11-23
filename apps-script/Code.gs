@@ -128,7 +128,7 @@ const CONFIG = {
   completedShown: 'this-year',   // completed trainings in the Register dropdown: 'this-year' or 'all'
   evaluationDaysAfter: 14,       // evaluation stays open this many days after the last training day
   reportLinkHours: 6,            // how long a report link from the Sheet menu works (6 at most)
-  webAppUrl: '',                 // optional: paste the web app link here if the report menu can't find it
+  webAppUrl: '',                 // paste your deployed /exec web app link here so Sheet menus and admin links always find it
 
   // ---- Data privacy: besides the Sheet's owner, the accounts allowed to open the report page,
   //      run setup, edit the data tabs and sign in to admin mode. Put their emails in the script property
@@ -234,6 +234,137 @@ const RECORD_KEYS = { Trainings: 'training_id', Registrations: 'reg_code', Atten
   Requests: 'request_code', Partnerships: 'request_code' };
 const CHANGELOG_NOTE = 'SANAY adds a line here for each edit in its tabs (with the old and the new value), each action in admin mode ' +
   'and each report or scanner link. Leave it as it is: it is your record of who changed what. File › Version history has the rest.';
+const WEB_APP_URL_MISSING = 'Web app URL not found. Deploy the web app first (Deploy › New deployment › Web app), ' +
+  'then paste its /exec link into CONFIG.webAppUrl in Code.gs and deploy a New version.';
+
+/* ===================================================================
+ * Sheet set-up (kept first so the Apps Script toolbar defaults to "setup")
+ * =================================================================== */
+
+/** Creates the tabs and headers. Safe to run again: it never deletes data. */
+function setup() {
+  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (the DATA_STEWARDS script property) can run setup.');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) throw new Error('Open this script from inside your Google Sheet (Extensions › Apps Script), not as a standalone project.');
+  ss.setSpreadsheetTimeZone(CONFIG.timeZone);
+
+  Object.keys(TABS).forEach(function (name) {
+    const sh = ss.getSheetByName(name) || ss.insertSheet(name);
+    const have = sh.getLastColumn() ? headers_(sh) : [];
+    const missing = TABS[name].filter(function (h) { return have.indexOf(h) === -1; });
+    if (missing.length) {
+      const startCol = sh.getLastColumn() + 1;
+      ensureColumns_(sh, startCol + missing.length - 1);
+      sh.getRange(1, startCol, 1, missing.length).setValues([missing]);
+    }
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, sh.getLastColumn()).setFontWeight('bold').setBackground('#E3EFE7');
+  });
+
+  // Trainings: sample rows (only when there are no trainings yet), tick boxes, date formats
+  const tr = ss.getSheetByName('Trainings');
+  const H = headers_(tr);
+  const col = function (h) { return H.indexOf(h) + 1; };
+  const hasTrainings = readTable_('Trainings').some(function (r) { return String(r.training_id || '').trim(); });
+  if (!hasTrainings) {
+    const t = today_();
+    const samples = [
+      { training_id: 'SAMPLE-1', title: 'SAMPLE · Training happening today', start_date: t, end_date: addDays_(t, 1), venue: 'Quezon City', mode: 'Face-to-face', show_in_list: true, max_participants: 40, notes: 'Delete this row' },
+      { training_id: 'SAMPLE-2', title: 'SAMPLE · Upcoming training', start_date: addDays_(t, 14), end_date: addDays_(t, 15), venue: 'Online (Zoom)', mode: 'Online', show_in_list: true, max_participants: 60, registration_closes: addDays_(t, 10), notes: 'Delete this row' },
+      { training_id: 'SAMPLE-3', title: 'SAMPLE · Completed training', start_date: addDays_(t, -10), end_date: addDays_(t, -9), venue: 'Quezon City', mode: 'Face-to-face', show_in_list: true, notes: 'Delete this row' }
+    ];
+    ensureRows_(tr, samples.length + 1);
+    tr.getRange(2, 1, samples.length, H.length).setValues(samples.map(function (s) {
+      return H.map(function (h) { return h in s ? s[h] : ''; });   // ISO date text is read as a date in the Sheet's time zone
+    }));
+  }
+  const trRows = dataRows_(tr, 499);
+  // A checkbox rule (rather than insertCheckboxes) keeps any ticks already there.
+  tr.getRange(2, col('show_in_list'), trRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireCheckbox().build());
+  ['start_date', 'end_date', 'registration_closes'].forEach(function (h) {
+    tr.getRange(2, col(h), trRows, 1)
+      .setNumberFormat('mmm d, yyyy')
+      .setDataValidation(SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
+  });
+  tr.getRange(2, col('mode'), trRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(['Face-to-face', 'Online', 'Blended'], true).build());
+  tr.getRange(1, col('training_id')).setNote('A short code you choose, e.g. ICS-4. Never change it once people have registered.');
+  tr.getRange(1, col('show_in_list')).setNote('Tick when the training is ready to announce. Unticked rows never appear in the app.');
+  tr.getRange(1, col('registration_closes')).setNote('Optional. Leave blank to keep registration open until the last day. Walk-ins can still register on the training days.');
+
+  // Automatic counts (registered, female, male) after the last column
+  if (H.indexOf('registered') === -1) {
+    const R = headers_(ss.getSheetByName('Registrations'));
+    const tid = columnLetter_(R.indexOf('training_id') + 1);
+    const sex = columnLetter_(R.indexOf('sex') + 1);
+    const ids = columnLetter_(col('training_id'));
+    const ref = function (c) { return 'Registrations!' + c + '2:' + c; };
+    const c0 = tr.getLastColumn() + 1;
+    ensureColumns_(tr, c0 + 2);
+    tr.getRange(1, c0, 1, 3).setFormulas([[
+      '={"registered";ARRAYFORMULA(IF(' + ids + '2:' + ids + '="","",COUNTIF(' + ref(tid) + ',' + ids + '2:' + ids + ')))}',
+      '={"female";ARRAYFORMULA(IF(' + ids + '2:' + ids + '="","",COUNTIFS(' + ref(tid) + ',' + ids + '2:' + ids + ',' + ref(sex) + ',"Female")))}',
+      '={"male";ARRAYFORMULA(IF(' + ids + '2:' + ids + '="","",COUNTIFS(' + ref(tid) + ',' + ids + '2:' + ids + ',' + ref(sex) + ',"Male")))}'
+    ]]);
+    tr.getRange(1, c0, 1, 3).setFontWeight('bold').setBackground('#F7E9E9');
+    tr.getRange(1, c0).setNote("These three columns count themselves. Don't type in them. Female and male count only people who consented to the GAD questions.");
+  }
+
+  ['Registrations', 'Attendance'].forEach(function (name) {
+    const sh = ss.getSheetByName(name);
+    sh.getRange(2, headers_(sh).indexOf('timestamp') + 1, dataRows_(sh, 999), 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
+  });
+  ss.getSheetByName('Registrations').getRange(1, 1).setNote('The timestamp is when the person submitted the form. It stands in for the signature on the GAD attendance sheet.');
+  ss.getSheetByName('Evaluations').getRange(1, 1).setNote('No names or codes here on purpose. New rows go in at random positions.');
+  const rq = ss.getSheetByName('Requests');
+  const RQ = headers_(rq);
+  const rqRows = dataRows_(rq, 999);
+  rq.getRange(2, RQ.indexOf('timestamp') + 1, rqRows, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
+  rq.getRange(2, RQ.indexOf('status') + 1, rqRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(REQUEST_STATUSES, true).build());
+  rq.getRange(1, RQ.indexOf('status') + 1).setNote('For organizers: New, Contacted, Scheduled, Done or Declined.');
+  const pt = ss.getSheetByName('Partnerships');
+  const PT = headers_(pt);
+  const ptRows = dataRows_(pt, 999);
+  pt.getRange(2, PT.indexOf('timestamp') + 1, ptRows, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
+  pt.getRange(2, PT.indexOf('status') + 1, ptRows, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireValueInList(PARTNER_STATUSES, true).build());
+  pt.getRange(1, PT.indexOf('status') + 1).setNote('For organizers: New, Contacted, In talks, Partner or Declined. This tab is also your list of potential training partners.');
+
+  // Flag columns: a note on the header, and an amber highlight on flagged rows
+  FLAG_TABS.forEach(function (name) {
+    const sh = ss.getSheetByName(name);
+    sh.getRange(1, headers_(sh).indexOf('flag') + 1).setNote(FLAG_NOTE);
+    flagRule_(sh);
+  });
+
+  // Changelog: a note on the header and the time with seconds
+  const log = ss.getSheetByName('Changelog');
+  log.getRange(1, 1).setNote(CHANGELOG_NOTE);
+  log.getRange(2, 1, dataRows_(log, 999), 1).setNumberFormat('yyyy-mm-dd h:mm:ss am/pm');
+
+  // Data tabs and the Changelog: only the owner and the data stewards can edit them (the web app writes as the owner).
+  const me = Session.getEffectiveUser();
+  const keep = stewards_().concat([String(me.getEmail()).toLowerCase(), ownerEmail_()]).filter(Boolean);
+  DATA_TABS.concat(['Changelog']).forEach(function (name) {
+    const sh = ss.getSheetByName(name);
+    const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)[0] || sh.protect();
+    p.setDescription(CONFIG.name + (name === 'Changelog' ? ' changelog' : ' data') + ': only the owner and the data stewards can edit this tab');
+    p.addEditor(me);
+    p.removeEditors(p.getEditors().filter(function (u) { return keep.indexOf(String(u.getEmail()).toLowerCase()) < 0; }));
+    stewards_().forEach(function (e) { try { p.addEditor(e); } catch (err) { /* not a Google account yet */ } });
+    if (p.canDomainEdit()) p.setDomainEdit(false);
+  });
+
+  const blank = ss.getSheetByName('Sheet1');
+  if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
+  const logOn = changelogTriggers_(ss);
+  log_({ who: menuUser_(), action: 'Ran Set up or repair tabs' });
+  try {
+    ss.toast('The ' + CONFIG.name + ' tabs are ready.' + (logOn ? '' : ' To record edits in the Changelog tab, the owner of this Sheet runs Set up or repair tabs once.'), CONFIG.name, 8);
+  } catch (e) { /* toast only works with the Sheet open */ }
+}
 
 /* ===================================================================
  * Web app
@@ -623,9 +754,9 @@ function openReport() {
       (Session.getActiveUser().getEmail() || 'an account the script cannot see') + '.');
     return;
   }
-  const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
+  const url = webAppUrl_();
   if (!url) {
-    ui.alert('Deploy the web app first: Deploy › New deployment › Web app. Then try again.');
+    ui.alert(WEB_APP_URL_MISSING);
     return;
   }
   const hours = Math.max(1, Math.min(6, Number(CONFIG.reportLinkHours) || 6));
@@ -744,9 +875,9 @@ function openScanner() {
     ui.alert('Only the owner of this Sheet and the data stewards (the DATA_STEWARDS script property) can open the check-in scanner.');
     return;
   }
-  const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
+  const url = webAppUrl_();
   if (!url) {
-    ui.alert('Deploy the web app first: Deploy › New deployment › Web app. Then try again.');
+    ui.alert(WEB_APP_URL_MISSING);
     return;
   }
   const today = today_();
@@ -798,18 +929,20 @@ function openScanner() {
 function renewScanner(trainingId) {
   SpreadsheetApp.getUi();   // only from the Sheet, never from the web page
   if (!isSteward_()) throw new Error('Only the data stewards can make a new scanner link.');
+  const url = webAppUrl_();
+  if (!url) throw new Error(WEB_APP_URL_MISSING);
   const t = allTrainings_().filter(function (x) { return x.id === clean_(trainingId, 60); })[0];
   if (!t) throw new Error('That training is no longer in the Trainings tab.');
   const sc = scannerFor_(t, true);
   log_({ who: menuUser_(), action: 'Made a new scanner link and PIN (the old ones stopped working)', tab: 'Trainings', record: t.id });
-  return { link: scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), sc.key), pin: sc.pin };
+  return { link: scannerLink_(url, sc.key), pin: sc.pin };
 }
 
 /** The scanner page asks for this when it opens: the training, everyone registered, and who is in today. */
 function getScanner(req) {
   const t = scannerAccess_(req);
   const state = scannerState_(t, true);
-  state.link = scannerLink_(CONFIG.webAppUrl || ScriptApp.getService().getUrl(), String(req.key).replace(/[^0-9a-f]/gi, ''));
+  state.link = scannerLink_(webAppUrl_(), String(req.key).replace(/[^0-9a-f]/gi, ''));
   return state;
 }
 
@@ -971,8 +1104,21 @@ function scannerEntry_(key) {
   return t && t.start && today_() <= addDays_(t.end, SCANNER_GRACE_DAYS) ? { t: t, pin: pin } : null;
 }
 
+function webAppUrl_() {
+  const configured = String(CONFIG.webAppUrl || '').trim();
+  if (configured) return configured;
+  try {
+    const u = ScriptApp.getService().getUrl();
+    return u ? String(u).trim() : '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function scannerLink_(url, key) {
-  return url + (url.indexOf('?') > -1 ? '&' : '?') + 'page=scan&k=' + key;
+  const base = String(url || '').trim();
+  if (!base) throw new Error(WEB_APP_URL_MISSING);
+  return base + (base.indexOf('?') > -1 ? '&' : '?') + 'page=scan&k=' + key;
 }
 
 /** The training_id of the selected row, when the Trainings tab is open; otherwise ''. */
@@ -1037,121 +1183,6 @@ function checkAccess() {
     (stewards.length ? '' : '<p style="margin:12px 0 0;color:#8A5300">Tip: list your data stewards in the script property DATA_STEWARDS (Extensions › Apps Script › Project Settings › Script properties), separated by commas, so only they can open the report page and edit the data tabs.</p>') +
     '</div>';
   ui.showModalDialog(HtmlService.createHtmlOutput(html).setWidth(480).setHeight(540), 'Who can see the data');
-}
-
-/** Creates the tabs and headers. Safe to run again: it never deletes data. */
-function setup() {
-  if (!isSteward_()) throw new Error('Only the owner of this Sheet or a data steward (the DATA_STEWARDS script property) can run setup.');
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  ss.setSpreadsheetTimeZone(CONFIG.timeZone);
-
-  Object.keys(TABS).forEach(function (name) {
-    const sh = ss.getSheetByName(name) || ss.insertSheet(name);
-    const have = sh.getLastColumn() ? headers_(sh) : [];
-    const missing = TABS[name].filter(function (h) { return have.indexOf(h) === -1; });
-    if (missing.length) sh.getRange(1, sh.getLastColumn() + 1, 1, missing.length).setValues([missing]);
-    sh.setFrozenRows(1);
-    sh.getRange(1, 1, 1, sh.getLastColumn()).setFontWeight('bold').setBackground('#E3EFE7');
-  });
-
-  // Trainings: sample rows (only when there are no trainings yet), tick boxes, date formats
-  const tr = ss.getSheetByName('Trainings');
-  const H = headers_(tr);
-  const col = function (h) { return H.indexOf(h) + 1; };
-  const hasTrainings = readTable_('Trainings').some(function (r) { return String(r.training_id || '').trim(); });
-  if (!hasTrainings) {
-    const t = today_();
-    const samples = [
-      { training_id: 'SAMPLE-1', title: 'SAMPLE · Training happening today', start_date: t, end_date: addDays_(t, 1), venue: 'Quezon City', mode: 'Face-to-face', show_in_list: true, max_participants: 40, notes: 'Delete this row' },
-      { training_id: 'SAMPLE-2', title: 'SAMPLE · Upcoming training', start_date: addDays_(t, 14), end_date: addDays_(t, 15), venue: 'Online (Zoom)', mode: 'Online', show_in_list: true, max_participants: 60, registration_closes: addDays_(t, 10), notes: 'Delete this row' },
-      { training_id: 'SAMPLE-3', title: 'SAMPLE · Completed training', start_date: addDays_(t, -10), end_date: addDays_(t, -9), venue: 'Quezon City', mode: 'Face-to-face', show_in_list: true, notes: 'Delete this row' }
-    ];
-    tr.getRange(2, 1, samples.length, H.length).setValues(samples.map(function (s) {
-      return H.map(function (h) { return h in s ? s[h] : ''; });   // ISO date text is read as a date in the Sheet's time zone
-    }));
-  }
-  // A checkbox rule (rather than insertCheckboxes) keeps any ticks already there.
-  tr.getRange(2, col('show_in_list'), 499, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireCheckbox().build());
-  ['start_date', 'end_date', 'registration_closes'].forEach(function (h) {
-    tr.getRange(2, col(h), 499, 1)
-      .setNumberFormat('mmm d, yyyy')
-      .setDataValidation(SpreadsheetApp.newDataValidation().requireDate().setAllowInvalid(false).build());
-  });
-  tr.getRange(2, col('mode'), 499, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(['Face-to-face', 'Online', 'Blended'], true).build());
-  tr.getRange(1, col('training_id')).setNote('A short code you choose, e.g. ICS-4. Never change it once people have registered.');
-  tr.getRange(1, col('show_in_list')).setNote('Tick when the training is ready to announce. Unticked rows never appear in the app.');
-  tr.getRange(1, col('registration_closes')).setNote('Optional. Leave blank to keep registration open until the last day. Walk-ins can still register on the training days.');
-
-  // Automatic counts (registered, female, male) after the last column
-  if (H.indexOf('registered') === -1) {
-    const R = headers_(ss.getSheetByName('Registrations'));
-    const tid = columnLetter_(R.indexOf('training_id') + 1);
-    const sex = columnLetter_(R.indexOf('sex') + 1);
-    const ids = columnLetter_(col('training_id'));
-    const ref = function (c) { return 'Registrations!' + c + '2:' + c; };
-    const c0 = tr.getLastColumn() + 1;
-    tr.getRange(1, c0, 1, 3).setFormulas([[
-      '={"registered";ARRAYFORMULA(IF(' + ids + '2:' + ids + '="","",COUNTIF(' + ref(tid) + ',' + ids + '2:' + ids + ')))}',
-      '={"female";ARRAYFORMULA(IF(' + ids + '2:' + ids + '="","",COUNTIFS(' + ref(tid) + ',' + ids + '2:' + ids + ',' + ref(sex) + ',"Female")))}',
-      '={"male";ARRAYFORMULA(IF(' + ids + '2:' + ids + '="","",COUNTIFS(' + ref(tid) + ',' + ids + '2:' + ids + ',' + ref(sex) + ',"Male")))}'
-    ]]);
-    tr.getRange(1, c0, 1, 3).setFontWeight('bold').setBackground('#F7E9E9');
-    tr.getRange(1, c0).setNote("These three columns count themselves. Don't type in them. Female and male count only people who consented to the GAD questions.");
-  }
-
-  ['Registrations', 'Attendance'].forEach(function (name) {
-    const sh = ss.getSheetByName(name);
-    sh.getRange(2, headers_(sh).indexOf('timestamp') + 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
-  });
-  ss.getSheetByName('Registrations').getRange(1, 1).setNote('The timestamp is when the person submitted the form. It stands in for the signature on the GAD attendance sheet.');
-  ss.getSheetByName('Evaluations').getRange(1, 1).setNote('No names or codes here on purpose. New rows go in at random positions.');
-  const rq = ss.getSheetByName('Requests');
-  const RQ = headers_(rq);
-  rq.getRange(2, RQ.indexOf('timestamp') + 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
-  rq.getRange(2, RQ.indexOf('status') + 1, 999, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(REQUEST_STATUSES, true).build());
-  rq.getRange(1, RQ.indexOf('status') + 1).setNote('For organizers: New, Contacted, Scheduled, Done or Declined.');
-  const pt = ss.getSheetByName('Partnerships');
-  const PT = headers_(pt);
-  pt.getRange(2, PT.indexOf('timestamp') + 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm am/pm');
-  pt.getRange(2, PT.indexOf('status') + 1, 999, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(PARTNER_STATUSES, true).build());
-  pt.getRange(1, PT.indexOf('status') + 1).setNote('For organizers: New, Contacted, In talks, Partner or Declined. This tab is also your list of potential training partners.');
-
-  // Flag columns: a note on the header, and an amber highlight on flagged rows
-  FLAG_TABS.forEach(function (name) {
-    const sh = ss.getSheetByName(name);
-    sh.getRange(1, headers_(sh).indexOf('flag') + 1).setNote(FLAG_NOTE);
-    flagRule_(sh);
-  });
-
-  // Changelog: a note on the header and the time with seconds
-  const log = ss.getSheetByName('Changelog');
-  log.getRange(1, 1).setNote(CHANGELOG_NOTE);
-  log.getRange(2, 1, 999, 1).setNumberFormat('yyyy-mm-dd h:mm:ss am/pm');
-
-  // Data tabs and the Changelog: only the owner and the data stewards can edit them (the web app writes as the owner).
-  const me = Session.getEffectiveUser();
-  DATA_TABS.concat(['Changelog']).forEach(function (name) {
-    const sh = ss.getSheetByName(name);
-    const p = sh.getProtections(SpreadsheetApp.ProtectionType.SHEET)[0] || sh.protect();
-    p.setDescription(CONFIG.name + (name === 'Changelog' ? ' changelog' : ' data') + ': only the owner and the data stewards can edit this tab');
-    p.addEditor(me);
-    const keep = stewards_().concat([String(me.getEmail()).toLowerCase()]);
-    p.removeEditors(p.getEditors().filter(function (u) { return keep.indexOf(String(u.getEmail()).toLowerCase()) < 0; }));
-    stewards_().forEach(function (e) { try { p.addEditor(e); } catch (err) { /* not a Google account yet */ } });
-    if (p.canDomainEdit()) p.setDomainEdit(false);
-  });
-
-  const blank = ss.getSheetByName('Sheet1');
-  if (blank && blank.getLastRow() === 0 && ss.getSheets().length > 1) ss.deleteSheet(blank);
-  const logOn = changelogTriggers_(ss);
-  log_({ who: menuUser_(), action: 'Ran Set up or repair tabs' });
-  try {
-    ss.toast('The ' + CONFIG.name + ' tabs are ready.' + (logOn ? '' : ' To record edits in the Changelog tab, the owner of this Sheet runs Set up or repair tabs once.'), CONFIG.name, 8);
-  } catch (e) { /* toast only works with the Sheet open */ }
 }
 
 /* ===================================================================
@@ -1271,6 +1302,7 @@ function setFlag_(tab, row, text) {
 function flagHeader_(sh) {
   const head = headers_(sh);
   if (head.indexOf('flag') > -1) return;
+  ensureColumns_(sh, head.length + 1);
   sh.getRange(1, head.length + 1).setValue('flag').setFontWeight('bold').setBackground('#E3EFE7').setNote(FLAG_NOTE);
 }
 
@@ -1554,7 +1586,8 @@ function adminScanner(req) {
   const t = trainingOrThrow_(req.training_id);
   if (!t.start) throw new Error('Give this training a start date in the Trainings tab first.');
   if (t.end < today_()) throw new Error('This training has ended, so it has no scanner.');
-  const url = CONFIG.webAppUrl || ScriptApp.getService().getUrl();
+  const url = webAppUrl_();
+  if (!url) throw new Error(WEB_APP_URL_MISSING);
   const sc = scannerFor_(t, req.renew === true);
   log_({ who: email, action: req.renew === true ? 'Made a new scanner link and PIN (the old ones stopped working)' : 'Opened the scanner link and PIN (admin mode)',
     tab: 'Trainings', record: t.id });
@@ -1895,8 +1928,24 @@ function insertAnonymous_(name, record) {
   const last = Math.max(sh.getLastRow(), 1);
   const pos = 2 + Math.floor(Math.random() * last);   // anywhere from row 2 to the row after the last
   if (pos <= last) sh.insertRowBefore(pos);
+  else ensureRows_(sh, pos);
   sh.getRange(pos, 1, 1, row.length).setValues([row]);
   if (record.flag) flagRule_(sh);
+}
+
+function ensureColumns_(sh, cols) {
+  const have = sh.getMaxColumns();
+  if (cols > have) sh.insertColumnsAfter(have, cols - have);
+}
+
+function ensureRows_(sh, rows) {
+  const have = sh.getMaxRows();
+  if (rows > have) sh.insertRowsAfter(have, rows - have);
+}
+
+function dataRows_(sh, cap) {
+  ensureRows_(sh, 2);
+  return Math.min(cap, sh.getMaxRows() - 1);
 }
 
 function setValue_(name, rowNumber, column, value) {

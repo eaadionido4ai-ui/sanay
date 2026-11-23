@@ -301,6 +301,7 @@ body[data-view="evaluation"]:not(.is-sheet) .shell { max-width: 780px; }
 
 /* ---------- home ---------- */
 .view-home { position: relative; display: grid; justify-items: center; gap: 24px; text-align: center; margin-top: calc(12px - 0.55 * var(--band-h)); padding-bottom: 8px; }
+.home-err { position: relative; width: 100%; text-align: left; }
 .is-sheet .view-home { margin-top: 18px; }
 .masthead { display: grid; justify-items: center; gap: 12px; }
 .logos { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px 14px; padding: 8px 14px; border-radius: 16px; background: var(--plate); box-shadow: 0 0 0 1px var(--plate-ring); }
@@ -803,6 +804,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--m
           <p class="lockup-bottom" id="brandExpansion"></p>
         </div>
         </div>
+        <p class="err-box home-err" id="homeError" role="alert" hidden></p>
         <nav class="actions" aria-label="Choose what to do">
           <div class="flow">
             <button type="button" class="action" data-go="register" id="go-register">
@@ -4729,6 +4731,8 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function refresh() {
     return call('getAppData').then(function (d) {
       S.data = d; S.today = d.today;
+      $('#homeError').hidden = true;
+      $('#homeError').textContent = '';
       render();
       if (!LIVE && S.sheetOpen && S.flash) { S.sheetTab = S.flash.tab; renderSheet(); }
       if (!LIVE && S.report) { S.report = Demo.getReport({ training_id: S.rpTraining }); if (S.view === 'report') { fillReportControls(); renderReport(); } }
@@ -4737,10 +4741,15 @@ var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],
   function load() {
     return call('getAppData').then(function (d) {
       S.data = d; S.today = d.today;
+      $('#homeError').hidden = true;
+      $('#homeError').textContent = '';
       render();
     }).catch(function (e) {
+      var msg = "Couldn't load the list of trainings. " + (e.message || '') + ' Reload the page to try again.';
+      $('#homeError').textContent = msg;
+      $('#homeError').hidden = false;
       $('#regTraining').innerHTML = '<option value="">Couldn’t load the trainings</option>';
-      $('#regError').textContent = "Couldn't load the list of trainings. " + (e.message || '') + ' Reload the page to try again.';
+      $('#regError').textContent = msg;
       $('#regError').hidden = false;
     });
   }

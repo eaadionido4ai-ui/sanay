@@ -41,6 +41,15 @@ def build_index():
     return len(html)
 
 
+def js_data_uri(mime, data, indent, width=160):
+    """Formats a data: URI as a multi-line array join so browser editors don't choke on a single huge line."""
+    text = 'data:%s;base64,%s' % (mime, data)
+    if len(text) <= width:
+        return "'%s'" % text
+    chunks = [text[i:i + width] for i in range(0, len(text), width)]
+    return '[\n' + ',\n'.join("%s'%s'" % (indent + '  ', c) for c in chunks) + "\n%s].join('')" % indent
+
+
 def build_logos():
     meta = json.loads((LOGO_DIR / 'logos.json').read_text(encoding='utf-8'))
     items = []
@@ -48,7 +57,7 @@ def build_logos():
         path = LOGO_DIR / entry['file']
         mime = mimetypes.guess_type(path.name)[0] or 'image/webp'
         data = base64.b64encode(path.read_bytes()).decode('ascii')
-        items.append('  {\n    alt: %s,\n    src: \'data:%s;base64,%s\'\n  }' % (json.dumps(entry['alt']), mime, data))
+        items.append('  {\n    alt: %s,\n    src: %s\n  }' % (json.dumps(entry['alt']), js_data_uri(mime, data, '    ')))
     js = ('/**\n'
           ' * Logos shown on the SANAY home screen and on the printed attendance sheet, left to right.\n'
           ' * Built by tools/build.py from assets/logos. Cropped from the GAD attendance template.\n'
@@ -70,8 +79,8 @@ def build_logos():
                ' * credit: shown in the credits box; creditLink: the photo\'s page, linked from the credit.\n'
                ' * Delete this whole BACKDROP to leave the photo out.\n'
                ' */\n'
-               "const BACKDROP = {\n  src: 'data:%s;base64,%s',\n  position: %s,\n  fit: %s,\n  credit: %s,\n  creditLink: %s\n};\n"
-               % (mime, data, json.dumps(meta.get('position', 'center')), json.dumps(meta.get('fit', 'cover')),
+               "const BACKDROP = {\n  src: %s,\n  position: %s,\n  fit: %s,\n  credit: %s,\n  creditLink: %s\n};\n"
+               % (js_data_uri(mime, data, '  '), json.dumps(meta.get('position', 'center')), json.dumps(meta.get('fit', 'cover')),
                   json.dumps(meta.get('credit', '')), json.dumps(meta.get('creditLink', ''))))
     (OUT / 'Logos.gs').write_text(js, encoding='utf-8')
     return len(js)
