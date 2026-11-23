@@ -128,7 +128,7 @@ const CONFIG = {
   completedShown: 'this-year',   // completed trainings in the Register dropdown: 'this-year' or 'all'
   evaluationDaysAfter: 14,       // evaluation stays open this many days after the last training day
   reportLinkHours: 6,            // how long a report link from the Sheet menu works (6 at most)
-  webAppUrl: '',                 // paste your deployed /exec web app link here so Sheet menus and admin links always find it
+  webAppUrl: '',                 // better: the script property WEB_APP_URL (see README, set-up step 5), which survives pasting a new Code.gs
 
   // ---- Data privacy: besides the Sheet's owner, the accounts allowed to open the report page,
   //      run setup, edit the data tabs and sign in to admin mode. Put their emails in the script property
@@ -234,8 +234,8 @@ const RECORD_KEYS = { Trainings: 'training_id', Registrations: 'reg_code', Atten
   Requests: 'request_code', Partnerships: 'request_code' };
 const CHANGELOG_NOTE = 'SANAY adds a line here for each edit in its tabs (with the old and the new value), each action in admin mode ' +
   'and each report or scanner link. Leave it as it is: it is your record of who changed what. File › Version history has the rest.';
-const WEB_APP_URL_MISSING = 'Web app URL not found. Deploy the web app first (Deploy › New deployment › Web app), ' +
-  'then paste its /exec link into CONFIG.webAppUrl in Code.gs and deploy a New version.';
+const WEB_APP_URL_MISSING = 'Web app link not found. Deploy the web app first (Deploy › New deployment › Web app), then put its /exec link ' +
+  'in the script property WEB_APP_URL (Extensions › Apps Script › Project Settings › Script properties).';
 
 /* ===================================================================
  * Sheet set-up (kept first so the Apps Script toolbar defaults to "setup")
@@ -1104,7 +1104,11 @@ function scannerEntry_(key) {
   return t && t.start && today_() <= addDays_(t.end, SCANNER_GRACE_DAYS) ? { t: t, pin: pin } : null;
 }
 
+/** The web app's /exec link, for scanner and report links: the script property WEB_APP_URL, else CONFIG.webAppUrl,
+ *  else what Apps Script reports, which from the Sheet can be a link that doesn't open. */
 function webAppUrl_() {
+  const fromProperty = String(PropertiesService.getScriptProperties().getProperty('WEB_APP_URL') || '').trim();
+  if (fromProperty) return fromProperty;
   const configured = String(CONFIG.webAppUrl || '').trim();
   if (configured) return configured;
   try {

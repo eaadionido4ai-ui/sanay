@@ -55,7 +55,7 @@ tests/            back-end tests against a mock Sheet, and browser checks (tests
 3. **Create the tabs.** In the Apps Script toolbar, verify the function dropdown is set to **`setup`** (not `doGet`) and click **Run**, from the Sheet owner's account. Approve the permissions (if Google shows *"Google hasn't verified this app"*, click **Advanced › Go to [project name] (unsafe) › Allow**): besides this Sheet, SANAY asks to **send email as you** (the sign-in codes for admin mode) and to **run when you are not present** (the Changelog's record of edits). This creates the Trainings, Registrations, Attendance, Evaluations, Requests, Partnerships and Changelog tabs with three SAMPLE trainings, and a **SANAY** menu in the Sheet.
 4. **Publish the web app.** Click **Deploy › New deployment › gear › Web app**. Set *Execute as:* **Me** and *Who has access:* **Anyone**. Click **Deploy**, then copy the web app link (it ends in `/exec` — do not use a `/dev` test deployment link).
    - **Note for `@up.edu.ph` / Google Workspace accounts:** If external participants (non-UP LGUs, partners, etc.) will register, confirm that **Anyone** appears under *Who has access*. Some Workspace domains restrict anonymous Apps Script web apps to organization members only; if **Anyone** is missing or blocked, ask your Workspace admin or deploy from a Google account that allows public web apps.
-5. **Save the `/exec` URL in `Code.gs` and publish a new version.** Paste the copied `/exec` link into `webAppUrl` in `CONFIG` near the top of `Code.gs` (e.g. `webAppUrl: 'https://script.google.com/macros/s/.../exec'`), save, then click **Deploy › Manage deployments › pencil › Version: New version › Deploy**. This ensures the Sheet menu links (**Open the report page**, **Open the check-in scanner**) and admin mode always generate working `/exec` links instead of failing or returning `/dev`.
+5. **Save the `/exec` link in a script property.** In Apps Script, click **Project Settings** (the gear on the left), scroll down to **Script Properties** and click **Add script property**. Property: `WEB_APP_URL`. Value: the `/exec` link you copied. Click **Save script properties**. No new deployment is needed. This makes the Sheet menu links (**Open the report page**, **Open the check-in scanner**) and admin mode use your real `/exec` link: from the Sheet, Apps Script can otherwise give a link that doesn't open. Like `DATA_STEWARDS`, a script property stays when you paste a new `Code.gs`. (`webAppUrl` in `CONFIG` works too, but pasting a new `Code.gs` clears it.)
 6. **Try it.** Open the `/exec` link on your phone. Register for SAMPLE-1, then in the Sheet open **SANAY › Open the check-in scanner** and scan your QR code. Evaluate, send a request. Then delete the SAMPLE rows from the Trainings tab.
 7. **Lock it down** before real people register: see [Keep the data to a few people](#keep-the-data-to-a-few-people).
 
@@ -78,7 +78,7 @@ cd apps-script
 clasp push
 ```
 
-Then run `setup` once in the Apps Script editor, deploy the Web app, set `CONFIG.webAppUrl`, and re-push/deploy a new version.
+Then run `setup` once in the Apps Script editor, deploy the web app, and add the `WEB_APP_URL` script property (step 5 above).
 
 ## Running a training
 
