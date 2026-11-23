@@ -9,6 +9,7 @@ out/
 node_modules/
 __pycache__/
 .DS_Store
+.clasp.json
 
 # never commit participant data
 *.xlsx

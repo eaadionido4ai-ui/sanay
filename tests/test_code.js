@@ -39,18 +39,39 @@ class Range {
   setNumberFormat() { return this; } setFontWeight() { return this; } setBackground() { return this; } setNote() { return this; } setDataValidation() { return this; }
 }
 class Sheet {
-  constructor(name) { this.name = name; this.data = []; this.formulas = []; this.activeRow = 1; }
+  constructor(name, maxRows = 1000, maxCols = 26) { this.name = name; this.data = []; this.formulas = []; this.activeRow = 1; this.maxRows = maxRows; this.maxCols = maxCols; }
   set(r, c, v) { while (this.data.length < r) this.data.push([]); const row = this.data[r - 1]; while (row.length < c) row.push(''); row[c - 1] = v; }
   get(r, c) { const row = this.data[r - 1]; return row && row[c - 1] !== undefined ? row[c - 1] : ''; }
   getLastRow() { for (let i = this.data.length; i > 0; i--) if (this.data[i - 1].some(v => v !== '' && v !== undefined)) return i; return 0; }
   getLastColumn() { let m = 0; this.data.forEach(row => { for (let j = row.length; j > 0; j--) if (row[j - 1] !== '' && row[j - 1] !== undefined) { m = Math.max(m, j); break; } }); return m; }
-  getRange(r, c, nr, nc) { return new Range(this, r, c, nr || 1, nc || 1); }
+  getRange(r, c, nr, nc) {
+    const rows = nr === undefined ? 1 : nr, cols = nc === undefined ? 1 : nc;
+    if (r < 1 || c < 1 || rows < 1 || cols < 1 || r + rows - 1 > this.maxRows || c + cols - 1 > this.maxCols) {
+      throw new Error('Exception: The coordinates of the target range are outside the dimensions of the sheet.');
+    }
+    return new Range(this, r, c, rows, cols);
+  }
   getActiveRange() { return new Range(this, this.activeRow, 1, 1, 1); }
-  appendRow(row) { const r = this.getLastRow() + 1; row.forEach((v, j) => this.set(r, j + 1, parse(v))); }
-  insertRowBefore(pos) { this.data.splice(pos - 1, 0, []); }
-  deleteRow(r) { this.data.splice(r - 1, 1); }
+  appendRow(row) {
+    const r = this.getLastRow() + 1;
+    if (r > this.maxRows) this.maxRows = r;
+    if (row.length > this.maxCols) this.maxCols = row.length;
+    row.forEach((v, j) => this.set(r, j + 1, parse(v)));
+  }
+  insertRowBefore(pos) { this.data.splice(pos - 1, 0, []); this.maxRows += 1; }
+  insertRowsAfter(afterPosition, howMany) {
+    if (afterPosition < 1 || afterPosition > this.maxRows || howMany < 1) throw new Error('Invalid insertRowsAfter');
+    this.maxRows += howMany;
+    return this;
+  }
+  insertColumnsAfter(afterPosition, howMany) {
+    if (afterPosition < 1 || afterPosition > this.maxCols || howMany < 1) throw new Error('Invalid insertColumnsAfter');
+    this.maxCols += howMany;
+    return this;
+  }
+  deleteRow(r) { this.data.splice(r - 1, 1); this.maxRows = Math.max(1, this.maxRows - 1); }
   setFrozenRows() {} getName() { return this.name; }
-  getMaxRows() { return Math.max(1000, this.data.length); } getMaxColumns() { return Math.max(26, this.getLastColumn()); }
+  getMaxRows() { return this.maxRows; } getMaxColumns() { return this.maxCols; }
   getConditionalFormatRules() { return (this.cf || []).slice(); } setConditionalFormatRules(r) { this.cf = r; }
   setActiveRange(r) { this.selected = r; return r; }
   getProtections() { return this.protection ? [this.protection] : []; }
@@ -95,8 +116,10 @@ const ui = {
   showModalDialog: (out, title) => dialogs.push({ html: out.content, title })
 };
 let template = null;
+let serviceUrl = 'https://script.google.com/macros/s/TEST/exec';
+let effectiveUser = 'owner@up.example.edu';
 Object.assign(ctx, {
-  Session: { getActiveUser: () => ({ getEmail: () => activeUser }), getEffectiveUser: () => ({ getEmail: () => 'owner@up.example.edu' }) },
+  Session: { getActiveUser: () => ({ getEmail: () => activeUser }), getEffectiveUser: () => ({ getEmail: () => effectiveUser }) },
   SpreadsheetApp: {
     ProtectionType: { SHEET: 'SHEET', RANGE: 'RANGE' },
     getActiveSpreadsheet: () => ss, newDataValidation: () => builder,
@@ -112,7 +135,7 @@ Object.assign(ctx, {
   PropertiesService: { getScriptProperties: () => ({ getProperty: k => (k in props ? props[k] : null), setProperty: (k, v) => { props[k] = String(v); },
     deleteProperty: k => { delete props[k]; }, getProperties: () => Object.assign({}, props) }) },
   ScriptApp: {
-    getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/TEST/exec' }),
+    getService: () => ({ getUrl: () => serviceUrl }),
     getProjectTriggers: () => triggers.filter(t => t.user === 'owner@up.example.edu').map(t => ({ getHandlerFunction: () => t.fn })),
     newTrigger: fn => { const t = { fn, user: 'owner@up.example.edu' }; const b = { forSpreadsheet() { return b; }, onEdit() { t.type = 'onEdit'; return b; }, onChange() { t.type = 'onChange'; return b; }, create() { triggers.push(t); return t; } }; return b; }
   },
@@ -769,5 +792,69 @@ ok(ctx.register(person({ email: 'late3@example.com', walk_in: true })).checkIn.s
 trS.set(3, H.indexOf('show_in_list') + 1, false);
 d = ctx.getAppData();
 ok(!byId('SAMPLE-2'), 'unticked show_in_list hides SAMPLE-2');
+
+// 10. Apps Script setup & dimension-bounds reliability regressions
+ok(/^function\s+setup\s*\(/m.test(src) && src.indexOf('function setup(') < src.indexOf('function doGet('),
+  'setup() is defined before doGet() so the Apps Script toolbar Run dropdown defaults to setup');
+ok(T('Registrations').getMaxColumns() === 27, 'fresh-sheet setup() expanded Registrations from default 26 columns to 27');
+ok(Math.max(...logosSrc.split(/\r?\n/).map(l => l.length)) <= 200, 'Logos.gs wraps long base64 data URIs into short lines for safe copy-paste');
+
+// 10a. flagHeader_() upgrading an existing 26-column Registrations tab (maxCols = 26, no flag column yet)
+const legacyReg = new Sheet('LegacyReg', 1000, 26);
+const reg26 = vm.runInContext('TABS.Registrations.slice(0, 26)', ctx);
+legacyReg.getRange(1, 1, 1, 26).setValues([reg26]);
+ctx.flagHeader_(legacyReg);
+ok(legacyReg.getMaxColumns() === 27 && legacyReg.getRange(1, 27).getValue() === 'flag',
+  'flagHeader_() expands a 26-column Registrations tab to 27 columns before writing the flag header');
+
+// 10b. setup() on trimmed tabs with fewer than 500 rows (e.g. 50 rows)
+sheets.forEach(s => { s.maxRows = Math.max(s.getLastRow(), 50); });
+ctx.setup();
+ok(T('Trainings').getMaxRows() === 50 && T('Registrations').getMaxRows() >= 50,
+  'setup() succeeds on tabs with fewer than 500 rows without out-of-bounds errors');
+
+// 10c. insertAnonymous_() when Evaluations is already at getMaxRows() and random chooses pos = last + 1
+const evSh = T('Evaluations');
+const evBefore = evSh.getLastRow();
+evSh.maxRows = evBefore;
+vm.runInContext('var __origRandom = Math.random; Math.random = function () { return 0.999999; };', ctx);
+try {
+  vm.runInContext('insertAnonymous_("Evaluations", { date: today_(), training_id: "SAMPLE-1", overall: 5, will_apply: "", comments: "", flag: "" })', ctx);
+} finally {
+  vm.runInContext('Math.random = __origRandom;', ctx);
+}
+ok(evSh.getLastRow() === evBefore + 1 && evSh.getMaxRows() === evBefore + 1,
+  'insertAnonymous_() expands rows when inserting at pos = getMaxRows() + 1');
+
+// 10d. Missing webAppUrl when ScriptApp.getService().getUrl() returns null (clear error, never TypeError)
+serviceUrl = null;
+vm.runInContext("CONFIG.webAppUrl = ''", ctx);
+dialogs.length = 0;
+ctx.openReport();
+ok(/CONFIG\.webAppUrl/.test((dialogs.pop() || {}).alert || ''), 'openReport() alerts cleanly when web app URL is null');
+ctx.openScanner();
+ok(/CONFIG\.webAppUrl/.test((dialogs.pop() || {}).alert || ''), 'openScanner() alerts cleanly when web app URL is null');
+throws(() => ctx.renewScanner('SAMPLE-1'), /CONFIG\.webAppUrl/, 'renewScanner() throws clear CONFIG.webAppUrl error instead of TypeError');
+throws(() => ctx.getScanner({ key: scB.key, pin: scB.pin }), /CONFIG\.webAppUrl/, 'getScanner() throws clear CONFIG.webAppUrl error instead of TypeError');
+ctx.adminSendCode({ email: 'owner@up.example.edu' });
+const admNull = ctx.adminSignIn({ email: 'owner@up.example.edu', code: codeOf(lastMail()) });
+throws(() => ctx.adminScanner({ token: admNull.token, training_id: 'SAMPLE-1' }), /CONFIG\.webAppUrl/,
+  'adminScanner() throws clear CONFIG.webAppUrl error instead of TypeError');
+vm.runInContext("CONFIG.webAppUrl = 'https://script.google.com/macros/s/CONFIGURED/exec'", ctx);
+ok(ctx.getScanner({ key: scB.key, pin: scB.pin }).link.startsWith('https://script.google.com/macros/s/CONFIGURED/exec?page=scan&k='),
+  'CONFIG.webAppUrl overrides a null ScriptApp.getService().getUrl()');
+vm.runInContext("CONFIG.webAppUrl = ''", ctx);
+serviceUrl = 'https://script.google.com/macros/s/TEST/exec';
+
+// 10e. Non-owner steward running setup() keeps the Sheet owner in protected-tab editors
+props.DATA_STEWARDS = 'steward@up.example.edu';
+activeUser = 'steward@up.example.edu';
+effectiveUser = 'steward@up.example.edu';
+ctx.setup();
+ok(T('Registrations').protection.editors.includes('owner@up.example.edu') && T('Registrations').protection.editors.includes('steward@up.example.edu'),
+  'non-owner data steward running setup() keeps the Sheet owner on tab protections');
+delete props.DATA_STEWARDS;
+activeUser = 'owner@up.example.edu';
+effectiveUser = 'owner@up.example.edu';
 
 console.log(pass + ' checks passed');

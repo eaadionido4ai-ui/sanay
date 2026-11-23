@@ -47,17 +47,38 @@ tests/            back-end tests against a mock Sheet, and browser checks (tests
 ## Set up (about 15 minutes)
 
 1. **Make the Sheet.** In Google Drive (your UP account), create a Google Sheet, e.g. *SANAY Training Database*.
-2. **Add the code.** In the Sheet: **Extensions › Apps Script**.
-   - Replace the starter code in `Code.gs` with [`apps-script/Code.gs`](apps-script/Code.gs).
-   - Click **+ › Script**, name it `Logos`, paste [`apps-script/Logos.gs`](apps-script/Logos.gs).
-   - Click **+ › HTML**, name it `Index` (exactly), paste [`apps-script/Index.html`](apps-script/Index.html).
-   - Save.
-3. **Create the tabs.** In the toolbar choose the function `setup` and click **Run**, from the Sheet owner's account. Approve the permissions: besides this Sheet, SANAY asks to **send email as you** (the sign-in codes for admin mode) and to **run when you are not present** (the Changelog's record of edits). This makes the Trainings, Registrations, Attendance, Evaluations, Requests, Partnerships and Changelog tabs with three SAMPLE trainings, and a **SANAY** menu in the Sheet.
-4. **Publish the web app.** **Deploy › New deployment › gear › Web app**. *Execute as:* Me. *Who has access:* Anyone. Deploy, then copy the web app link.
-5. **Try it.** Open the link on your phone. Register for SAMPLE-1, then in the Sheet open **SANAY › Open the check-in scanner** and scan your QR code. Evaluate, send a request. Then delete the SAMPLE rows from the Trainings tab.
-6. **Lock it down** before real people register: see [Keep the data to a few people](#keep-the-data-to-a-few-people).
+2. **Add the code (inside the Sheet).** Open **Extensions › Apps Script** *from inside the Google Sheet* (do **not** create a standalone project at `script.google.com`, because SANAY reads the attached Sheet via `getActiveSpreadsheet()`). File names and types are **case-sensitive**:
+   - In `Code.gs` (Script), replace the starter code with the **Raw** contents of [`apps-script/Code.gs`](apps-script/Code.gs).
+   - Click **+ › Script**, name it `Logos` (exact capitalization), and paste the **Raw** contents of [`apps-script/Logos.gs`](apps-script/Logos.gs).
+   - Click **+ › HTML** (not Script), name it `Index` (exact capital `I`, without `.html` — Apps Script adds `.html` automatically), and paste the **Raw** contents of [`apps-script/Index.html`](apps-script/Index.html).
+   - Save. (If you prefer zero copy-paste, see [Deploy with `clasp` (optional)](#deploy-with-clasp-optional) below.)
+3. **Create the tabs.** In the Apps Script toolbar, verify the function dropdown is set to **`setup`** (not `doGet`) and click **Run**, from the Sheet owner's account. Approve the permissions (if Google shows *"Google hasn't verified this app"*, click **Advanced › Go to [project name] (unsafe) › Allow**): besides this Sheet, SANAY asks to **send email as you** (the sign-in codes for admin mode) and to **run when you are not present** (the Changelog's record of edits). This creates the Trainings, Registrations, Attendance, Evaluations, Requests, Partnerships and Changelog tabs with three SAMPLE trainings, and a **SANAY** menu in the Sheet.
+4. **Publish the web app.** Click **Deploy › New deployment › gear › Web app**. Set *Execute as:* **Me** and *Who has access:* **Anyone**. Click **Deploy**, then copy the web app link (it ends in `/exec` — do not use a `/dev` test deployment link).
+   - **Note for `@up.edu.ph` / Google Workspace accounts:** If external participants (non-UP LGUs, partners, etc.) will register, confirm that **Anyone** appears under *Who has access*. Some Workspace domains restrict anonymous Apps Script web apps to organization members only; if **Anyone** is missing or blocked, ask your Workspace admin or deploy from a Google account that allows public web apps.
+5. **Save the `/exec` URL in `Code.gs` and publish a new version.** Paste the copied `/exec` link into `webAppUrl` in `CONFIG` near the top of `Code.gs` (e.g. `webAppUrl: 'https://script.google.com/macros/s/.../exec'`), save, then click **Deploy › Manage deployments › pencil › Version: New version › Deploy**. This ensures the Sheet menu links (**Open the report page**, **Open the check-in scanner**) and admin mode always generate working `/exec` links instead of failing or returning `/dev`.
+6. **Try it.** Open the `/exec` link on your phone. Register for SAMPLE-1, then in the Sheet open **SANAY › Open the check-in scanner** and scan your QR code. Evaluate, send a request. Then delete the SAMPLE rows from the Trainings tab.
+7. **Lock it down** before real people register: see [Keep the data to a few people](#keep-the-data-to-a-few-people).
 
 After you change any file: **Deploy › Manage deployments › pencil › Version: New version › Deploy**. The link stays the same. If you already ran `setup` with an older version, run it again from the owner's account (**SANAY › Set up or repair tabs**): it adds the new columns and tabs, such as the `flag` columns and the Changelog, turns on the Changelog's record of edits, and asks for any new permissions, without touching your data. (If you tried the first version, with four ratings, its old Evaluations columns stay but are no longer used. Delete them, or delete the test Evaluations tab before you run `setup`.)
+
+### Deploy with `clasp` (optional)
+
+Instead of manually copying and pasting `Code.gs`, `Logos.gs` and `Index.html` into the browser editor, you can push the `apps-script/` folder directly with Google's official [`@google/clasp`](https://github.com/google/clasp) CLI (this also syncs `apps-script/appsscript.json`):
+
+```bash
+npm install -g @google/clasp
+clasp login
+```
+
+1. Open your Google Sheet › **Extensions › Apps Script** › **Project Settings** (gear icon) and copy the **Script ID**.
+2. In your local clone, create `apps-script/.clasp.json` (do not commit it — add it to `.gitignore` or keep it outside git) with `{"scriptId":"YOUR_SCRIPT_ID","rootDir":"."}` and run:
+
+```bash
+cd apps-script
+clasp push
+```
+
+Then run `setup` once in the Apps Script editor, deploy the Web app, set `CONFIG.webAppUrl`, and re-push/deploy a new version.
 
 ## Running a training
 
