@@ -831,19 +831,27 @@ serviceUrl = null;
 vm.runInContext("CONFIG.webAppUrl = ''", ctx);
 dialogs.length = 0;
 ctx.openReport();
-ok(/CONFIG\.webAppUrl/.test((dialogs.pop() || {}).alert || ''), 'openReport() alerts cleanly when web app URL is null');
+ok(/WEB_APP_URL/.test((dialogs.pop() || {}).alert || ''), 'openReport() alerts cleanly when web app URL is null');
 ctx.openScanner();
-ok(/CONFIG\.webAppUrl/.test((dialogs.pop() || {}).alert || ''), 'openScanner() alerts cleanly when web app URL is null');
-throws(() => ctx.renewScanner('SAMPLE-1'), /CONFIG\.webAppUrl/, 'renewScanner() throws clear CONFIG.webAppUrl error instead of TypeError');
-throws(() => ctx.getScanner({ key: scB.key, pin: scB.pin }), /CONFIG\.webAppUrl/, 'getScanner() throws clear CONFIG.webAppUrl error instead of TypeError');
+ok(/WEB_APP_URL/.test((dialogs.pop() || {}).alert || ''), 'openScanner() alerts cleanly when web app URL is null');
+throws(() => ctx.renewScanner('SAMPLE-1'), /WEB_APP_URL/, 'renewScanner() throws a clear error naming WEB_APP_URL instead of TypeError');
+throws(() => ctx.getScanner({ key: scB.key, pin: scB.pin }), /WEB_APP_URL/, 'getScanner() throws a clear error naming WEB_APP_URL instead of TypeError');
 ctx.adminSendCode({ email: 'owner@up.example.edu' });
 const admNull = ctx.adminSignIn({ email: 'owner@up.example.edu', code: codeOf(lastMail()) });
-throws(() => ctx.adminScanner({ token: admNull.token, training_id: 'SAMPLE-1' }), /CONFIG\.webAppUrl/,
-  'adminScanner() throws clear CONFIG.webAppUrl error instead of TypeError');
+throws(() => ctx.adminScanner({ token: admNull.token, training_id: 'SAMPLE-1' }), /WEB_APP_URL/,
+  'adminScanner() throws a clear error naming WEB_APP_URL instead of TypeError');
 vm.runInContext("CONFIG.webAppUrl = 'https://script.google.com/macros/s/CONFIGURED/exec'", ctx);
 ok(ctx.getScanner({ key: scB.key, pin: scB.pin }).link.startsWith('https://script.google.com/macros/s/CONFIGURED/exec?page=scan&k='),
   'CONFIG.webAppUrl overrides a null ScriptApp.getService().getUrl()');
+// the script property WEB_APP_URL survives pasting a new Code.gs, so it comes first; spaces around it are ignored
+props.WEB_APP_URL = '  https://script.google.com/macros/s/FROMPROPERTY/exec \n';
+ok(ctx.getScanner({ key: scB.key, pin: scB.pin }).link.startsWith('https://script.google.com/macros/s/FROMPROPERTY/exec?page=scan&k='),
+  'the WEB_APP_URL script property comes before CONFIG.webAppUrl');
 vm.runInContext("CONFIG.webAppUrl = ''", ctx);
+serviceUrl = 'https://script.google.com/macros/s/BROKEN-FROM-THE-SHEET/exec';
+ok(ctx.getScanner({ key: scB.key, pin: scB.pin }).link.startsWith('https://script.google.com/macros/s/FROMPROPERTY/exec?page=scan&k='),
+  'with WEB_APP_URL set, a link Apps Script reports from the Sheet is never used');
+delete props.WEB_APP_URL;
 serviceUrl = 'https://script.google.com/macros/s/TEST/exec';
 
 // 10e. Non-owner steward running setup() keeps the Sheet owner in protected-tab editors

@@ -76,9 +76,15 @@ def tiny_png(w=6, h=4, grey=120):
     return 'data:image/png;base64,' + base64.b64encode(png).decode('ascii')
 
 
+MORNING = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).replace(hour=10, minute=0, second=0, microsecond=0)
+
+
 def open_page(browser, w, h, dark=False, brand=None, dsf=1):
     ctx = browser.new_context(viewport={'width': w, 'height': h}, device_scale_factor=dsf, color_scheme='dark' if dark else 'light')
     pg = ctx.new_page()
+    # The preview counts people as checked in today only once their check-in time has passed, so start every page at
+    # 10:00 in Manila: the checks then pass whatever time they run. The clock keeps running from there.
+    pg.clock.install(time=MORNING)
     errors = []
     pg.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
     pg.on('pageerror', lambda e: errors.append(str(e)))
